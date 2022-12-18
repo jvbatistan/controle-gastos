@@ -1,0 +1,13 @@
+# Read about fixtures at https://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
+
+one:
+  description: MyString
+  value: 1.5
+  paid: false
+  card: one
+
+two:
+  description: MyString
+  value: 1.5
+  paid: false
+  card: two

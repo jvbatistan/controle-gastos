@@ -1,0 +1,62 @@
+<% action = params[:action] %>
+<div class="container-fluid mt-4 mb-4">
+  <div class="row justify-content-center">
+    <div class="col-md-4">
+      <h1><%= action == "edit" ? "Atualizar" : "Cadastrar nova" %> dívida</h1>
+      <%= form_with(model: spend, local: true) do |form| %>
+        <% if spend.errors.any? %>
+          <div id="error_explanation">
+            <h2><%= spend.errors.count > 1 ? spend.errors.count.to_s + " erros abaixo foram encontrados:" : "1 erro abaixo foi encontrado" %></h2>
+
+            <ul>
+              <% spend.errors.full_messages.each do |message| %>
+                <li><%= message %></li>
+              <% end %>
+            </ul>
+          </div>
+        <% end %>
+
+        <div class="mb-3">
+          <%= form.label :description, class: 'form-label' %>
+          <%= form.text_field :description, class: 'form-control', 'aria-describedby': 'description_help' %>
+          <div id="description_help" class="form-text">Escreva como o dívida será identificada.</div>
+        </div>
+
+        <div class="mb-3">
+          <%= form.label :value, class: 'form-label' %>
+          <%= form.text_field :value, class: 'form-control', 'aria-describedby': 'value_help', 'data-mask': "#.##0.00", 'data-mask-reverse': "true" %>
+          <div id="value_help" class="form-text">Escreva o valor da dívida.</div>
+        </div>
+
+        <div class="mb-3">
+          <div class="containar-fluid">
+            <div class="row">
+              <div class="col">
+                <%= form.label :month, class: 'form-label' %>
+                <%= form.text_field :month, class: 'form-control' %>
+              </div>
+
+              <div class="col">
+                <%= form.label :year, class: 'form-label' %>
+                <%= form.text_field :year, class: 'form-control' %>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="mb-3">
+          <%= form.check_box :paid, class: 'form-check-input' %>
+          <%= form.label :paid, class: 'form-check-label' %>
+        </div>
+        
+        <div class="mb-3">
+          <%= form.label :card_id, class: 'form-label' %>
+          <%= form.collection_select :card_id, @cards, :id, :name, { include_blank: false }, { class: 'form-select' } %>
+        </div>
+
+        <%= form.submit action == "edit" ? "Atualizar" : "Cadastrar dívida", class: 'btn btn-primary' %>
+        <%= link_to 'Voltar', :back, class: 'btn btn-secondary text-white' %>
+      <% end %>
+    </div>
+  </div>
+</div>
