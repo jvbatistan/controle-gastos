@@ -3,13 +3,13 @@
   <div class="row justify-content-center">
     <div class="col-md-4">
       <h1><%= action == "edit" ? "Atualizar" : "Cadastrar nova" %> dívida</h1>
-      <%= form_with(model: spend, local: true) do |form| %>
-        <% if spend.errors.any? %>
+      <%= form_with(model: expense, local: true) do |form| %>
+        <% if expense.errors.any? %>
           <div id="error_explanation">
-            <h2><%= spend.errors.count > 1 ? spend.errors.count.to_s + " erros abaixo foram encontrados:" : "1 erro abaixo foi encontrado" %></h2>
+            <h2><%= expense.errors.count > 1 ? expense.errors.count.to_s + " erros abaixo foram encontrados:" : "1 erro abaixo foi encontrado" %></h2>
 
             <ul>
-              <% spend.errors.full_messages.each do |message| %>
+              <% expense.errors.full_messages.each do |message| %>
                 <li><%= message %></li>
               <% end %>
             </ul>

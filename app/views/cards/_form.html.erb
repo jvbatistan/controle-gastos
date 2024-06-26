@@ -1,7 +1,7 @@
-<div class="container-fluid">
+<div class="container-fluid my-2">
   <div class="row justify-content-center">
     <div class="col-md-auto">
-      <h1> Cadastrar novo cartão </h1>
+      <h1 class="p-3"> Cadastrar novo cartão </h1>
       <%= form_with(model: card, local: true) do |form| %>
         <% if card.errors.any? %>
           <div id="error_explanation">
@@ -18,13 +18,31 @@
         <div class="mb-3">
           <%= form.label :name, class: 'form-label' %>
           <%= form.text_field :name, class: 'form-control', 'aria-describedby': 'name_help' %>
-          <div id="name_help" class="form-text">Escreva como o cartão a ser cadastrado será identificado.</div>
+          <div id="name_help" class="form-text">Escreva como o cartão será identificado.</div>
         </div>
         
         <div class="mb-3">
-          <%= form.label :expiration, class: 'form-label' %>
-          <%= form.date_field :expiration, as: :date, value: form.object.try(:strftime,"%mm/%dd/%YYYY"), class: 'form-control', 'aria-describedby': 'expiration_help' %>
-          <div id="expiration_help" class="form-text">Adicione a data de vencimento do cartão.</div>
+          <%= form.label :pay_day, class: 'form-label' %>
+          <%= form.number_field :pay_day, as: :number, class: 'form-control', 'aria-describedby': 'pay_day_help' %>
+          <div id="pay_day_help" class="form-text">Adicione a data de vencimento do cartão.</div>
+        </div>
+
+        <div class="mb-3">
+          <%= form.label :limit, class: 'form-label' %>
+          <%= form.number_field :limit, as: :number, class: 'form-control', 'aria-describedby': 'limit_help' %>
+          <div id="limit_help" class="form-text">Adicione o limite do seu cartão.</div>
+        </div>
+
+        <div class="mb-3">
+          <%= form.label :image, class: 'form-label' %>
+          <%= form.file_field :image, as: :file, class: 'form-control', 'aria-describedby': 'image_help' %>
+          <div id="image_help" class="form-text">Adicione uma imagem para seu cartão.</div>
+        </div>
+
+        <div class="mb-3">
+          <%= form.label :color, class: 'form-label' %>
+          <%= form.color_field :color, as: :color, class: 'form-control', 'aria-describedby': 'color_help' %>
+          <div id="color_help" class="form-text">Adicione uma cor para seu cartão.</div>
         </div>
         
         <%= form.submit "Cadastrar cartão", class: 'btn btn-primary' %>

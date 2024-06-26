@@ -1,48 +1,48 @@
 require 'test_helper'
 
-class SpendsControllerTest < ActionDispatch::IntegrationTest
+class ExpensesControllerTest < ActionDispatch::IntegrationTest
   setup do
-    @spend = spends(:one)
+    @expense = expenses(:one)
   end
 
   test "should get index" do
-    get spends_url
+    get expenses_url
     assert_response :success
   end
 
   test "should get new" do
-    get new_spend_url
+    get new_expense_url
     assert_response :success
   end
 
-  test "should create spend" do
-    assert_difference('Spend.count') do
-      post spends_url, params: { spend: { card_id: @spend.card_id, description: @spend.description, paid: @spend.paid, value: @spend.value } }
+  test "should create expense" do
+    assert_difference('Expense.count') do
+      post expenses_url, params: { expense: { card_id: @expense.card_id, description: @expense.description, paid: @expense.paid, value: @expense.value } }
     end
 
-    assert_redirected_to spend_url(Spend.last)
+    assert_redirected_to expense_url(Expense.last)
   end
 
-  test "should show spend" do
-    get spend_url(@spend)
+  test "should show expense" do
+    get expense_url(@expense)
     assert_response :success
   end
 
   test "should get edit" do
-    get edit_spend_url(@spend)
+    get edit_expense_url(@expense)
     assert_response :success
   end
 
-  test "should update spend" do
-    patch spend_url(@spend), params: { spend: { card_id: @spend.card_id, description: @spend.description, paid: @spend.paid, value: @spend.value } }
-    assert_redirected_to spend_url(@spend)
+  test "should update expense" do
+    patch expense_url(@expense), params: { expense: { card_id: @expense.card_id, description: @expense.description, paid: @expense.paid, value: @expense.value } }
+    assert_redirected_to expense_url(@expense)
   end
 
-  test "should destroy spend" do
-    assert_difference('Spend.count', -1) do
-      delete spend_url(@spend)
+  test "should destroy expense" do
+    assert_difference('Expense.count', -1) do
+      delete expense_url(@expense)
     end
 
-    assert_redirected_to spends_url
+    assert_redirected_to expenses_url
   end
 end

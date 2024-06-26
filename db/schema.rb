@@ -10,26 +10,30 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 2022_09_01_155707) do
+ActiveRecord::Schema.define(version: 2022_09_01_153415) do
 
   create_table "cards", force: :cascade do |t|
     t.string "name"
-    t.date "expiration"
+    t.integer "pay_day"
+    t.integer "limit"
+    t.string "image"
+    t.string "color"
     t.datetime "created_at", precision: 6, null: false
     t.datetime "updated_at", precision: 6, null: false
   end
 
-  create_table "spends", force: :cascade do |t|
+  create_table "expenses", force: :cascade do |t|
     t.string "description"
     t.float "value"
     t.boolean "paid"
+    t.string "month"
+    t.string "year"
+    t.string "responsible"
     t.integer "card_id", null: false
     t.datetime "created_at", precision: 6, null: false
     t.datetime "updated_at", precision: 6, null: false
-    t.string "month"
-    t.string "year"
-    t.index ["card_id"], name: "index_spends_on_card_id"
+    t.index ["card_id"], name: "index_expenses_on_card_id"
   end
 
-  add_foreign_key "spends", "cards"
+  add_foreign_key "expenses", "cards"
 end

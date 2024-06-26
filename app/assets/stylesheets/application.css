@@ -22,3 +22,7 @@
   display: inline-block;
   float: none;
 }
+
+body {
+  background-color: #191919;
+}

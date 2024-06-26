@@ -1,4 +1,4 @@
-<% @month = @month.present? ? @month : Date.today.month.to_s.rjust(2, '0') %>
+<% @month = @month.present? ? @month : Date.today.next_month.month.to_s.rjust(2, '0') %>
 
 <% if notice.present? %>
   <div class="col-6 mt-3">
@@ -10,15 +10,15 @@
   </div>
 <% end %>
 
-<div class="container-fluid mt-5">
-  <h4 class='text-center mb-4'> Gastos do mês de <%= I18n.t('date.month_names')[@month.to_i].downcase %> </h4>
+<div class="container-fluid my-2">
+  <h4 class='text-center p-3'> Gastos do mês de <%= I18n.t('date.month_names')[@month.to_i].downcase %> </h4>
   <div class="row">
     <% @cards.each do |card| %>
-      <div class="col">
+      <div class="col-md-3">
         <h6 class='text-center'> Cartão <%= card.name %> </h6>
 
         <div class="table-responsive">
-          <table class='table table-striped table-bordered'>
+          <table class='table table-striped table-bordered text-white'>
             <thead>
               <tr>
                 <th scope="col" style='font-size: 12px;'>Descrição</th>
@@ -27,26 +27,26 @@
             </thead>
 
             <tbody class="table-group-divider">
-              <% spends = card.spends.where(month: @month, year: Date.today.year) %>
+              <% expenses = card.expenses.where(month: @month, year: Date.today.year) %>
               
-              <% if spends.present? %>
-                <% total_spend = 0 %>
-                <% spends.each do |spend| %>
+              <% if expenses.present? %>
+                <% total_expense = 0 %>
+                <% expenses.each do |expense| %>
                   <tr>
                     <td>
-                      <p style="font-size: 10px; margin: 0px;" title="<%=spend.description%>"><%= spend.description.truncate(8) %></p>
+                      <p class="text-white" style="font-size: 10px; margin: 0px;" title="<%=expense.description%>"><%= expense.description.truncate(8) %></p>
                     </td>
-                    <td class='text-end' style="font-size: 10px;">R$ <%= sprintf("%.2f", spend.value).to_s.gsub('.', ',') %></td>
-                    <% total_spend += spend.value %>
+                    <td class='text-end' style="font-size: 10px;">R$ <%= sprintf("%.2f", expense.value).to_s.gsub('.', ',') %></td>
+                    <% total_expense += expense.value %>
                   </tr>
                 <% end %>
                 <tr>
                   <td style="font-size: 10px;"><b>TOTAL</b></td>
-                  <td class="text-end" style="font-size: 10px;"><b>R$ <%= sprintf("%.2f", total_spend).to_s.gsub('.', ',') %></b></td> 
+                  <td class="text-end" style="font-size: 10px;"><b>R$ <%= sprintf("%.2f", total_expense).to_s.gsub('.', ',') %></b></td> 
                 </tr>
               <% else %>
                 <tr>
-                  <td class="text-center" colspan="2" style="font-size: 10px;"> SEM DÍVIDAS CADASTRADAS NO MOMENTO </td> 
+                  <td class="text-center text-white" colspan="2" style="font-size: 10px;"> SEM DÍVIDAS CADASTRADAS NO MOMENTO </td> 
                 </tr>
               <% end %>
             </tbody>
@@ -57,12 +57,14 @@
   </div>
 </div>
 
-<div class="container-fluid mt-5">
-  <ul class="nav nav-pills mb-3" id="pills-tab" role="tablist">
-    <% @months.each_with_index do |month, index| %>
-      <li class="nav-item" role="presentation">
-        <%= link_to "#{month}", totals_path(month: (index+1)), class: (index + 1) == @month.to_i ? "nav-link active" : "nav-link", "role": "tab", "aria-selected": (index + 1) == @month.to_i ? "true" : "false", id: "pills-#{month.downcase}-tab" %>
-      </li>
-    <% end %>
-  </ul>
+<div class="position-relative">
+  <div class="container-fluid my-2 position-absolute top-100">
+    <ul class="nav nav-pills nav-fill mb-3" id="pills-tab" role="tablist">
+      <% @months.each_with_index do |month, index| %>
+        <li class="nav-item" role="presentation">
+          <%= link_to "#{month}", totals_path(month: (index+1)), class: (index + 1) == @month.to_i ? "nav-link active" : "nav-link", "role": "tab", "aria-selected": (index + 1) == @month.to_i ? "true" : "false", id: "pills-#{month.downcase}-tab" %>
+        </li>
+      <% end %>
+    </ul>
+  </div>
 </div>

@@ -1,6 +1,5 @@
 class Card < ApplicationRecord
-  has_many :spends, dependent: :destroy
+  has_many :expenses, dependent: :destroy
 
-  validates :name, presence: true
-  validates :expiration, presence: true
+  validates :name, :pay_day, presence: true
 end

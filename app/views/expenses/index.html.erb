@@ -14,7 +14,7 @@
       <h1>Despesas</h1>
     </div>
     <div class="col text-end">
-      <%= link_to 'Cadastrar despesa', new_spend_path, class: "btn btn-success text-white" %>
+      <%= link_to 'Cadastrar despesa', new_expense_path, class: "btn btn-success text-white" %>
     </div>
   </div>
   <div class="row">
@@ -34,17 +34,17 @@
           </thead>
 
           <tbody class="table-group-divider">
-            <% @spends.each_with_index do |spend, index| %>
+            <% @expenses.each_with_index do |expense, index| %>
               <tr>
-                <td><%= spend.id %></td>
-                <td><%= spend.description %></td>
-                <td class="text-end">R$ <%= sprintf("%.2f", spend.value).to_s.gsub('.', ',') %></td>
-                <td><%= spend.paid ? "Sim" : "Não" %></td>
-                <td><%= spend.card.name %></td>
-                <td><%= spend.month + "/" + spend.year %></td>
+                <td><%= expense.id %></td>
+                <td><%= expense.description %></td>
+                <td class="text-end">R$ <%= sprintf("%.2f", expense.value).to_s.gsub('.', ',') %></td>
+                <td><%= expense.paid ? "Sim" : "Não" %></td>
+                <td><%= expense.card.name %></td>
+                <td><%= expense.month + "/" + expense.year %></td>
                 <td>
-                  <%= link_to 'Editar', edit_spend_path(spend), class: 'btn btn-secondary text-white' %>
-                  <%= link_to 'Excluir', spend, method: :delete, class: 'btn btn-danger text-white', data: { confirm: 'Tem certeza?' } %>
+                  <%= link_to 'Editar', edit_expense_path(expense), class: 'btn btn-secondary text-white' %>
+                  <%= link_to 'Excluir', expense, method: :delete, class: 'btn btn-danger text-white', data: { confirm: 'Tem certeza?' } %>
                 </td>
               </tr>
             <% end %>
@@ -55,7 +55,7 @@
   </div>
   <div class="row">
     <div class="col">
-      <%= paginate @spends %>
+      <%= paginate @expenses %>
     </div>
   </div>
 </div>

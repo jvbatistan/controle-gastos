@@ -14,35 +14,35 @@
   <h4 class='text-center mb-4'> Gastos do mês de <%= I18n.t('date.month_names')[@month.to_i].downcase %> </h4>
   <div class="row">
     <% @cards.each do |card| %>
-      <div class="col">
+      <div class="col-md-3">
         <h6 class='text-center'> Cartão <%= card.name %> </h6>
 
         <div class="table-responsive">
           <table class='table table-striped table-bordered'>
             <thead>
               <tr>
-                <th scope="col" style='font-size: 12px;'>Descrição</th>
-                <th scope="col" style='font-size: 12px;'>Valor</th>
+                <th scope="col" style="font-size: 12px;">Descrição</th>
+                <th scope="col" style="font-size: 12px;">Valor</th>
               </tr>
             </thead>
 
             <tbody class="table-group-divider">
-              <% spends = card.spends.where(month: @month, year: Date.today.year) %>
+              <% expenses = card.expenses.where(month: @month, year: Date.today.year) %>
               
-              <% if spends.present? %>
-                <% total_spend = 0 %>
-                <% spends.each do |spend| %>
+              <% if expenses.present? %>
+                <% total_expense = 0 %>
+                <% expenses.each do |expense| %>
                   <tr>
                     <td>
-                      <p style="font-size: 10px; margin: 0px;" title="<%=spend.description%>"><%= spend.description.truncate(8) %></p>
+                      <p style="font-size: 10px; margin: 0px;" title="<%=expense.description%>"><%= expense.description.truncate(8) %></p>
                     </td>
-                    <td class='text-end' style="font-size: 10px;">R$ <%= sprintf("%.2f", spend.value).to_s.gsub('.', ',') %></td>
-                    <% total_spend += spend.value %>
+                    <td class='text-end' style="font-size: 10px;">R$ <%= sprintf("%.2f", expense.value).to_s.gsub('.', ',') %></td>
+                    <% total_expense += expense.value %>
                   </tr>
                 <% end %>
                 <tr>
                   <td style="font-size: 10px;"><b>TOTAL</b></td>
-                  <td class="text-end" style="font-size: 10px;"><b>R$ <%= sprintf("%.2f", total_spend).to_s.gsub('.', ',') %></b></td> 
+                  <td class="text-end" style="font-size: 10px;"><b>R$ <%= sprintf("%.2f", total_expense).to_s.gsub('.', ',') %></b></td> 
                 </tr>
               <% else %>
                 <tr>

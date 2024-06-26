@@ -1,10 +1,10 @@
 pt-BR:
   activerecord:
     models:
-      spend: Dívida
+      expense: Despesa
       card: Cartão
     attributes:
-      spend:
+      expense:
         description: Descrição
         value: Valor
         paid: Pago
@@ -13,7 +13,7 @@ pt-BR:
         card_id: Cartão da dívida
       card:
         name: Nome
-        expiration: Vencimento
+        pay_day: Dia do pagamento
     errors:
       messages:
         record_invalid: 'A validação falhou: %{errors}'

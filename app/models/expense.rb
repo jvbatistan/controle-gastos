@@ -1,4 +1,4 @@
-class Spend < ApplicationRecord
+class Expense < ApplicationRecord
   belongs_to :card, optional: true
 
   validates :description, presence: true
