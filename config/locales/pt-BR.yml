@@ -7,9 +7,12 @@ pt-BR:
       expense:
         description: Descrição
         value: Valor
-        paid: Pago
         month: Mês
         year: Ano
+        paid: Pago
+        has_installment: Tem parcela
+        current_installment: Parcela atual
+        final_installment: Parcela final
         card_id: Cartão da dívida
       card:
         name: Nome

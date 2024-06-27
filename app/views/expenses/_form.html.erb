@@ -1,8 +1,8 @@
 <% action = params[:action] %>
-<div class="container-fluid mt-4 mb-4">
+<div class="container-fluid my-2">
   <div class="row justify-content-center">
     <div class="col-md-4">
-      <h1><%= action == "edit" ? "Atualizar" : "Cadastrar nova" %> dívida</h1>
+      <h2 class="p-3 text-center"><%= action == "edit" ? "Atualizar" : "Cadastrar nova" %> dívida</h2>
       <%= form_with(model: expense, local: true) do |form| %>
         <% if expense.errors.any? %>
           <div id="error_explanation">
@@ -25,7 +25,7 @@
         <div class="mb-3">
           <%= form.label :value, class: 'form-label' %>
           <%= form.text_field :value, class: 'form-control', 'aria-describedby': 'value_help', 'data-mask': "#.##0.00", 'data-mask-reverse': "true" %>
-          <div id="value_help" class="form-text">Escreva o valor da dívida.</div>
+          <div id="value_help" class="form-text">Digite o valor da dívida.</div>
         </div>
 
         <div class="mb-3">
@@ -47,6 +47,29 @@
         <div class="mb-3">
           <%= form.check_box :paid, class: 'form-check-input' %>
           <%= form.label :paid, class: 'form-check-label' %>
+        </div>
+
+         <div class="mb-3">
+          <%= form.check_box :has_installment, class: 'form-check-input' %>
+          <%= form.label :has_installment, class: 'form-check-label' %>
+        </div>
+
+        <div class="mb-3">
+          <div class="containar-fluid">
+            <div class="row">
+              <div class="col">
+                <%= form.label :current_installment, class: 'form-label' %>
+                <%= form.number_field :current_installment, as: :number, class: 'form-control', 'aria-describedby': 'current_installment_help' %>
+                <div id="current_installment_help" class="form-text">Digite a parcela atual desta despesa.</div>
+              </div>
+
+              <div class="col">
+                <%= form.label :final_installment, class: 'form-label' %>
+                <%= form.number_field :final_installment, as: :number, class: 'form-control', 'aria-describedby': 'final_installment_help' %>
+                <div id="final_installment_help" class="form-text">Digite a parcela final desta despesa.</div>
+              </div>
+            </div>
+          </div>
         </div>
         
         <div class="mb-3">

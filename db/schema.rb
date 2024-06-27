@@ -25,9 +25,12 @@ ActiveRecord::Schema.define(version: 2022_09_01_153415) do
   create_table "expenses", force: :cascade do |t|
     t.string "description"
     t.float "value"
-    t.boolean "paid"
     t.string "month"
     t.string "year"
+    t.boolean "paid"
+    t.boolean "has_installment"
+    t.integer "current_installment"
+    t.integer "final_installment"
     t.string "responsible"
     t.integer "card_id", null: false
     t.datetime "created_at", precision: 6, null: false

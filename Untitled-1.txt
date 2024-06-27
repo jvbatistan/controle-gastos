@@ -1,8 +1,0 @@
-[
-{description: "PARCELA 2/5", value: 214.91},
-{description: "PARCELADO 6/10", value: 129.30}
-]
-
-spends = [{description: "PARCELA 2/5", value: 214.91}, {description: "PARCELADO 6/10", value: 129.30}]
-
-spends.each{|spend| Card.find(2).spends << Spend.new(description: spend[:description], value: spend[:value], paid: true, month: "09", year: "2022")
