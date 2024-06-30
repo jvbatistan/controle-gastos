@@ -10,61 +10,79 @@
   </div>
 <% end %>
 
-<div class="container-fluid my-2">
-  <h4 class='text-center p-3'> Gastos do mês de <%= I18n.t('date.month_names')[@month.to_i].downcase %> </h4>
+<div class="container-fluid">
   <div class="row">
-    <% @cards.each do |card| %>
-      <div class="col-md-3 p-3 rounded" style="background-color: <%= card.color %>; border: 2px solid #8A05BE;">
-        <h6 class='text-center'> Cartão <%= card.name %> </h6>
+    <div class="col-md-11">
+      <div class="container-fluid my-2">
+        <h4 class='text-center p-3'> Gastos do mês de <%= I18n.t('date.month_names')[@month.to_i].downcase %> </h4>
+        <div class="row">
+          <% @cards.each do |card| %>
+            <div class="col-xxl-3 col-xl-3 col-lg-4 col-md-6 py-3 rounded mx-2" style="background-color: <%= card.color %>; border: 2px solid #384F9E;">
+              <h6 class='text-center'> Cartão <%= card.name %> </h6>
 
-        <div class="table-responsive">
-          <table class='table table-bordered text-white h-50'>
-            <thead>
-              <tr>
-                <th scope="col" style='font-size: 12px;'>Descrição</th>
-                <th scope="col" style='font-size: 12px;'>Valor</th>
-              </tr>
-            </thead>
+              <div class="container-fluid h-100 p-0">
+                <% expenses = card.expenses.where(month: @month, year: Date.today.year) %>
+                <% if expenses.present? %>
+                  <% total_expense = 0 %>
+                  
+                  <div class="row">
+                    <div class="col"><b><small> Descrição </small></b></div>
+                    <div class="col text-end pe-4"><b><small> Valor </small></b></div>
+                  </div>
 
-            <tbody class="table-group-divider">
-              <% expenses = card.expenses.where(month: @month, year: Date.today.year) %>
-              
-              <% if expenses.present? %>
-                <% total_expense = 0 %>
-                <% expenses.each do |expense| %>
-                  <tr>
-                    <td>
-                      <p class="text-white" style="font-size: 10px; margin: 0px;" title="<%=expense.description%>"><%= expense.description.truncate(8) %></p>
-                    </td>
-                    <td class='text-end' style="font-size: 10px;">R$ <%= sprintf("%.2f", expense.value).to_s.gsub('.', ',') %></td>
-                    <% total_expense += expense.value %>
-                  </tr>
+                  <hr class="hr my-2" />
+
+                  <div class="row position-relative">
+                    <div class="col mb-4" style="max-height: 250px; overflow-y: auto;">
+                      <% expenses.each do |expense| %>
+                        <div class="row">
+                          <div class="col">
+                            <p class="text-white" style="font-size: 10px; margin: 0px;" title="<%= expense.description %>"><%= expense.description %></p>
+                          </div>
+                          <div class="col">
+                            <div class="row">
+                              <div class="col-7 p-0 text-end">
+                                  <p style="font-size: 10px; margin: 0px;">R$</p>
+                              </div>
+                              <div class="col ps-0">
+                                <p class="text-white text-end" style="font-size: 10px; margin: 0px;" title="<%= expense.value %>"><%= sprintf("%.2f", expense.value).to_s.gsub('.', ',') %></p>
+                              </div>
+                            </div>
+                          </div>
+                          <% total_expense += expense.value %>
+                        </div>
+                      <% end %>
+                    </div>
+                    
+                    <div class="col p-1 rounded-bottom position-absolute top-100 start-50 translate-middle" style="background-color: rgba(0, 0, 0, 0.5);">
+                      <div class="row px-1">
+                        <div class="col ps-3"><b><small> TOTAL </small></b></div>
+                        <div class="col text-end pe-4"><b><small> R$ <%= sprintf("%.2f", total_expense).to_s.gsub('.', ',') %> </small></b></div>
+                      </div>
+                    </div>
+                  </div>
+                <% else %>
+                  <div class="row">
+                    <div class="col"><b> SEM DÍVIDAS CADASTRADAS NO MOMENTO </b></div>
+                  </div>
                 <% end %>
-                <tr>
-                  <td style="font-size: 10px;"><b>TOTAL</b></td>
-                  <td class="text-end" style="font-size: 10px;"><b>R$ <%= sprintf("%.2f", total_expense).to_s.gsub('.', ',') %></b></td> 
-                </tr>
-              <% else %>
-                <tr>
-                  <td class="text-center text-white" colspan="2" style="font-size: 10px;"> SEM DÍVIDAS CADASTRADAS NO MOMENTO </td> 
-                </tr>
-              <% end %>
-            </tbody>
-          </table>
+              </div>
+            </div>
+          <% end %>
         </div>
       </div>
-    <% end %>
+    </div>
+    <div class="col-md-1 fixed-top vh-100" style="right: 0; left: auto;">
+      <ul class="nav nav-pills nav-fill p-3 h-100" id="pills-tab" role="tablist">
+        <% @months.each_with_index do |month, index| %>
+          <li class="nav-item d-flex justify-content-center align-items-center" role="presentation">
+            <%= link_to "#{month}", totals_path(month: (index+1)), class: (index + 1) == @month.to_i ? "nav-link active" : "nav-link", "role": "tab", "aria-selected": (index + 1) == @month.to_i ? "true" : "false", id: "pills-#{month.downcase}-tab" %>
+          </li>
+        <% end %>
+      </ul>
+    </div>
   </div>
 </div>
 
-<div class="position-relative">
-  <div class="container-fluid my-2 position-absolute top-100">
-    <ul class="nav nav-pills nav-fill mb-3" id="pills-tab" role="tablist">
-      <% @months.each_with_index do |month, index| %>
-        <li class="nav-item" role="presentation">
-          <%= link_to "#{month}", totals_path(month: (index+1)), class: (index + 1) == @month.to_i ? "nav-link active" : "nav-link", "role": "tab", "aria-selected": (index + 1) == @month.to_i ? "true" : "false", id: "pills-#{month.downcase}-tab" %>
-        </li>
-      <% end %>
-    </ul>
-  </div>
-</div>
+
+
