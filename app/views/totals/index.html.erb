@@ -17,17 +17,20 @@
         <h4 class='text-center p-3'> Gastos do mês de <%= I18n.t('date.month_names')[@month.to_i].downcase %> </h4>
         <div class="row">
           <% @cards.each do |card| %>
-            <div class="col-xxl-3 col-xl-3 col-lg-4 col-md-6 py-3 rounded mx-2" style="background-color: <%= card.color %>; border: 2px solid #384F9E;">
+            <%# INICIAR DAQUI AMANHÃ %>
+            <div class="col-xxl-3 col-xl-3 col-lg-4 col-md-6 py-3 rounded mx-2 card-personalizado" style="background-color: <%= card.color %>; border: 2px solid;">
               <h6 class='text-center'> Cartão <%= card.name %> </h6>
 
               <div class="container-fluid h-100 p-0">
-                <% expenses = card.expenses.where(month: @month, year: Date.today.year) %>
+                <% expenses = card.expenses.where(month: @month, year: Date.today.year).order(:description, :value, :responsible) %>
                 <% if expenses.present? %>
                   <% total_expense = 0 %>
                   
                   <div class="row">
-                    <div class="col"><b><small> Descrição </small></b></div>
-                    <div class="col text-end pe-4"><b><small> Valor </small></b></div>
+                    <div class="col-4"><b><small> Descrição </small></b></div>
+                    <div class="col-2 text-center" title="Parcela atual"><b><small> P. atual </small></b></div>
+                    <div class="col-2 text-center" title="Parcela final"><b><small> P. final </small></b></div>
+                    <div class="col-4 text-end pe-3"><b><small> Valor </small></b></div>
                   </div>
 
                   <hr class="hr my-2" />
@@ -36,12 +39,18 @@
                     <div class="col mb-4" style="max-height: 250px; overflow-y: auto;">
                       <% expenses.each do |expense| %>
                         <div class="row">
-                          <div class="col">
+                          <div class="col-4">
                             <p class="text-white" style="font-size: 10px; margin: 0px;" title="<%= expense.description %>"><%= expense.description %></p>
                           </div>
-                          <div class="col">
+                          <div class="col-2 text-center">
+                            <p class="text-white" style="font-size: 10px; margin: 0px;" title="<%= expense.current_installment %>"><%= expense.current_installment %></p>
+                          </div>
+                          <div class="col-2 text-center">
+                            <p class="text-white" style="font-size: 10px; margin: 0px;" title="<%= expense.final_installment %>"><%= expense.final_installment %></p>
+                          </div>
+                          <div class="col-4">
                             <div class="row">
-                              <div class="col-7 p-0 text-end">
+                              <div class="col-6 p-0 text-end">
                                   <p style="font-size: 10px; margin: 0px;">R$</p>
                               </div>
                               <div class="col ps-0">
