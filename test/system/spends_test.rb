@@ -1,49 +1,49 @@
 require "application_system_test_case"
 
-class ExpensesTest < ApplicationSystemTestCase
+class DebtsTest < ApplicationSystemTestCase
   setup do
-    @expense = expenses(:one)
+    @debt = debts(:one)
   end
 
   test "visiting the index" do
-    visit expenses_url
-    assert_selector "h1", text: "Expenses"
+    visit debts_url
+    assert_selector "h1", text: "Debts"
   end
 
-  test "creating a Expense" do
-    visit expenses_url
-    click_on "New Expense"
+  test "creating a Debt" do
+    visit debts_url
+    click_on "New Debt"
 
-    fill_in "Card", with: @expense.card_id
-    fill_in "Description", with: @expense.description
-    check "Paid" if @expense.paid
-    fill_in "Value", with: @expense.value
-    click_on "Create Expense"
+    fill_in "Card", with: @debt.card_id
+    fill_in "Description", with: @debt.description
+    check "Paid" if @debt.paid
+    fill_in "Value", with: @debt.value
+    click_on "Create Debt"
 
-    assert_text "Expense was successfully created"
+    assert_text "Debt was successfully created"
     click_on "Back"
   end
 
-  test "updating a Expense" do
-    visit expenses_url
+  test "updating a Debt" do
+    visit debts_url
     click_on "Edit", match: :first
 
-    fill_in "Card", with: @expense.card_id
-    fill_in "Description", with: @expense.description
-    check "Paid" if @expense.paid
-    fill_in "Value", with: @expense.value
-    click_on "Update Expense"
+    fill_in "Card", with: @debt.card_id
+    fill_in "Description", with: @debt.description
+    check "Paid" if @debt.paid
+    fill_in "Value", with: @debt.value
+    click_on "Update Debt"
 
-    assert_text "Expense was successfully updated"
+    assert_text "Debt was successfully updated"
     click_on "Back"
   end
 
-  test "destroying a Expense" do
-    visit expenses_url
+  test "destroying a Debt" do
+    visit debts_url
     page.accept_confirm do
       click_on "Destroy", match: :first
     end
 
-    assert_text "Expense was successfully destroyed"
+    assert_text "Debt was successfully destroyed"
   end
 end

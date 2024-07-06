@@ -1,0 +1,24 @@
+<p id="notice"><%= notice %></p>
+
+<p>
+  <strong>Description:</strong>
+  <%= @debt.description %>
+</p>
+
+<p>
+  <strong>Value:</strong>
+  <%= @debt.value %>
+</p>
+
+<p>
+  <strong>Paid:</strong>
+  <%= @debt.paid %>
+</p>
+
+<p>
+  <strong>Card:</strong>
+  <%= @debt.card_id %>
+</p>
+
+<%= link_to 'Edit', edit_debt_path(@debt) %> |
+<%= link_to 'Back', debts_path %>

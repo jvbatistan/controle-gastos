@@ -22,7 +22,7 @@ ActiveRecord::Schema.define(version: 2022_09_01_153415) do
     t.datetime "updated_at", precision: 6, null: false
   end
 
-  create_table "expenses", force: :cascade do |t|
+  create_table "debts", force: :cascade do |t|
     t.string "description"
     t.float "value"
     t.string "month"
@@ -32,11 +32,12 @@ ActiveRecord::Schema.define(version: 2022_09_01_153415) do
     t.integer "current_installment"
     t.integer "final_installment"
     t.string "responsible"
+    t.integer "parent_id"
     t.integer "card_id", null: false
     t.datetime "created_at", precision: 6, null: false
     t.datetime "updated_at", precision: 6, null: false
-    t.index ["card_id"], name: "index_expenses_on_card_id"
+    t.index ["card_id"], name: "index_debts_on_card_id"
   end
 
-  add_foreign_key "expenses", "cards"
+  add_foreign_key "debts", "cards"
 end

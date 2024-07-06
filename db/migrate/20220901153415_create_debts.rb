@@ -1,6 +1,6 @@
-class CreateExpenses < ActiveRecord::Migration[6.0]
+class CreateDebts < ActiveRecord::Migration[6.0]
   def change
-    create_table :expenses do |t|
+    create_table :debts do |t|
       t.string     :description
       t.float      :value
       t.string     :month
@@ -10,6 +10,7 @@ class CreateExpenses < ActiveRecord::Migration[6.0]
       t.integer    :current_installment
       t.integer    :final_installment
       t.string     :responsible
+      t.integer    :parent_id
       t.references :card, null: false, foreign_key: true
 
       t.timestamps

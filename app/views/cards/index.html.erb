@@ -27,22 +27,22 @@
             </thead>
 
             <tbody class="table-group-divider">
-              <% expenses = card.expenses.where(month: @month, year: Date.today.year) %>
+              <% debts = card.debts.where(month: @month, year: Date.today.year) %>
               
-              <% if expenses.present? %>
-                <% total_expense = 0 %>
-                <% expenses.each do |expense| %>
+              <% if debts.present? %>
+                <% total_debt = 0 %>
+                <% debts.each do |debt| %>
                   <tr>
                     <td>
-                      <p style="font-size: 10px; margin: 0px;" title="<%=expense.description%>"><%= expense.description.truncate(8) %></p>
+                      <p style="font-size: 10px; margin: 0px;" title="<%=debt.description%>"><%= debt.description.truncate(8) %></p>
                     </td>
-                    <td class='text-end' style="font-size: 10px;">R$ <%= sprintf("%.2f", expense.value).to_s.gsub('.', ',') %></td>
-                    <% total_expense += expense.value %>
+                    <td class='text-end' style="font-size: 10px;">R$ <%= sprintf("%.2f", debt.value).to_s.gsub('.', ',') %></td>
+                    <% total_debt += debt.value %>
                   </tr>
                 <% end %>
                 <tr>
                   <td style="font-size: 10px;"><b>TOTAL</b></td>
-                  <td class="text-end" style="font-size: 10px;"><b>R$ <%= sprintf("%.2f", total_expense).to_s.gsub('.', ',') %></b></td> 
+                  <td class="text-end" style="font-size: 10px;"><b>R$ <%= sprintf("%.2f", total_debt).to_s.gsub('.', ',') %></b></td> 
                 </tr>
               <% else %>
                 <tr>

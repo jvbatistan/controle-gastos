@@ -1,6 +1,6 @@
 require 'test_helper'
 
-class ExpenseTest < ActiveSupport::TestCase
+class DebtTest < ActiveSupport::TestCase
   # test "the truth" do
   #   assert true
   # end
