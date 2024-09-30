@@ -1,7 +1,7 @@
 <% action = params[:action] %>
 <div class="container-fluid my-2">
   <div class="row justify-content-center">
-    <div class="col-md-4">
+    <div class="col-md-6">
       <h2 class="p-3 text-center"><%= action == "edit" ? "Atualizar" : "Cadastrar nova" %> dívida</h2>
       <%= form_with(model: debt, local: true) do |form| %>
         <% if debt.errors.any? %>
@@ -16,21 +16,32 @@
           </div>
         <% end %>
 
-        <div class="mb-3">
-          <%= form.label :description, class: 'form-label' %>
-          <%= form.text_field :description, class: 'form-control', 'aria-describedby': 'description_help' %>
-          <div id="description_help" class="form-text">Escreva como o dívida será identificada.</div>
-        </div>
+        <div class="row">
+          <div class="col-md-6">
+            <div class="mb-3">
+              <%= form.label :description, class: 'form-label' %>
+              <%= form.text_field :description, class: 'form-control', 'aria-describedby': 'description_help' %>
+              <div id="description_help" class="form-text">Escreva como o dívida será identificada.</div>
+            </div>
+          </div>
 
-        <div class="mb-3">
-          <%= form.label :value, class: 'form-label' %>
-          <%= form.text_field :value, class: 'form-control', 'aria-describedby': 'value_help', 'data-mask': "#.##0.00", 'data-mask-reverse': "true" %>
-          <div id="value_help" class="form-text">Digite o valor da dívida.</div>
+          <div class="col-md-6">
+            <div class="mb-3">
+              <%= form.label :value, class: 'form-label' %>
+              <%= form.text_field :value, class: 'form-control', 'aria-describedby': 'value_help', 'data-mask': "#.##0.00", 'data-mask-reverse': "true", value: "#{form&.object&.value.present? ? '%0.2f' % form&.object&.value : ''}" %>
+              <div id="value_help" class="form-text">Digite o valor da dívida.</div>
+            </div>
+          </div>
         </div>
 
         <div class="mb-3">
           <div class="containar-fluid">
             <div class="row">
+              <div class="col">
+                <%= form.label :day, class: 'form-label' %>
+                <%= form.text_field :day, class: 'form-control' %>
+              </div>
+
               <div class="col">
                 <%= form.label :month, class: 'form-label' %>
                 <%= form.text_field :month, class: 'form-control' %>

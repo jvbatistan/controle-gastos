@@ -3,6 +3,7 @@ class CreateDebts < ActiveRecord::Migration[6.0]
     create_table :debts do |t|
       t.string     :description
       t.float      :value
+      t.string     :day
       t.string     :month
       t.string     :year
       t.boolean    :paid

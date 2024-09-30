@@ -38,7 +38,7 @@
                   <div class="row position-relative">
                     <div class="col mb-4" style="max-height: 250px; overflow-y: auto;">
                       <% debts.each do |debt| %>
-                        <div class="row">
+                        <div class="row <%= debt.paid ? "bg-success": "bg-danger" %>">
                           <div class="col-4">
                             <p class="text-white" style="font-size: 10px; margin: 0px;" title="<%= debt.description %>"><%= debt.description %></p>
                           </div>
@@ -83,6 +83,14 @@
     </div>
     <div class="col-md-1 fixed-top vh-100" style="right: 0; left: auto;">
       <ul class="nav nav-pills nav-fill p-3 h-100" id="pills-tab" role="tablist">
+        <li class="nav-item d-flex justify-content-center align-items-center" role="presentation">
+          <select class="form-select form-select-sm" aria-label="Default select example">
+            <option selected value=<%= Date.today.year %>><%= Date.today.year %></option>
+            <% (2023..(Date.today.year - 1)).reverse_each do |year| %>
+              <option value=<%= year %>><%= year %></option>
+            <% end %>
+          </select>
+        </li>
         <% @months.each_with_index do |month, index| %>
           <li class="nav-item d-flex justify-content-center align-items-center" role="presentation">
             <%= link_to "#{month}", totals_path(month: (index+1)), class: (index + 1) == @month.to_i ? "nav-link active" : "nav-link", "role": "tab", "aria-selected": (index + 1) == @month.to_i ? "true" : "false", id: "pills-#{month.downcase}-tab" %>

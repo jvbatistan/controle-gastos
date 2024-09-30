@@ -6,7 +6,7 @@ class Debt < ApplicationRecord
   validates :month, presence: true
   validates :year, presence: true
 
-  after_save :next_installments
+  after_create :next_installments
   before_destroy :destroy_all_installments
 
   private

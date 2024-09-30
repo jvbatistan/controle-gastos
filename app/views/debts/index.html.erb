@@ -28,7 +28,7 @@
               <th scope="col">Valor</th>
               <th scope="col">Pago?</th>
               <th scope="col">Cartão</th>
-              <th scope="col">MM/AAAA</th>
+              <th scope="col">DD/MM/AAAA</th>
               <th scope="col">Tem parcela?</th>
               <th scope="col">Parcela atual</th>
               <th scope="col">Parcela final</th>
@@ -45,7 +45,7 @@
                 <td class="text-end">R$ <%= sprintf("%.2f", debt.value).to_s.gsub('.', ',') %></td>
                 <td><%= debt.paid ? "Sim" : "Não" %></td>
                 <td><%= debt.card.name %></td>
-                <td><%= debt.month + "/" + debt.year %></td>
+                <td><%= debt.day + "/" + debt.month + "/" + debt.year %></td>
                 <td><%= debt.has_installment ? "Sim" : "Não" %></td>
                 <td><%= debt.current_installment %></td>
                 <td><%= debt.final_installment %></td>
