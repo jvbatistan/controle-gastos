@@ -6,6 +6,7 @@ class Debt < ApplicationRecord
   validates :month, presence: true
   validates :year, presence: true
 
+  before_save :make_upcase
   after_create :next_installments
   before_destroy :destroy_all_installments
 
@@ -37,5 +38,10 @@ class Debt < ApplicationRecord
       if has_installment
         Debt.where(parent_id: self.id).destroy_all
       end
+    end
+
+    def make_upcase
+      self.description = self.description.upcase.strip
+      self.responsible = self.responsible.upcase.strip
     end
 end

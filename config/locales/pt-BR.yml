@@ -22,6 +22,8 @@ pt-BR:
         limit: Limite
         image: Imagem
         color: Cor do cartão
+      search:
+        description: Descrição
     errors:
       messages:
         record_invalid: 'A validação falhou: %{errors}'

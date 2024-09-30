@@ -4,7 +4,27 @@ class DebtsController < ApplicationController
 
   # GET /debts or /debts.json
   def index
-    @debts = Debt.order(created_at: :desc).page(params[:page]).per(10)
+    @debts = Debt.all
+
+    if params[:search].present?
+      @total = 0
+
+      if params[:search][:description].present?
+        @debts = @debts.where('description LIKE ?', "%#{params[:search][:description]}%")
+      end
+
+      if params[:search][:card_id].present?
+        @debts = @debts.where('card_id = ?', "#{params[:search][:card_id]}")
+      end
+
+      if params[:search][:has_installment].present?
+        @debts = @debts.where('has_installment = ?', "#{params[:search][:has_installment]}")
+      end
+
+      @debts.each{|debt| @total += debt.value}
+    end
+
+    @debts = @debts.order(created_at: :desc).page(params[:page]).per(10)
   end
 
   # GET /debts/1 or /debts/1.json
@@ -24,11 +44,9 @@ class DebtsController < ApplicationController
   def create
     @debt = Debt.new(debt_params)
 
-    @debt.description = params[:debt][:description].upcase
-
     respond_to do |format|
       if @debt.save
-        format.html { redirect_to root_path, notice: "Dívida cadastrada com sucesso." }
+        format.html { redirect_to debts_path, notice: "Dívida cadastrada com sucesso." }
         format.json { render :show, status: :created, location: @debt }
       else
         format.html { render :new, status: :unprocessable_entity }
@@ -72,6 +90,6 @@ class DebtsController < ApplicationController
 
     # Only allow a list of trusted parameters through.
     def debt_params
-      params.require(:debt).permit(:description, :value, :month, :year, :paid, :has_installment, :current_installment, :final_installment, :responsible, :card_id)
+      params.require(:debt).permit(:description, :value, :day, :month, :year, :paid, :has_installment, :current_installment, :final_installment, :responsible, :card_id)
     end
 end

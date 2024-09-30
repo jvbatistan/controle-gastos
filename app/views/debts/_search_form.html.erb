@@ -1,0 +1,42 @@
+
+<%= form_with(url: debts_path, method: :get, scope: :search, local: true) do |form| %>
+  <div class="row">
+    <h4>Filtro de busca</h4>
+
+    <div class="col-md-2">
+      <div class="mb-3">
+        <%= form.label :description, t('activerecord.attributes.debt.description'), class: 'form-label' %>
+        <%= form.text_field :description, class: 'form-control', value: "#{params[:search][:description] if params[:search].present? && params[:search][:description].present?}" %>
+      </div>
+    </div>
+
+    <div class="col-md-2">
+      <div class="mb-3">
+        <%= form.label :card_id, t('activerecord.attributes.debt.card_id'), class: 'form-label' %>
+        <%= form.collection_select :card_id, Card.all.order(:name), :id, :name, { include_blank: true, selected: params.dig(:search, :card_id) }, { class: 'form-select' } %>
+      </div>
+    </div>
+
+    <div class="col-md-2 d-flex align-items-center">
+      <div class="mb-3">
+        <%= form.label :has_installment, t('activerecord.attributes.debt.has_installment'), class: 'form-label' %>
+        <%= form.collection_select :has_installment, [['Sim', 1], ['Não', 0]], :last, :first, { include_blank: true, selected: params.dig(:search, :has_installment) }, { class: 'form-select' } %>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="row">
+    <div class="col-md-6">
+      <%= form.submit "Buscar", class: 'btn btn-primary' %>
+    </div>
+  </div>
+
+  <% if @total.present? %>
+    <div class="row mt-3 mx-2 d-flex justify-content-end align-items-center">
+      <div class="col-md-6 text-end">
+        <h4> Total gasto R$ <%= sprintf("%.2f", @total).to_s.gsub('.', ',') %>
+      </div>
+    </div>
+  <% end %>
+ <% end %>
