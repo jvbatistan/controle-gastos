@@ -14,7 +14,8 @@ ActiveRecord::Schema.define(version: 2022_09_01_153415) do
 
   create_table "cards", force: :cascade do |t|
     t.string "name"
-    t.integer "pay_day"
+    t.integer "due_date"
+    t.integer "closing_date"
     t.integer "limit"
     t.string "image"
     t.string "color"
@@ -25,9 +26,8 @@ ActiveRecord::Schema.define(version: 2022_09_01_153415) do
   create_table "debts", force: :cascade do |t|
     t.string "description"
     t.float "value"
-    t.string "day"
-    t.string "month"
-    t.string "year"
+    t.date "transaction_date"
+    t.date "billing_statement"
     t.boolean "paid"
     t.boolean "has_installment"
     t.integer "current_installment"

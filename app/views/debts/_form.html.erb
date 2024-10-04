@@ -35,24 +35,9 @@
         </div>
 
         <div class="mb-3">
-          <div class="containar-fluid">
-            <div class="row">
-              <div class="col">
-                <%= form.label :day, class: 'form-label' %>
-                <%= form.text_field :day, class: 'form-control' %>
-              </div>
-
-              <div class="col">
-                <%= form.label :month, class: 'form-label' %>
-                <%= form.text_field :month, class: 'form-control' %>
-              </div>
-
-              <div class="col">
-                <%= form.label :year, class: 'form-label' %>
-                <%= form.text_field :year, class: 'form-control' %>
-              </div>
-            </div>
-          </div>
+          <%= form.label :transaction_date, class: 'form-label' %>
+          <%= form.date_field :transaction_date, class: 'form-control', 'aria-describedby': 'transaction_date_help', value: "#{form&.object&.transaction_date.present? ? form&.object&.transaction_date : ''}" %>
+          <div id="value_help" class="form-text">Digite a data que a compra está sendo realizada.</div>
         </div>
 
         <div class="mb-3">

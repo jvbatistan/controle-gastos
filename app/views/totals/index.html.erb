@@ -22,7 +22,9 @@
               <h6 class='text-center'> Cartão <%= card.name %> </h6>
 
               <div class="container-fluid h-100 p-0">
-                <% debts = card.debts.where(month: @month, year: Date.today.year).order(:description, :value, :responsible) %>
+                <% start_date = Date.new(Date.today.year, @month.to_i - 1, card.closing_date) %>
+                <% end_date = Date.new(Date.today.year, @month.to_i, card.closing_date) %>
+                <% debts = card.debts.where("transaction_date >= ? AND transaction_date < ?", start_date, end_date).order(:description, :value, :responsible) %>
                 <% if debts.present? %>
                   <% total_debt = 0 %>
                   
@@ -96,9 +98,11 @@
           </select>
         </li>
         <% @months.each_with_index do |month, index| %>
-          <li class="nav-item d-flex justify-content-center align-items-center" role="presentation">
-            <%= link_to "#{month}", totals_path(month: (index+1)), class: (index + 1) == @month.to_i ? "nav-link active" : "nav-link", "role": "tab", "aria-selected": (index + 1) == @month.to_i ? "true" : "false", id: "pills-#{month.downcase}-tab" %>
-          </li>
+          <% unless index == 0 %>
+            <li class="nav-item d-flex justify-content-center align-items-center" role="presentation">
+              <%= link_to "#{month.upcase}", totals_path(month: index), class: index == @month.to_i ? "nav-link active" : "nav-link", "role": "tab", "aria-selected": index == @month.to_i ? "true" : "false", id: "pills-#{month.downcase}-tab" %>
+            </li>
+          <% end %>  
         <% end %>
       </ul>
     </div>

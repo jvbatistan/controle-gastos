@@ -3,10 +3,10 @@ class Debt < ApplicationRecord
 
   validates :description, presence: true
   validates :value, presence: true
-  validates :month, presence: true
-  validates :year, presence: true
+  validates :transaction_date, presence: true
 
   before_save :make_upcase
+  before_save :belongs_next_statement
   after_create :next_installments
   before_destroy :destroy_all_installments
 
@@ -43,5 +43,13 @@ class Debt < ApplicationRecord
     def make_upcase
       self.description = self.description.upcase.strip
       self.responsible = self.responsible.upcase.strip
+    end
+
+    def belongs_next_statement
+      if self.transaction_date >= self.card.closing_date.to_s.rjust(2, '0').to_date
+        self.billing_statement = (self.card.due_date.to_s.rjust(2, '0').to_date + 1.month)
+      else
+        self.billing_statement = self.card.due_date.to_s.rjust(2, '0').to_date
+      end
     end
 end

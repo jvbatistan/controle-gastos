@@ -22,9 +22,15 @@
         </div>
         
         <div class="mb-3">
-          <%= form.label :pay_day, class: 'form-label' %>
-          <%= form.number_field :pay_day, as: :number, class: 'form-control', 'aria-describedby': 'pay_day_help' %>
-          <div id="pay_day_help" class="form-text">Adicione a data de vencimento do cartão.</div>
+          <%= form.label :closing_date, class: 'form-label' %>
+          <%= form.number_field :closing_date, as: :number, class: 'form-control', 'aria-describedby': 'closing_date_help' %>
+          <div id="closing_date_help" class="form-text">Adicione a data de fechamento da fatura do cartão.</div>
+        </div>
+
+        <div class="mb-3">
+          <%= form.label :due_date, class: 'form-label' %>
+          <%= form.number_field :due_date, as: :number, class: 'form-control', 'aria-describedby': 'due_date_help' %>
+          <div id="due_date_help" class="form-text">Adicione a data de vencimento do cartão.</div>
         </div>
 
         <div class="mb-3">

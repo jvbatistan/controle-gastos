@@ -2,7 +2,7 @@ class TotalsController < ApplicationController
   before_action :set_all_cards, only: %i[ index ]
 
   def index
-    @months = ['JAN', 'FEV', 'MAR', 'ABR', 'MAI', 'JUN', 'JUL', 'AGO', 'SET', 'OUT', 'NOV', 'DEZ']
+    @months = I18n.t("date.abbr_month_names") #['JAN', 'FEV', 'MAR', 'ABR', 'MAI', 'JUN', 'JUL', 'AGO', 'SET', 'OUT', 'NOV', 'DEZ']
     
     if params[:month].present?
       @month = params[:month].rjust(2, '0')

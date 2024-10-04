@@ -7,9 +7,8 @@ pt-BR:
       debt:
         description: Descrição
         value: Valor
-        day: Dia
-        month: Mês
-        year: Ano
+        transaction_date: Data da compra
+        billing_statement: Fatura da cobrança
         paid: Pago
         has_installment: Tem parcela
         current_installment: Parcela atual
@@ -18,7 +17,8 @@ pt-BR:
         responsible: Responsável
       card:
         name: Nome
-        pay_day: Dia do pagamento
+        due_date: Dia do vencimento
+        closing_date: Dia do fechamento
         limit: Limite
         image: Imagem
         color: Cor do cartão
