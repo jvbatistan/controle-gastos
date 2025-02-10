@@ -43,7 +43,7 @@
           </thead>
 
           <tbody class="table-group-divider">
-            <% @debts.each_with_index do |debt, index| %>
+            <% @debts.each do |debt| %>
               <tr>
                 <td><%= debt.id %></td>
                 <td><%= debt.description %></td>

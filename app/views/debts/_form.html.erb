@@ -28,7 +28,7 @@
           <div class="col-md-6">
             <div class="mb-3">
               <%= form.label :value, class: 'form-label' %>
-              <%= form.text_field :value, class: 'form-control', 'aria-describedby': 'value_help', 'data-mask': "#.##0.00", 'data-mask-reverse': "true", value: "#{form&.object&.value.present? ? '%0.2f' % form&.object&.value : ''}" %>
+              <%= form.text_field :value, class: 'form-control valor', 'aria-describedby': 'value_help', value: "#{form&.object&.value.present? ? '%0.2f' % form&.object&.value : ''}" %>
               <div id="value_help" class="form-text">Digite o valor da dívida.</div>
             </div>
           </div>

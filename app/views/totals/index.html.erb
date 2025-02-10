@@ -1,4 +1,6 @@
-<% @month = @month.present? ? @month : Date.today.next_month.month.to_s.rjust(2, '0') %>
+<% 
+  @month = @month.present? ? @month : Date.today.next_month.month
+%>
 
 <% if notice.present? %>
   <div class="col-6 mt-3">
@@ -15,25 +17,23 @@
     <div class="col-md-11">
       <div class="container-fluid my-2">
         <h4 class='text-center p-3'> Gastos do mês de <%= I18n.t('date.month_names')[@month.to_i].downcase %> </h4>
-        <div class="row">
+        <div class="row d-flex justify-content-center">
           <% @cards.each do |card| %>
             <%# INICIAR DAQUI AMANHÃ %>
             <div class="col-xxl-4 col-xl-4 col-lg-3 col-md-6 py-3 rounded mx-2 my-2 card-personalizado" style="background-color: <%= card.color %>; border: 2px solid;">
               <h6 class='text-center'> Cartão <%= card.name %> </h6>
 
               <div class="container-fluid h-100 p-0">
-                <% start_date = Date.new(Date.today.year, @month.to_i - 1, card.closing_date) %>
-                <% end_date = Date.new(Date.today.year, @month.to_i, card.closing_date) %>
-                <% debts = card.debts.where("transaction_date >= ? AND transaction_date < ?", start_date, end_date).order(:description, :value, :responsible) %>
+                <% debts = card.debts.where("strftime('%m', billing_statement) = ? AND strftime('%Y', billing_statement) = ?", @month.to_s.rjust(2, '0'), Date.today.year.to_s).order(:transaction_date, :description, :value, :responsible) %>
                 <% if debts.present? %>
                   <% total_debt = 0 %>
                   
                   <div class="row">
-                    <div class="col-3"><b><small> Descrição </small></b></div>
-                    <div class="col-2 text-center" title="Parcela atual"><b><small> P. atual </small></b></div>
-                    <div class="col-2 text-center" title="Parcela final"><b><small> P. final </small></b></div>
+                    <div class="col-3" title="Descrição"><b><small> Descrição </small></b></div>
+                    <div class="col-3 text-center" title="Data"><b><small> Data </small></b></div>
+                    <div class="col-2 text-center" title="Parcela atual / Parcela final"><b><small> P.A/P.F. </small></b></div>
                     <div class="col-2 text-center"><b><small> Nome </small></b></div>
-                    <div class="col-3 text-end pe-3"><b><small> Valor </small></b></div>
+                    <div class="col-2 text-end pe-3"><b><small> Valor </small></b></div>
                   </div>
 
                   <hr class="hr my-2" />
@@ -43,28 +43,32 @@
                       <% debts.each do |debt| %>
                         <div class="row <%= debt.paid ? "bg-success": "bg-danger" %>">
                           <div class="col-3">
-                            <p class="text-white" style="font-size: 10px; margin: 0px;" title="<%= debt.description %>"><%= debt.description %></p>
+                            <p class="text-white" style="font-size: 10px; margin: 0px; border-bottom: 1px solid #ccc;" title="<%= debt.description %>"><%= debt.description %></p>
+                          </div>
+                          <div class="col-3 text-center">
+                            <p class="text-white" style="font-size: 10px; margin: 0px; border-bottom: 1px solid #ccc;" title="<%= debt.transaction_date.strftime("%d/%m/%Y") %>"><%= debt.transaction_date.strftime("%d/%m/%Y") %></p>
                           </div>
                           <div class="col-2 text-center">
-                            <p class="text-white" style="font-size: 10px; margin: 0px;" title="<%= debt.current_installment %>"><%= debt.current_installment %></p>
+                            <% if debt.current_installment.present? && debt.final_installment.present? %>
+                              <p class="text-white" style="font-size: 10px; margin: 0px; border-bottom: 1px solid #ccc;" title="<%= debt.current_installment %> / <%= debt.final_installment %>"><%= debt.current_installment %> / <%= debt.final_installment %></p>
+                            <% else %>
+                              <p class="text-white" style="font-size: 10px; margin: 0px; border-bottom: 1px solid #ccc;" title="">&nbsp</p>
+                            <% end %>
                           </div>
                           <div class="col-2 text-center">
-                            <p class="text-white" style="font-size: 10px; margin: 0px;" title="<%= debt.final_installment %>"><%= debt.final_installment %></p>
+                            <p class="text-white" style="font-size: 10px; margin: 0px; border-bottom: 1px solid #ccc;" title="<%= debt.responsible %>"><%= debt.responsible %></p>
                           </div>
-                          <div class="col-2 text-center">
-                            <p class="text-white" style="font-size: 10px; margin: 0px;" title="<%= debt.responsible %>"><%= debt.responsible %></p>
-                          </div>
-                          <div class="col-3">
+                          <div class="col-2">
                             <div class="row">
-                              <div class="col-6 p-0 text-end">
-                                  <p style="font-size: 10px; margin: 0px;">R$</p>
+                              <div class="col-2 p-0 text-end">
+                                  <p style="font-size: 10px; margin: 0px; border-bottom: 1px solid #ccc;">R$</p>
                               </div>
                               <div class="col ps-0">
-                                <p class="text-white text-end" style="font-size: 10px; margin: 0px;" title="<%= debt.value %>"><%= sprintf("%.2f", debt.value).to_s.gsub('.', ',') %></p>
+                                <p class="text-white text-end" style="font-size: 10px; margin: 0px; border-bottom: 1px solid #ccc;" title="<%= debt.value %>"><%= sprintf("%.2f", debt.value).to_s.gsub('.', ',') %></p>
                               </div>
                             </div>
                           </div>
-                          <% total_debt += debt.value %>
+                          <% total_debt += debt.value if !debt.paid %>
                         </div>
                       <% end %>
                     </div>
@@ -78,7 +82,7 @@
                   </div>
                 <% else %>
                   <div class="row">
-                    <div class="col"><b> SEM DÍVIDAS CADASTRADAS NO MOMENTO </b></div>
+                    <div class="col text-center"><b> SEM DÍVIDAS CADASTRADAS NO MOMENTO </b></div>
                   </div>
                 <% end %>
               </div>

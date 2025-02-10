@@ -17,13 +17,32 @@
       </div>
     </div>
 
-    <div class="col-md-2 d-flex align-items-center">
+    <div class="col-md-1 d-flex align-items-center">
       <div class="mb-3">
         <%= form.label :has_installment, t('activerecord.attributes.debt.has_installment'), class: 'form-label' %>
         <%= form.collection_select :has_installment, [['Sim', 1], ['Não', 0]], :last, :first, { include_blank: true, selected: params.dig(:search, :has_installment) }, { class: 'form-select' } %>
       </div>
     </div>
 
+    <div class="col-md-2">
+      <div class="mb-3">
+        <% 
+          i = 0;
+          @months = I18n.t("date.month_names").map{ |month| item = [month, i]; i+=1; item } %>
+        <%= form.label :month, t('datetime.prompts.month'), class: 'form-label' %>
+        <%= form.collection_select :month, @months, :last, :first, { include_blank: false, selected: params.dig(:search, :month) }, { class: 'form-select' } %>
+      </div>
+    </div>
+
+    <div class="col-md-2">
+      <div class="mb-3">
+        <% 
+          i = 2025;
+          @years = (Date.today.year..2030).map{ |year| item = [year, i]; i+=1; item } %>
+        <%= form.label :year, t('datetime.prompts.year'), class: 'form-label' %>
+        <%= form.collection_select :year, @years, :last, :first, { include_blank: false, selected: params.dig(:search, :month) }, { class: 'form-select' } %>
+      </div>
+    </div>
   </div>
 
   <div class="row">

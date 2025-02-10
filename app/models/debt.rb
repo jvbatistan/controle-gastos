@@ -16,13 +16,7 @@ class Debt < ApplicationRecord
         if (current_installment.to_i < final_installment.to_i)
           next_debt = self.dup
           
-          if (month.to_i + 1) < 13
-            next_debt.month = (month.to_i + 1).to_s.rjust(2, '0')
-          else
-            next_debt.month = "01"
-            next_debt.year = (year.to_i + 1).to_s
-          end
-          
+          next_debt.transaction_date     = next_debt.transaction_date + 1.month
           next_debt.current_installment += 1
           
           unless parent_id.present?
@@ -46,10 +40,23 @@ class Debt < ApplicationRecord
     end
 
     def belongs_next_statement
-      if self.transaction_date >= self.card.closing_date.to_s.rjust(2, '0').to_date
-        self.billing_statement = (self.card.due_date.to_s.rjust(2, '0').to_date + 1.month)
+      month = self.transaction_date.month
+      year  = self.transaction_date.year
+
+      # Calcula a data de fechamento da fatura
+      if month == 12
+        closing_date = Date.new(year + 1, 1, self.card.due_date) - self.card.closing_date
       else
-        self.billing_statement = self.card.due_date.to_s.rjust(2, '0').to_date
+        closing_date = Date.new(year, month, self.card.due_date) - self.card.closing_date
       end
+
+      # Se a compra foi feita no dia do fechamento ou depois, cai na fatura do mês seguinte
+      if self.transaction_date >= closing_date
+        due_date = closing_date + 1.month + self.card.closing_date
+      else
+        due_date = closing_date + self.card.closing_date
+      end
+      
+      self.billing_statement = due_date
     end
 end

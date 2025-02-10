@@ -16,7 +16,7 @@ pt-BR:
         card_id: Cartão da dívida
         responsible: Responsável
       card:
-        name: Nome
+        name: Nome cartão
         due_date: Dia do vencimento
         closing_date: Dia do fechamento
         limit: Limite

@@ -1,5 +1,5 @@
 class DebtsController < ApplicationController
-  before_action :set_debt, only: %i[ show edit update destroy ]
+  before_action :set_debt,  only: %i[ show edit update destroy ]
   before_action :set_cards, only: %i[ new edit create ]
 
   # GET /debts or /debts.json
@@ -21,10 +21,27 @@ class DebtsController < ApplicationController
         @debts = @debts.where('has_installment = ?', "#{params[:search][:has_installment]}")
       end
 
+      if params[:search][:month].present? && params[:search][:month] != "0"
+        ### POSTGRES OU MYSQL
+        # @debts = @debts.where('EXTRACT(MONTH FROM billing_statement) = ?', "#{params[:search][:month]}")
+        ### SQLITE3
+        @debts = @debts.where("strftime('%m', billing_statement) = ?", "#{params[:search][:month].to_s.rjust(2, '0')}")
+      end
+
+      if params[:search][:year].present? && params[:search][:year] != "0"
+        ### POSTGRES OU MYSQL
+        # @debts = @debts.where('EXTRACT(YEAR FROM billing_statement) = ?', "#{params[:search][:year]}")
+        ### SQLITE3
+        @debts = @debts.where("strftime('%Y', billing_statement) = ?", "#{params[:search][:year].to_s}")
+      end
+
       @debts.each{|debt| @total += debt.value}
+      
+      @debts = @debts.order(transaction_date: :desc).page(params[:page]).per(99)
+    else
+      @debts = @debts.order(created_at: :desc).page(params[:page]).per(10)
     end
 
-    @debts = @debts.order(created_at: :desc).page(params[:page]).per(10)
   end
 
   # GET /debts/1 or /debts/1.json
@@ -44,6 +61,8 @@ class DebtsController < ApplicationController
   def create
     @debt = Debt.new(debt_params)
 
+    @debt.value = params[:debt][:value].gsub('.', '').gsub(',', '.')
+
     respond_to do |format|
       if @debt.save
         format.html { redirect_to debts_path, notice: "Dívida cadastrada com sucesso." }
@@ -57,6 +76,8 @@ class DebtsController < ApplicationController
 
   # PATCH/PUT /debts/1 or /debts/1.json
   def update
+    params[:debt][:value] = params[:debt][:value].gsub('.', '').gsub(',', '.')
+
     respond_to do |format|
       if @debt.update(debt_params)
         format.html { redirect_to debt_url(@debt), notice: "Debt was successfully updated." }
