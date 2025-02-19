@@ -19,6 +19,16 @@
     </div>
     <div class="col d-flex align-items-center justify-content-end">
       <%= link_to 'Cadastrar despesa', new_debt_path, class: "btn btn-success text-white" %>
+
+      <% if params[:search].present? %>
+        <%= form_with url: pay_all_debts_path, method: :post do | form | %>
+          <%= form.text_field :month, type: :hidden, value: "#{params[:search][:month].present? ? params[:search][:month] : ''}" %>
+          <%= form.text_field :year, type: :hidden, value: "#{params[:search][:year].present? ? params[:search][:year] : ''}" %>
+          <%= form.text_field :card_id, type: :hidden, value: "#{params[:search][:card_id].present? ? params[:search][:card_id] : ''}" %>
+          <%= submit_tag 'Pagar despesas', class: "btn btn-outline-success text-white ms-2" %>
+        <% end %>
+        
+      <% end %>
     </div>
   </div>
   <div class="row">

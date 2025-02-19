@@ -1,6 +1,6 @@
 class DebtsController < ApplicationController
-  before_action :set_debt,  only: %i[ show edit update destroy ]
-  before_action :set_cards, only: %i[ new edit create ]
+  before_action :set_debt, only: %i[show edit update destroy]
+  before_action :set_cards, only: %i[new edit create]
 
   # GET /debts or /debts.json
   def index
@@ -96,6 +96,28 @@ class DebtsController < ApplicationController
     respond_to do |format|
       format.html { redirect_to debts_url, notice: "Debt was successfully destroyed." }
       format.json { head :no_content }
+    end
+  end
+
+  def pay_all
+    if params[:card_id].present? && params[:month].present? && params[:year].present?
+      all_debts = Debt.where(card_id: params[:card_id].to_i).where("strftime('%m', billing_statement) = ?", "#{params[:month].to_s.rjust(2, '0')}").where("strftime('%Y', billing_statement) = ?", "#{params[:year].to_s}")
+      
+      if all_debts.present?
+        paids = all_debts.update_all(paid: true)
+
+        respond_to do |format|
+          if paids.size > 0
+            format.html { redirect_to debts_path, notice: "Dívidas atualizadas com sucesso." }
+            format.json { render :show, status: :created, location: @debt }
+          else
+            format.html { render :index, status: :unprocessable_entity }
+            format.json { render json: @debt.errors, status: :unprocessable_entity }
+          end
+        end
+      else
+        flash[:notice] = "Nenhuma dívida encontrada com esses parâmetros"
+      end
     end
   end
 

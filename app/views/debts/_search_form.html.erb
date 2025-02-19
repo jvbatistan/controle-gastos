@@ -40,7 +40,7 @@
           i = 2025;
           @years = (Date.today.year..2030).map{ |year| item = [year, i]; i+=1; item } %>
         <%= form.label :year, t('datetime.prompts.year'), class: 'form-label' %>
-        <%= form.collection_select :year, @years, :last, :first, { include_blank: false, selected: params.dig(:search, :month) }, { class: 'form-select' } %>
+        <%= form.collection_select :year, @years, :last, :first, { include_blank: false, selected: params.dig(:search, :year) }, { class: 'form-select' } %>
       </div>
     </div>
   </div>

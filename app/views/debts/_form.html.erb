@@ -5,7 +5,7 @@
       <h2 class="p-3 text-center"><%= action == "edit" ? "Atualizar" : "Cadastrar nova" %> dívida</h2>
       <%= form_with(model: debt, local: true) do |form| %>
         <% if debt.errors.any? %>
-          <div id="error_explanation">
+          <div id="error_explanation" class="text-black">
             <h2><%= debt.errors.count > 1 ? debt.errors.count.to_s + " erros abaixo foram encontrados:" : "1 erro abaixo foi encontrado" %></h2>
 
             <ul>
@@ -28,7 +28,7 @@
           <div class="col-md-6">
             <div class="mb-3">
               <%= form.label :value, class: 'form-label' %>
-              <%= form.text_field :value, class: 'form-control valor', 'aria-describedby': 'value_help', value: "#{form&.object&.value.present? ? '%0.2f' % form&.object&.value : ''}" %>
+              <%= form.text_field :value, class: 'form-control valor', 'aria-describedby': 'value_help', value: "#{form&.object&.value.present? ? form&.object&.value.to_s.gsub('.', ',') : ''}" %>
               <div id="value_help" class="form-text">Digite o valor da dívida.</div>
             </div>
           </div>
