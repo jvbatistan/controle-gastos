@@ -25,13 +25,20 @@
             <h6 class='text-center'> Cartão <%= card.name %> </h6>
           </div>
           <hr>
+          <% card_debts = card.debts.where(paid: false).sum(:value) %>
           <div class="row d-flex align-items-center">
             <div class="col"><small>LIMITE</small></div>
+            <div class="col text-center" title="Limite"><small><%= sprintf("%.2f", (card.limit - card_debts)) %>/<%= card.limit %></small></div>
+          </div>
+
+          <div class="row d-flex align-items-center">
             <div class="col text-center">
-              <div class="progress" role="progressbar" aria-label="Basic example" aria-valuenow=<%= (card.limit * 100.0/card.limit) %> aria-valuemin="0" aria-valuemax="100">
-                <div class="progress-bar" style="width: <%= (card.limit * 100.0/card.limit) %>%"><%= (card.limit * 100.0/card.limit) %>%</div>
+              <div class="progress position-relative" role="progressbar" aria-label="Basic example" aria-valuenow=<%= (card_debts * 100.0/card.limit) %> aria-valuemin="0" aria-valuemax="100">
+                <span class="text-black position-absolute start-50 top-50 translate-middle"><b><%= sprintf("%.2f", (card_debts * 100.0/card.limit)) %>%</b></span>
+                <div class="progress-bar" style="width: <%= (card_debts * 100.0/card.limit) %>%"></div>
               </div>
             </div>
+          
           </div>
           <div class="row d-flex align-items-center">
             <div class="col"><small title="Quantidade de dias antes do fechamento">QDAF </small></div>

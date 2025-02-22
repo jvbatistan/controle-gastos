@@ -17,6 +17,10 @@ class DebtsController < ApplicationController
         @debts = @debts.where('card_id = ?', "#{params[:search][:card_id]}")
       end
 
+      if params[:search][:paid].present?
+        @debts = @debts.where('paid = ?', "#{params[:search][:paid]}")
+      end
+
       if params[:search][:has_installment].present?
         @debts = @debts.where('has_installment = ?', "#{params[:search][:has_installment]}")
       end

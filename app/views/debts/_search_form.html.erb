@@ -24,6 +24,13 @@
       </div>
     </div>
 
+    <div class="col-md-1 d-flex align-items-center">
+      <div class="mb-3">
+        <%= form.label :paid, t('activerecord.attributes.debt.paid'), class: 'form-label' %>
+        <%= form.collection_select :paid, [['Sim', 1], ['Não', 0]], :last, :first, { include_blank: true, selected: params.dig(:search, :paid) }, { class: 'form-select' } %>
+      </div>
+    </div>
+
     <div class="col-md-2">
       <div class="mb-3">
         <% 

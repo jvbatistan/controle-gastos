@@ -17,10 +17,11 @@
     <div class="col-md-11">
       <div class="container-fluid my-2">
         <h4 class='text-center p-3'> Gastos do mês de <%= I18n.t('date.month_names')[@month.to_i].downcase %> </h4>
-        <div class="row d-flex justify-content-center">
+        <div class="row d-flex justify-content-start flex-nowrap overflow-auto p-2">
           <% @cards.each do |card| %>
             <%# INICIAR DAQUI AMANHÃ %>
-            <div class="col-xxl-4 col-xl-4 col-lg-3 col-md-6 py-3 rounded mx-2 my-2 card-personalizado" style="background-color: <%= card.color %>; border: 2px solid;">
+            <% color_all = card.name == "WILL" ? "text-black" : "text-white" %>
+            <div class="col-xxl-4 col-xl-4 col-lg-3 col-md-6 py-3 rounded mx-2 my-2 card-personalizado <%= color_all %>" style="background-color: <%= card.color %>; border: 2px solid;">
               <h6 class='text-center'> Cartão <%= card.name %> </h6>
 
               <div class="container-fluid h-100 p-0">
@@ -39,7 +40,7 @@
                   <hr class="hr my-2" />
 
                   <div class="row position-relative">
-                    <div class="col mb-4" style="max-height: 250px; overflow-y: auto;">
+                    <div class="col mb-4" style="min-height: 500px; overflow-y: auto;">
                       <% debts.each do |debt| %>
                         <div class="row <%= debt.paid ? "bg-success": "bg-danger" %>">
                           <div class="col-3">
@@ -60,7 +61,7 @@
                           </div>
                           <div class="col-2">
                             <div class="row">
-                              <div class="col-2 p-0 text-end">
+                              <div class="col-2 p-0 text-end text-white">
                                   <p style="font-size: 10px; margin: 0px; border-bottom: 1px solid #ccc;">R$</p>
                               </div>
                               <div class="col ps-0">
@@ -73,10 +74,10 @@
                       <% end %>
                     </div>
                     
-                    <div class="col p-1 rounded-bottom position-absolute top-100 start-50 translate-middle" style="background-color: rgba(0, 0, 0, 0.5);">
+                    <div class="col p-1 rounded-bottom position-absolute start-50 translate-middle" style="background-color: rgba(0, 0, 0, 0.5); top: 100%;">
                       <div class="row px-1">
-                        <div class="col ps-3"><b><small> TOTAL </small></b></div>
-                        <div class="col text-end pe-4"><b><small> R$ <%= sprintf("%.2f", total_debt).to_s.gsub('.', ',') %> </small></b></div>
+                        <div class="col ps-3 text-white"><b><small> TOTAL </small></b></div>
+                        <div class="col text-end pe-4 text-white"><b><small> R$ <%= sprintf("%.2f", total_debt).to_s.gsub('.', ',') %> </small></b></div>
                       </div>
                     </div>
                   </div>
