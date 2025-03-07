@@ -12,8 +12,8 @@
   </div>
 <% end %>
 
-<div class="container-fluid">
-  <div class="row">
+<div class="container-fluid mt-3">
+  <div class="row mobile-totals-row">
     <div class="col-md-11">
       <div class="container-fluid my-2">
         <h4 class='text-center p-3'> Gastos do mês de <%= I18n.t('date.month_names')[@month.to_i].downcase %> </h4>
@@ -21,10 +21,10 @@
           <% @cards.each do |card| %>
             <%# INICIAR DAQUI AMANHÃ %>
             <% color_all = card.name == "WILL" ? "text-black" : "text-white" %>
-            <div class="col-xxl-4 col-xl-4 col-lg-3 col-md-6 py-3 rounded mx-2 my-2 card-personalizado <%= color_all %>" style="background-color: <%= card.color %>; border: 2px solid;">
-              <h6 class='text-center'> Cartão <%= card.name %> </h6>
+            <div class="col-xxl-3 col-xl-3 col-lg-3 col-md-6 py-3 rounded mx-2 my-2 card-personalizado <%= color_all %>" style="background-color: <%= card.color %>; border: 2px solid;">
+              <h6 class='text-center p-3 main-background'> Cartão <%= card.name %> </h6>
 
-              <div class="container-fluid h-100 p-0">
+              <div class="container-fluid h-90 p-0">
                 <% debts = card.debts.where("strftime('%m', billing_statement) = ? AND strftime('%Y', billing_statement) = ?", @month.to_s.rjust(2, '0'), Date.today.year.to_s).order(:transaction_date, :description, :value, :responsible) %>
                 <% if debts.present? %>
                   <% total_debt = 0 %>
@@ -40,9 +40,9 @@
                   <hr class="hr my-2" />
 
                   <div class="row position-relative">
-                    <div class="col mb-4" style="min-height: 500px; overflow-y: auto;">
+                    <div class="col mb-4" style="min-height: 400px; overflow-y: auto;">
                       <% debts.each do |debt| %>
-                        <div class="row <%= debt.paid ? "bg-success": "bg-danger" %>">
+                        <div class="row <%= debt.paid ? "positivo": "negativo" %>">
                           <div class="col-3">
                             <p class="text-white" style="font-size: 10px; margin: 0px; border-bottom: 1px solid #ccc;" title="<%= debt.description %>"><%= debt.description %></p>
                           </div>
@@ -76,8 +76,8 @@
                     
                     <div class="col p-1 rounded-bottom position-absolute start-50 translate-middle" style="background-color: rgba(0, 0, 0, 0.5); top: 100%;">
                       <div class="row px-1">
-                        <div class="col ps-3 text-white"><b><small> TOTAL </small></b></div>
-                        <div class="col text-end pe-4 text-white"><b><small> R$ <%= sprintf("%.2f", total_debt).to_s.gsub('.', ',') %> </small></b></div>
+                        <div class="col ps-3"><b><small class="total"> TOTAL </small></b></div>
+                        <div class="col text-end pe-4"><b><small class="total"> R$ <%= sprintf("%.2f", total_debt).to_s.gsub('.', ',') %> </small></b></div>
                       </div>
                     </div>
                   </div>
@@ -92,7 +92,8 @@
         </div>
       </div>
     </div>
-    <div class="col-md-1 fixed-top vh-100" style="right: 0; left: auto;">
+    
+    <div class="col-md-1 col-12 mt-5" style="right: 0; left: auto;">
       <ul class="nav nav-pills nav-fill p-3 h-100" id="pills-tab" role="tablist">
         <li class="nav-item d-flex justify-content-center align-items-center" role="presentation">
           <select class="form-select form-select-sm" aria-label="Default select example">
@@ -102,15 +103,28 @@
             <% end %>
           </select>
         </li>
+
+        <!-- Select para os meses (visível apenas no mobile) -->
+        <li class="nav-item d-flex justify-content-center align-items-center d-md-none" role="presentation">
+          <select class="form-select form-select-sm mobile-month-select" aria-label="Selecione o mês" id="mobile-month-select">
+            <% @months.each_with_index do |month, index| %>
+              <% unless index == 0 %>
+                <option value="<%= index %>" <%= 'selected' if index == @month.to_i %>><%= month.upcase %></option>
+              <% end %>
+            <% end %>
+          </select>
+        </li>
+
         <% @months.each_with_index do |month, index| %>
           <% unless index == 0 %>
-            <li class="nav-item d-flex justify-content-center align-items-center" role="presentation">
+            <li class="nav-item d-flex justify-content-center align-items-center d-none d-md-flex" role="presentation">
               <%= link_to "#{month.upcase}", totals_path(month: index), class: index == @month.to_i ? "nav-link active" : "nav-link", "role": "tab", "aria-selected": index == @month.to_i ? "true" : "false", id: "pills-#{month.downcase}-tab" %>
             </li>
           <% end %>  
         <% end %>
       </ul>
     </div>
+
   </div>
 </div>
 

@@ -11,13 +11,10 @@
     <%= javascript_pack_tag 'application', 'data-turbolinks-track': 'reload' %>
   </head>
 
-  <body class='container-fluid bg-dark text-white' style="min-width: 770px;">
-    <div class="row vh-100">
-      <div class="col-2">
+  <body class='container-fluid'>
+    <div class="row min-vh-100">
+      <div class="d-flex flex-column">
         <%= render 'layouts/navbar' %>
-        <%# <%= render 'totals/debts' %>
-      </div>
-      <div class="col-10">
         <%= yield %>
       </div>
     </div>

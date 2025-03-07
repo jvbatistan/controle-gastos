@@ -26,22 +26,28 @@
           </div>
           <hr>
           <% card_debts = card.debts.where(paid: false).sum(:value) %>
-          <div class="row d-flex align-items-center">
-            <div class="col"><small>LIMITE</small></div>
-            <div class="col text-center" title="Limite"><small><%= sprintf("%.2f", (card.limit - card_debts)) %>/<%= card.limit %></small></div>
-          </div>
+          <% if card.name != "OUTROS" %>
+            <div class="row d-flex align-items-center">
+              <div class="col"><small>LIMITE</small></div>
+              <div class="col text-center" title="Limite"><small><%= sprintf("%.2f", (card.limit - card_debts)) %>/<%= card.limit %></small></div>
+            </div>
 
-          <div class="row d-flex align-items-center">
-            <div class="col text-center">
-              <div class="progress position-relative" role="progressbar" aria-label="Basic example" aria-valuenow=<%= (card_debts * 100.0/card.limit) %> aria-valuemin="0" aria-valuemax="100">
-                <span class="text-black position-absolute start-50 top-50 translate-middle"><b><%= sprintf("%.2f", (card_debts * 100.0/card.limit)) %>%</b></span>
-                <div class="progress-bar" style="width: <%= (card_debts * 100.0/card.limit) %>%"></div>
+            <div class="row d-flex align-items-center mt-1">
+              <div class="col text-center">
+                <div class="progress position-relative" role="progressbar" aria-label="Basic example" aria-valuenow=<%= (card_debts * 100.0/card.limit) %> aria-valuemin="0" aria-valuemax="100">
+                  <span class="text-white position-absolute start-50 top-50 translate-middle"><b><%= sprintf("%.2f", (card_debts * 100.0/card.limit)) %>%</b></span>
+                  <div class="progress-bar" style="width: <%= (card_debts * 100.0/card.limit) %>%"></div>
+                </div>
               </div>
             </div>
-          
-          </div>
+          <% else %>
+            <div class="row d-flex align-items-center">
+              <div class="col"><small>LIMITE</small></div>
+              <div class="col text-center" title="Limite"></div>
+            </div>
+          <% end %>
           <div class="row d-flex align-items-center">
-            <div class="col"><small title="Quantidade de dias antes do fechamento">QDAF </small></div>
+            <div class="col"><small title="Quantidade de dias antes do fechamento">QDAF</small></div>
             <div class="col text-center" title="Quantidade de dias antes do fechamento da fatura"><small><%= card.closing_date %></small></div>
           </div>
           <div class="row d-flex align-items-center">

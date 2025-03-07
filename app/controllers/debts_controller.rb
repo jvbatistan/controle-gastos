@@ -41,7 +41,7 @@ class DebtsController < ApplicationController
 
       @debts.each{|debt| @total += debt.value}
       
-      @debts = @debts.order(transaction_date: :desc).page(params[:page]).per(99)
+      @debts = @debts.order(transaction_date: :desc, value: :desc).page(params[:page]).per(99)
     else
       @debts = @debts.order(created_at: :desc).page(params[:page]).per(10)
     end

@@ -79,6 +79,8 @@ document.addEventListener("DOMContentLoaded", function() {
   
     const cardColorHex = rgbToHex(cardColor);
     const borderColor = adjustBrightness(cardColorHex, 0.8); // 20% darker
+    
+    card.style.backgroundImage = `linear-gradient(to bottom, #ECF0F1, ${cardColorHex})`;
     card.style.borderColor = borderColor;
   })
 });

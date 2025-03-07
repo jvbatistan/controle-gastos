@@ -43,12 +43,16 @@ class Debt < ApplicationRecord
       month = self.transaction_date.month
       year  = self.transaction_date.year
 
-      # Calcula a data de fechamento da fatura
-      if month == 12
-        closing_date = Date.new(year + 1, 1, self.card.due_date) - self.card.closing_date
-      else
-        closing_date = Date.new(year, month + 1, self.card.due_date) - self.card.closing_date
-      end
+      # binding.pry
+
+      # # Calcula a data de fechamento da fatura
+      # if month == 12
+      #   closing_date = Date.new(year + 1, 1, self.card.due_date) - self.card.closing_date
+      # else
+      #   closing_date = Date.new(year, month + 1, self.card.due_date) - self.card.closing_date
+      # end
+
+      closing_date = Date.new(year, month, self.card.due_date) - self.card.closing_date
 
       # Se a compra foi feita no dia do fechamento ou depois, cai na fatura do mês seguinte
       if self.transaction_date >= closing_date
