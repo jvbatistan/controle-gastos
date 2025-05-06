@@ -1,3 +1,105 @@
 // Place all the styles related to the Cards controller here.
 // They will automatically be included in application.css.
 // You can use Sass (SCSS) here: https://sass-lang.com/
+
+.card {
+  min-width: 300px;
+  max-width: 350px;
+  max-height: 350px;;
+  overflow-y: auto;
+  flex: 0 0 auto;
+  margin-right: 1rem;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  background-color: #fff;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+}
+
+.card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.card-icon img {
+  width: 30px;
+  height: auto;
+}
+
+.card-title {
+  flex-grow: 1;
+  margin-left: 0.5rem;
+  font-size: 1rem;
+}
+
+.card-total {
+  color: white;
+  padding: 5px 10px;
+  border-radius: 10px;
+  font-weight: bold;
+  font-size: 0.9rem;
+}
+
+.card-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+.card-table th {
+  color: white;
+}
+
+.card-table thead {
+  background-color: #f1f1f1;
+}
+
+.card-table th, .card-table td {
+  padding: 8px 6px;
+}
+
+.card-table tbody tr:nth-child(even) {
+  background-color: #d9d7d7;
+}
+
+.text-muted {
+  color: #6c757d !important; /* Cinza mais escuro */
+  display: block; /* Quebra linha */
+  margin-top: 2px; /* Espaço acima */
+}
+
+/* Alinhamento de valores */
+.card-table td:nth-child(4) {
+  text-align: right;
+  padding-right: 12px;
+}
+
+.card-table .text-muted.small {
+  font-size: 0.65em !important;
+  color: #888 !important;
+}
+
+.cards-container {
+  display: flex;
+  flex-wrap: wrap; /* Quebra linhas naturalmente */
+  gap: 16px;
+  padding: 12px;
+  overflow-y: auto; /* Scroll vertical padrão */
+  justify-content: center;
+}
+
+/* Desktop: Scroll horizontal apenas se necessário */
+@media (max-width: 767.98px) {
+  .cards-container {
+    flex-wrap: nowrap;
+    overflow-x: auto; 
+    overflow-y: hidden;
+    padding-bottom: 16px; /* Espaço para scroll */
+  }
+
+  .card {
+    flex: 0 0 auto; /* Impede que os cards estiquem */
+    min-width: 300px; /* Largura mínima para legibilidade */
+  }
+}

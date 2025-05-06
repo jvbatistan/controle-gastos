@@ -60,3 +60,5 @@ gem 'bootstrap', '~> 5.2.0'
 # gem 'jquery_mask_rails', '~> 0.1.0'
 
 gem 'kaminari'
+
+gem "font-awesome-rails"

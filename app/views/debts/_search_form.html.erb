@@ -54,8 +54,11 @@
     </div>
 
     <div class="row">
-      <div class="col-md-12 col-xxl-2 col-xl-2 col-lg-2 d-grid gap-2">
-        <%= form.submit "Buscar", class: 'btn btn-primary ' %>
+      <div class="col-md-6 col-xxl-2 col-xl-2 col-lg-2 d-grid gap-2">
+        <%= form.submit "Buscar", class: 'btn btn-secondary' %>
+      </div>
+      <div class="col-md-6 col-xxl-2 col-xl-2 col-lg-2 d-grid gap-2">
+        <button class="btn btn-outline-secondary btn-limpar">Limpar</button>
       </div>
     </div>
   </div>
@@ -63,7 +66,10 @@
   <% if @total.present? %>
     <div class="row mt-3 mx-2 d-flex justify-content-end align-items-center">
       <div class="col-md-6 text-end">
-        <h4> Total gasto R$ <%= sprintf("%.2f", @total).to_s.gsub('.', ',') %>
+        <h4> Total gasto R$ <%= sprintf("%.2f", @total).to_s.gsub('.', ',') %> </h4>
+        <% if @due_date.present? %>
+          <h5> Vencimento: <%= @due_date.strftime("%d/%m/%Y") %> </h5>
+        <% end %>
       </div>
     </div>
   <% end %>

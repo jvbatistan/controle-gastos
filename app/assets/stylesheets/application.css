@@ -12,6 +12,7 @@
  *
  *= require_tree .
  *= require_self
+ *= require font-awesome
  */
 
 .testimonial-group > .row {
@@ -79,6 +80,27 @@
   background-color: var(--bs-pagination-color) !important;
 }
 
+.nav-link:visited {
+  color: var(--bs-nav-link-color) !important;
+}
+
+.nav-link:hover {
+  background-color: var(--bs-nav-link-color) !important;;
+  color: #fff !important;
+}
+
+.nav-link.active {
+  color: #fff !important;
+}
+
+.nav-link.active.menu {
+  color: #2C3E50 !important;
+}
+
+.nav-link.active.menu:hover {
+  color: #fff !important;
+}
+
 h1, h2, h3,
 h4, h5, h6,
 small {
@@ -89,15 +111,15 @@ small {
   color: #fff !important;
 }
 
-/* Ajuste para o menu no mobile */
-@media (max-width: 767.98px) {
+
+/* @media (max-width: 767.98px) {
   .mobile-totals-row {
     flex-direction: column-reverse;
   }
 
   .mobile-menu-select {
-    position: relative !important; /* Remove o posicionamento fixo no mobile */
-    height: auto !important; /* Ajusta a altura */
+    position: relative !important; 
+    height: auto !important; 
   }
 
   .mobile-select {
@@ -105,12 +127,12 @@ small {
   }
 
   .nav-pills {
-    flex-direction: row !important; /* Alinha os itens horizontalmente */
-    overflow-x: auto !important; /* Permite rolagem horizontal se necessário */
+    flex-direction: row !important;
+    overflow-x: auto !important;
   }
 
   .mobile-month-select {
-    width: 100% !important; /* Ocupa toda a largura disponível */
-    margin: 10px 0 !important; /* Adiciona um espaçamento */
+    width: 100% !important;
+    margin: 10px 0 !important;
   }
-}
+} */

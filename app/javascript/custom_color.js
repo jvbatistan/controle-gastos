@@ -61,8 +61,7 @@ function adjustBrightness(hex, factor) {
   return hslToHex(hsl.h, hsl.s, hsl.l);
 }
 
-// DOMContentLoaded event to ensure the DOM is fully loaded before running the script
-document.addEventListener("DOMContentLoaded", function() {
+function applyEffect() {
   const cards = document.getElementsByClassName('card-personalizado');
   var arr = Array.prototype.slice.call( cards )
   arr.map((card) => {
@@ -83,4 +82,20 @@ document.addEventListener("DOMContentLoaded", function() {
     card.style.backgroundImage = `linear-gradient(to bottom, #ECF0F1, ${cardColorHex})`;
     card.style.borderColor = borderColor;
   })
+}
+
+document.addEventListener("turbolinks:load", function() {
+  applyEffect();
+
+  // Observar mudanças no DOM
+  const observer = new MutationObserver(function(mutations) {
+    mutations.forEach(function(mutation) {
+      if (mutation.addedNodes.length) {
+        applyEffect();
+      }
+    });
+  });
+
+  // Configurar o observer
+  observer.observe(document.body, { childList: true, subtree: true });
 });

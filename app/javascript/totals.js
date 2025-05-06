@@ -1,4 +1,4 @@
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('turbolinks:load', function() {
   const mobileMonthSelect = document.getElementById('mobile-month-select');
 
   if (mobileMonthSelect) {

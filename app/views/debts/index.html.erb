@@ -1,5 +1,5 @@
 <% if notice.present? %>
-  <div class="col-6 mt-3">
+  <div class="col-6 mt-5">
     <div class="alert alert-success alert-dismissible fade show" role="alert">
       <span id="notice"> <%= notice %> </span>
       
@@ -18,14 +18,14 @@
       <h1>Despesas</h1>
     </div>
     <div class="col d-flex align-items-center justify-content-end">
-      <%= link_to 'Cadastrar despesa', new_debt_path, class: "btn btn-success text-white" %>
+      <%= link_to 'Cadastrar despesa', new_debt_path, class: "btn btn-primary text-white" %>
 
       <% if params[:search].present? %>
         <%= form_with url: pay_all_debts_path, method: :post do | form | %>
-          <%= form.text_field :month, type: :hidden, value: "#{params[:search][:month].present? ? params[:search][:month] : ''}" %>
-          <%= form.text_field :year, type: :hidden, value: "#{params[:search][:year].present? ? params[:search][:year] : ''}" %>
+          <%= form.text_field :month,   type: :hidden, value: "#{params[:search][:month].present? ? params[:search][:month] : ''}" %>
+          <%= form.text_field :year,    type: :hidden, value: "#{params[:search][:year].present? ? params[:search][:year] : ''}" %>
           <%= form.text_field :card_id, type: :hidden, value: "#{params[:search][:card_id].present? ? params[:search][:card_id] : ''}" %>
-          <%= submit_tag 'Pagar despesas', class: "btn btn-outline-success ms-2" %>
+          <%= submit_tag 'Pagar despesas', class: "btn btn-outline-primary ms-2" %>
         <% end %>
         
       <% end %>

@@ -14,7 +14,7 @@ class DebtsController < ApplicationController
       end
 
       if params[:search][:card_id].present?
-        @debts = @debts.where('card_id = ?', "#{params[:search][:card_id]}")
+        @debts    = @debts.where('card_id = ?', "#{params[:search][:card_id]}")
       end
 
       if params[:search][:paid].present?
@@ -30,6 +30,7 @@ class DebtsController < ApplicationController
         # @debts = @debts.where('EXTRACT(MONTH FROM billing_statement) = ?', "#{params[:search][:month]}")
         ### SQLITE3
         @debts = @debts.where("strftime('%m', billing_statement) = ?", "#{params[:search][:month].to_s.rjust(2, '0')}")
+        @due_date = (Date.new(Date.today.year, Date.today.month, @debts.last.card.due_date) + 1.month) if params[:search][:card_id].present?
       end
 
       if params[:search][:year].present? && params[:search][:year] != "0"
@@ -37,11 +38,11 @@ class DebtsController < ApplicationController
         # @debts = @debts.where('EXTRACT(YEAR FROM billing_statement) = ?', "#{params[:search][:year]}")
         ### SQLITE3
         @debts = @debts.where("strftime('%Y', billing_statement) = ?", "#{params[:search][:year].to_s}")
+        @due_date = (Date.new(Date.today.year, Date.today.month, @debts.last.card.due_date) + 1.month) if params[:search][:card_id].present?
       end
 
       @debts.each{|debt| @total += debt.value}
-      
-      @debts = @debts.order(transaction_date: :desc, value: :desc).page(params[:page]).per(99)
+      @debts = @debts.order(paid: :asc, transaction_date: :desc, value: :desc).page(params[:page]).per(99)
     else
       @debts = @debts.order(created_at: :desc).page(params[:page]).per(10)
     end
