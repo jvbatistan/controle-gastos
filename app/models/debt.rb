@@ -1,5 +1,8 @@
 class Debt < ApplicationRecord
+  has_paper_trail
+  
   belongs_to :card, optional: true
+  belongs_to :category, optional: true
 
   validates :description, presence: true
   validates :value, presence: true

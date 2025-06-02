@@ -8,68 +8,86 @@
   </div>
 <% end %>
 
-<div class="col-md-12 mt-5">
+<div class="container">
   <%= render 'search_form' %>
-</div>
 
-<div class="container-fluid mt-5">
-  <div class="row">
-    <div class="col d-flex align-items-center">
-      <h1>Despesas</h1>
+  <div class="row mt-5 mb-3">
+    <div class="col d-flex justify-content-between align-items-center">
+      <h4 class="mb-0">Despesas</h4>
     </div>
-    <div class="col d-flex align-items-center justify-content-end">
-      <%= link_to 'Cadastrar despesa', new_debt_path, class: "btn btn-primary text-white" %>
+  </div>
 
-      <% if params[:search].present? %>
+  <div class="row mb-3">
+    <div class="col d-flex align-items-center flex-wrap gap-2">
+      <%= link_to new_debt_path, class: "btn btn-outline-primary" do %>
+        <i class="fa fa-plus me-1"></i> Cadastrar despesa
+      <% end %>
+
+      <% if params[:month].present? && params[:year].present? && params[:card_id].present? %>
         <%= form_with url: pay_all_debts_path, method: :post do | form | %>
-          <%= form.text_field :month,   type: :hidden, value: "#{params[:search][:month].present? ? params[:search][:month] : ''}" %>
-          <%= form.text_field :year,    type: :hidden, value: "#{params[:search][:year].present? ? params[:search][:year] : ''}" %>
-          <%= form.text_field :card_id, type: :hidden, value: "#{params[:search][:card_id].present? ? params[:search][:card_id] : ''}" %>
-          <%= submit_tag 'Pagar despesas', class: "btn btn-outline-primary ms-2" %>
+          <%= form.text_field :month,   type: :hidden, value: "#{params[:month].present?   ? params[:month]   : ''}" %>
+          <%= form.text_field :year,    type: :hidden, value: "#{params[:year].present?    ? params[:year]    : ''}" %>
+          <%= form.text_field :card_id, type: :hidden, value: "#{params[:card_id].present? ? params[:card_id] : ''}" %>
+          
+          <%= button_tag type: "button", class: "btn btn-outline-success" do %>
+            <i class="fa fa-money-bill-wave me-1"></i> Pagar despesas
+          <% end %>
         <% end %>
-        
+      <% end %>
+      
+      <%= button_tag type: "button", class: "btn btn-outline-dark d-md-none mb-3", data: { bs_toggle: "offcanvas", bs_target: "#filtroOffcanvas" } do %>
+        <i class="fa fa-filter me-1"></i> Filtros
+      <% end %>
+      
+      <% if @total.present? %>
+        <span class="badge bg-info fs-5 ms-auto">Total gasto <%= number_to_currency(@total || 0) %></span>
       <% end %>
     </div>
   </div>
+
   <div class="row">
     <div class="col">
-      <div class="table">
-        <table class='table table-bordered table-light table-striped border border-dark rounded'>
-          <thead>
+      <div class="table-responsive d-none d-md-block">
+        <table class="table table-hover table-striped align-middle">
+          <thead class="table-light">
             <tr>
-              <th scope="col">#</th>
-              <th scope="col">Descrição</th>
-              <th scope="col">Valor</th>
-              <th scope="col">Pago?</th>
-              <th scope="col">Cartão</th>
-              <th scope="col">Data da compra</th>
-              <th scope="col">Fatura da cobrança</th>
-              <th scope="col">Tem parcela?</th>
-              <th scope="col">Parcela atual</th>
-              <th scope="col">Parcela final</th>
-              <th scope="col">Responsável</th>
-              <th scope="col">Ações</th>
+              <th>#</th>
+              <th>Descrição</th>
+              <th class="text-end">Valor R$</th>
+              <th>Pago?</th>
+              <th>Cartão</th>
+              <th>Data da compra</th>
+              <th>Fatura da cobrança</th>
+              <th>Tem parcela?</th>
+              <th class="text-center">Parcela atual</th>
+              <th class="text-center">Parcela final</th>
+              <th>Ações</th>
             </tr>
           </thead>
-
-          <tbody class="table-group-divider">
+          <tbody>
             <% @debts.each do |debt| %>
               <tr>
                 <td><%= debt.id %></td>
-                <td><%= debt.description %></td>
-                <td class="text-end">R$ <%= sprintf("%.2f", debt.value).to_s.gsub('.', ',') %></td>
-                <td><%= debt.paid ? "Sim" : "Não" %></td>
+                <td>
+                  <%= debt.description %>
+                  <span class="text-muted small" title="<%= debt&.responsible.presence || debt&.note %>"><%= debt&.responsible&.presence || debt&.note&.truncate(25) %></span>
+                </td>
+                <td class="text-end"><%= sprintf("%.2f", debt.value).to_s.gsub('.', ',') %></td>
+                <td><%= debt.paid? ? "Sim" : "Não" %></td>
                 <td><%= debt.card.name %></td>
-                <td><%= debt.transaction_date.strftime("%d/%m/%Y") %></td>
-                <td><%= I18n.t("date.month_names")[debt.billing_statement.month].upcase %></td>
-                <td><%= debt.has_installment ? "Sim" : "Não" %></td>
-                <td><%= debt.current_installment %></td>
-                <td><%= debt.final_installment %></td>
-                <td><%= debt.responsible %></td>
-                <td class="text-center">
-                  <%= link_to 'Editar', edit_debt_path(debt), class: 'btn btn-secondary text-white' %>
-                  <% unless debt.parent_id.present? %>
-                    <%= link_to 'Excluir', debt, method: :delete, class: 'btn btn-danger text-white', data: { confirm: 'Tem certeza?' } %>
+                <td><%= l(debt.transaction_date) %></td>
+                <td><%= l(debt.billing_statement) %></td>
+                <td><%= debt.has_installment? ? "Sim" : "Não" %></td>
+                <td class="text-center"><%= debt.current_installment %></td>
+                <td class="text-center"><%= debt.final_installment %></td>
+                <td>
+                  <%= link_to edit_debt_path(debt), class: "btn btn-sm btn-outline-secondary", title: 'Editar' do %>
+                    <i class="fa fa-pen"></i>
+                  <% end %>
+                  <% if debt.parent_id.nil? %>
+                    <%= link_to debt_path(debt), method: :delete, data: { confirm: "Tem certeza que deseja excluir?" }, class: "btn btn-sm btn-outline-danger", title: 'Excluir' do %>
+                      <i class="fa fa-trash"></i>
+                    <% end %>
                   <% end %>
                 </td>
               </tr>
@@ -77,11 +95,47 @@
           </tbody>
         </table>
       </div>
-    </div>
-  </div>
-  <div class="row">
-    <div class="col">
-      <%= paginate @debts %>
+      <div class="d-flex justify-content-center mt-4">
+        <%= paginate @debts %>
+      </div>
+
+      <div class="d-md-none">
+        <% @debts.each do |debt| %>
+          <div class="card mb-3 shadow-sm">
+            <div class="card-body">
+              <div class="d-flex justify-content-between align-items-center mb-2">
+                <h6 class="mb-0"><%= debt.description %></h6>
+                <small class="text-muted"><%= number_to_currency(debt.value) %></small>
+              </div>
+
+              <p class="mb-1"><strong>Cartão:</strong> <%= debt.card.name %></p>
+              <p class="mb-1"><strong>Data da compra:</strong> <%= l(debt.transaction_date) %></p>
+              <p class="mb-1"><strong>Fatura:</strong> <%= l(debt.billing_statement) %></p>
+              <p class="mb-1"><strong>Pago:</strong> <%= debt.paid? ? "Sim" : "Não" %></p>
+              <% if debt.has_installment? %>
+                <p class="mb-1"><strong>Parcela:</strong> <%= debt.current_installment %> de <%= debt.final_installment %></p>
+              <% end %>
+              <p class="mb-1"><strong>Responsável:</strong> <%= debt.responsible %></p>
+
+              <div class="text-end mt-2">
+                <%= link_to edit_debt_path(debt), class: "btn btn-sm btn-outline-secondary" do %>
+                  <i class="fa fa-pen me-1"></i> Editar
+                <% end %>
+                <% if debt.parent_id.nil? %>
+                    <%= link_to debt_path(debt), method: :delete, data: { confirm: "Tem certeza que deseja excluir?" }, class: "btn btn-sm btn-outline-danger" do %>
+                      <i class="fa fa-trash me-1"></i> Excluir
+                    <% end %>
+                  <% end %>
+              </div>
+            </div>
+          </div>
+        <% end %>
+
+        <div class="d-flex justify-content-center mt-3">
+          <%= paginate @debts %>
+        </div>
+      </div>
+      
     </div>
   </div>
 </div>

@@ -6,43 +6,44 @@ class DebtsController < ApplicationController
   def index
     @debts = Debt.all
 
-    if params[:search].present?
+    if params[:description].present? || params[:card_id].present? || params[:paid].present? || params[:has_installment].present? || params[:month].present? || params[:year].present?
       @total = 0
 
-      if params[:search][:description].present?
-        @debts = @debts.where('description LIKE ?', "%#{params[:search][:description]}%")
+      if params[:description].present?
+        @debts = @debts.where('description LIKE ?', "%#{params[:description]}%")
       end
 
-      if params[:search][:card_id].present?
-        @debts    = @debts.where('card_id = ?', "#{params[:search][:card_id]}")
+      if params[:card_id].present?
+        @debts    = @debts.where('card_id = ?', "#{params[:card_id]}")
       end
 
-      if params[:search][:paid].present?
-        @debts = @debts.where('paid = ?', "#{params[:search][:paid]}")
+      if params[:paid].present?
+        @debts = @debts.where('paid = ?', params[:paid] == 'true' ? true : false)
       end
 
-      if params[:search][:has_installment].present?
-        @debts = @debts.where('has_installment = ?', "#{params[:search][:has_installment]}")
+      if params[:has_installment].present?
+        @debts = @debts.where('has_installment = ?', "#{params[:has_installment]}")
       end
 
-      if params[:search][:month].present? && params[:search][:month] != "0"
+      if params[:month].present? && params[:month] != "0"
         ### POSTGRES OU MYSQL
-        # @debts = @debts.where('EXTRACT(MONTH FROM billing_statement) = ?', "#{params[:search][:month]}")
+        # @debts = @debts.where('EXTRACT(MONTH FROM billing_statement) = ?', "#{params[:month]}")
         ### SQLITE3
-        @debts = @debts.where("strftime('%m', billing_statement) = ?", "#{params[:search][:month].to_s.rjust(2, '0')}")
-        @due_date = (Date.new(Date.today.year, Date.today.month, @debts.last.card.due_date) + 1.month) if params[:search][:card_id].present?
+        months = Array(params[:month]).map { |m| m.to_s.rjust(2, '0') }
+        @debts = @debts.where("strftime('%m', billing_statement) IN (?)", months)
+        @due_date = (Date.new(Date.today.year, Date.today.month, @debts.last.card.due_date) + 1.month) if params[:card_id].present? && params[:month].size <= 1
       end
 
-      if params[:search][:year].present? && params[:search][:year] != "0"
+      if params[:year].present? && params[:year] != "0"
         ### POSTGRES OU MYSQL
-        # @debts = @debts.where('EXTRACT(YEAR FROM billing_statement) = ?', "#{params[:search][:year]}")
+        # @debts = @debts.where('EXTRACT(YEAR FROM billing_statement) = ?', "#{params[:year]}")
         ### SQLITE3
-        @debts = @debts.where("strftime('%Y', billing_statement) = ?", "#{params[:search][:year].to_s}")
-        @due_date = (Date.new(Date.today.year, Date.today.month, @debts.last.card.due_date) + 1.month) if params[:search][:card_id].present?
+        @debts = @debts.where("strftime('%Y', billing_statement) = ?", "#{params[:year].to_s}")
+        @due_date = (Date.new(Date.today.year, Date.today.month, @debts.last.card.due_date) + 1.month) if params[:card_id].present? && params[:month].size <= 1
       end
 
       @debts.each{|debt| @total += debt.value}
-      @debts = @debts.order(paid: :asc, transaction_date: :desc, value: :desc).page(params[:page]).per(99)
+      @debts = @debts.order(id: :desc, paid: :asc, transaction_date: :desc, value: :desc).page(params[:page]).per(99)
     else
       @debts = @debts.order(created_at: :desc).page(params[:page]).per(10)
     end
@@ -96,7 +97,7 @@ class DebtsController < ApplicationController
 
   # DELETE /debts/1 or /debts/1.json
   def destroy
-    @debt.destroy
+    # @debt.destroy
 
     respond_to do |format|
       format.html { redirect_to debts_url, notice: "Debt was successfully destroyed." }
@@ -138,6 +139,6 @@ class DebtsController < ApplicationController
 
     # Only allow a list of trusted parameters through.
     def debt_params
-      params.require(:debt).permit(:description, :value, :transaction_date, :billing_statement, :paid, :has_installment, :current_installment, :final_installment, :responsible, :card_id)
+      params.require(:debt).permit(:description, :value, :transaction_date, :billing_statement, :paid, :has_installment, :current_installment, :final_installment, :responsible, :card_id, :note)
     end
 end

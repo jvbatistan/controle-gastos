@@ -1,8 +1,8 @@
-// Place all the styles related to the Cards controller here.
+// Place all the styles related to the credit-Cards controller here.
 // They will automatically be included in application.css.
 // You can use Sass (SCSS) here: https://sass-lang.com/
 
-.card {
+.credit-card {
   min-width: 300px;
   max-width: 350px;
   max-height: 350px;;
@@ -15,25 +15,25 @@
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
 }
 
-.card-header {
+.credit-card-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 10px;
 }
 
-.card-icon img {
+.credit-card-icon img {
   width: 30px;
   height: auto;
 }
 
-.card-title {
+.credit-card-title {
   flex-grow: 1;
   margin-left: 0.5rem;
   font-size: 1rem;
 }
 
-.card-total {
+.credit-card-total {
   color: white;
   padding: 5px 10px;
   border-radius: 10px;
@@ -41,25 +41,25 @@
   font-size: 0.9rem;
 }
 
-.card-table {
+.credit-card-table {
   width: 100%;
   border-collapse: collapse;
   font-size: 0.85rem;
 }
 
-.card-table th {
+.credit-card-table th {
   color: white;
 }
 
-.card-table thead {
+.credit-card-table thead {
   background-color: #f1f1f1;
 }
 
-.card-table th, .card-table td {
+.credit-card-table th, .credit-card-table td {
   padding: 8px 6px;
 }
 
-.card-table tbody tr:nth-child(even) {
+.credit-card-table tbody tr:nth-child(even) {
   background-color: #d9d7d7;
 }
 
@@ -70,17 +70,17 @@
 }
 
 /* Alinhamento de valores */
-.card-table td:nth-child(4) {
+.credit-card-table td:nth-child(4) {
   text-align: right;
   padding-right: 12px;
 }
 
-.card-table .text-muted.small {
+.credit-card-table .text-muted.small {
   font-size: 0.65em !important;
   color: #888 !important;
 }
 
-.cards-container {
+.credit-cards-container {
   display: flex;
   flex-wrap: wrap; /* Quebra linhas naturalmente */
   gap: 16px;
@@ -91,15 +91,74 @@
 
 /* Desktop: Scroll horizontal apenas se necessário */
 @media (max-width: 767.98px) {
-  .cards-container {
+  .credit-cards-container {
     flex-wrap: nowrap;
     overflow-x: auto; 
     overflow-y: hidden;
     padding-bottom: 16px; /* Espaço para scroll */
   }
 
-  .card {
-    flex: 0 0 auto; /* Impede que os cards estiquem */
+  .credit-card {
+    flex: 0 0 auto; /* Impede que os credit-cards estiquem */
     min-width: 300px; /* Largura mínima para legibilidade */
   }
+}
+
+.card-scroll-grid {
+  display: grid;
+  grid-auto-flow: column;
+  grid-template-rows: repeat(2, auto); /* 2 linhas */
+  grid-auto-columns: 160px; /* largura dos cartões */
+  overflow-x: auto;
+  gap: 1rem;
+  padding-bottom: 0.5rem;
+  scroll-snap-type: x mandatory;
+}
+
+.card-scroll-grid .card-option {
+  scroll-snap-align: start;
+  border: 2px solid transparent;
+  transition: 0.2s ease-in-out;
+  cursor: pointer;
+  height: 100%;
+}
+
+.card-option {
+  scroll-snap-align: start;
+  border: 2px solid transparent;
+  transition: all 0.2s ease-in-out;
+  cursor: pointer;
+  height: 100%;
+  border-radius: 0.5rem;
+  background: white;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+  transition: border-color 0.2s ease-in-out, box-shadow 0.2s;
+}
+
+.card-option.selected {
+  border: 2px solid var(--card-color, #0d6efd);
+  box-shadow: 0 0 0 3px rgba(var(--card-color-rgb), 0.25);
+  // background-color: rgba(var(--card-color-rgb), 0.05);
+}
+
+.card-option:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.card-option .bandeira {
+  max-height: 16px;
+  opacity: 0.7;
+}
+
+/* Scrollbar refinada */
+.card-scroll-grid::-webkit-scrollbar {
+  height: 6px;
+}
+.card-scroll-grid::-webkit-scrollbar-thumb {
+  background: #adb5bd;
+  border-radius: 10px;
+}
+.card-scroll-grid::-webkit-scrollbar-track {
+  background: transparent;
 }

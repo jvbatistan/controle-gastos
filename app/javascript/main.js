@@ -5,4 +5,8 @@ document.addEventListener("turbolinks:load", function() {
     $("input[type='text']").map((index, element) => $(element).val(''))
     $("select").map((index, element) => $(element).val(''))
   });
+
+  $('.select2').select2({
+    width: '100%'
+  });
 })

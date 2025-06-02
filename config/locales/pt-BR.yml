@@ -15,6 +15,7 @@ pt-BR:
         final_installment: Parcela final
         card_id: Cartão da dívida
         responsible: Responsável
+        note: Observação
       card:
         name: Nome cartão
         due_date: Dia do vencimento

@@ -61,4 +61,4 @@ gem 'bootstrap', '~> 5.2.0'
 
 gem 'kaminari'
 
-gem "font-awesome-rails"
+gem 'paper_trail'

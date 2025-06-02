@@ -1,76 +1,54 @@
 
-<%= form_with(url: debts_path, method: :get, scope: :search, local: true) do |form| %>
-  <div class="container-fluid mt-5 p-3 border border-black rounded card-background">
-    <div class="row">
-      <h4>Filtro de busca</h4>
-
-      <div class="col-md-12 col-xxl-2 col-xl-2 col-lg-2">
-        <div class="mb-3">
-          <%= form.label :description, t('activerecord.attributes.debt.description'), class: 'form-label' %>
-          <%= form.text_field :description, class: 'form-control', value: "#{params[:search][:description] if params[:search].present? && params[:search][:description].present?}" %>
-        </div>
-      </div>
-
-      <div class="col-md-12 col-xxl-2 col-xl-2 col-lg-2">
-        <div class="mb-3">
-          <%= form.label :card_id, t('activerecord.attributes.debt.card_id'), class: 'form-label' %>
-          <%= form.collection_select :card_id, Card.all.order(:name), :id, :name, { include_blank: true, selected: params.dig(:search, :card_id) }, { class: 'form-select' } %>
-        </div>
-      </div>
-
-      <div class="col-md-12 col-xxl-1 col-xl-1 col-lg-1 d-lg-flex align-items-center mobile-select">
-        <div class="mb-3">
-          <%= form.label :has_installment, t('activerecord.attributes.debt.has_installment'), class: 'form-label' %>
-          <%= form.collection_select :has_installment, [['Sim', 1], ['Não', 0]], :last, :first, { include_blank: true, selected: params.dig(:search, :has_installment) }, { class: 'form-select' } %>
-        </div>
-      </div>
-
-      <div class="col-md-12 col-xxl-1 col-xl-1 col-lg-1 d-lg-flex align-items-center mobile-select">
-        <div class="mb-3">
-          <%= form.label :paid, t('activerecord.attributes.debt.paid'), class: 'form-label' %>
-          <%= form.collection_select :paid, [['Sim', 1], ['Não', 0]], :last, :first, { include_blank: true, selected: params.dig(:search, :paid) }, { class: 'form-select' } %>
-        </div>
-      </div>
-
-      <div class="col-md-12 col-xxl-2 col-xl-2 col-lg-2">
-        <div class="mb-3">
-          <% 
-            i = 0;
-            @months = I18n.t("date.month_names").map{ |month| item = [month, i]; i+=1; item } %>
-          <%= form.label :month, t('datetime.prompts.month'), class: 'form-label' %>
-          <%= form.collection_select :month, @months, :last, :first, { include_blank: false, selected: params.dig(:search, :month) }, { class: 'form-select' } %>
-        </div>
-      </div>
-
-      <div class="col-md-12 col-xxl-2 col-xl-2 col-lg-2">
-        <div class="mb-3">
-          <% 
-            i = 2025;
-            @years = (Date.today.year..2030).map{ |year| item = [year, i]; i+=1; item } %>
-          <%= form.label :year, t('datetime.prompts.year'), class: 'form-label' %>
-          <%= form.collection_select :year, @years, :last, :first, { include_blank: false, selected: params.dig(:search, :year) }, { class: 'form-select' } %>
-        </div>
-      </div>
-    </div>
-
-    <div class="row">
-      <div class="col-md-6 col-xxl-2 col-xl-2 col-lg-2 d-grid gap-2">
-        <%= form.submit "Buscar", class: 'btn btn-secondary' %>
-      </div>
-      <div class="col-md-6 col-xxl-2 col-xl-2 col-lg-2 d-grid gap-2">
-        <button class="btn btn-outline-secondary btn-limpar">Limpar</button>
-      </div>
-    </div>
+<div class="offcanvas offcanvas-end d-md-none" tabindex="-1" id="filtroOffcanvas" aria-labelledby="filtroLabel">
+  <div class="offcanvas-header">
+    <h5 id="filtroLabel">Filtros</h5>
+    <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
   </div>
 
-  <% if @total.present? %>
-    <div class="row mt-3 mx-2 d-flex justify-content-end align-items-center">
-      <div class="col-md-6 text-end">
-        <h4> Total gasto R$ <%= sprintf("%.2f", @total).to_s.gsub('.', ',') %> </h4>
-        <% if @due_date.present? %>
-          <h5> Vencimento: <%= @due_date.strftime("%d/%m/%Y") %> </h5>
-        <% end %>
+  <div class="offcanvas-body">
+    <%= form_with(url: debts_path, method: :get, local: true) do |form| %>
+      <div class="card p-3 shadow-sm">
+        <div class="mb-3">
+          <%# Cada campo dentro da sua própria linha no mobile %>
+          <% fields = render('search_fields').split("\n") %>
+          <% fields.each do |field| %>
+            <div class="mb-3">
+              <%= raw field %>
+            </div>
+          <% end %>
+        </div>
+
+        <div class="row g-3">
+          <div class="col-md-6 d-flex align-items-end">
+            <%= submit_tag "Buscar", class: "btn btn-primary w-100" %>
+          </div>
+          <div class="col-md-6 d-flex align-items-end">
+            <%= link_to "Limpar", debts_path, class: "btn btn-outline-secondary w-100" %>
+          </div>
+        </div>
+      </div>
+    <% end %>
+  </div>
+</div>
+
+<div class="d-none d-md-block mt-5">
+  <%= form_with(url: debts_path, method: :get, local: true, class: "card p-3 shadow-sm") do |form| %>
+    <div class="row g-3">
+      <% fields = render('search_fields').split("\n") %>
+      <% fields.each do |field| %>
+        <div class="col-md-4">
+          <%= raw field %>
+        </div>
+      <% end %>
+    </div>
+    
+    <div class="row g-3 mt-1">
+      <div class="col-md-2">
+        <%= submit_tag "Buscar", class: "btn btn-primary w-100" %>
+      </div>
+      <div class="col-md-2">
+        <%= link_to "Limpar", debts_path, class: "btn btn-outline-secondary w-100" %>
       </div>
     </div>
   <% end %>
- <% end %>
+</div>

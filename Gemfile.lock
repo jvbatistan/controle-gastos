@@ -86,8 +86,6 @@ GEM
     erubi (1.11.0)
     execjs (2.8.1)
     ffi (1.15.5)
-    font-awesome-rails (4.7.0.9)
-      railties (>= 3.2, < 9.0)
     globalid (1.0.0)
       activesupport (>= 5.0)
     i18n (1.12.0)
@@ -126,6 +124,9 @@ GEM
     nokogiri (1.13.8)
       mini_portile2 (~> 2.8.0)
       racc (~> 1.4)
+    paper_trail (13.0.0)
+      activerecord (>= 5.2)
+      request_store (~> 1.1)
     popper_js (2.11.5)
     pry (0.13.1)
       coderay (~> 1.1)
@@ -170,6 +171,8 @@ GEM
     rb-inotify (0.10.1)
       ffi (~> 1.0)
     regexp_parser (2.5.0)
+    request_store (1.7.0)
+      rack (>= 1.4)
     rexml (3.2.5)
     rubyzip (2.3.2)
     sass-rails (6.0.0)
@@ -235,10 +238,10 @@ DEPENDENCIES
   bootstrap (~> 5.2.0)
   byebug
   capybara (>= 2.15)
-  font-awesome-rails
   jbuilder (~> 2.7)
   kaminari
   listen (~> 3.2)
+  paper_trail
   pry (~> 0.13.1)
   puma (~> 4.1)
   rails (~> 6.0.5, >= 6.0.5.1)

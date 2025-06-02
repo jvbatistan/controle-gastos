@@ -1,0 +1,6 @@
+<%= text_field_tag :description, params[:description], class: "form-control", placeholder: "Descrição" %>
+<%= select_tag :card_id, options_from_collection_for_select(Card.all.order(:name), :id, :name, params[:card_id]), include_blank: "Cartão da dívida", class: "form-select" %>
+<%= select_tag :has_installment, options_for_select([["Sim", true], ["Não", false]], params[:has_installment]), include_blank: "Tem parcela?", class: "form-select" %>
+<%= select_tag :paid, options_for_select([["Sim", true], ["Não", false]], params[:paid]), include_blank: "Pago?", class: "form-select" %>
+<%= select_tag :month, options_for_select(I18n.t("date.month_names").compact.each_with_index.map { |m, i| [m, i + 1] }, (params[:month] || (Date.today.month + 1))), class: "form-select select2", include_blank: "Mês", multiple: true %>
+<%= select_tag :year, options_for_select((2025..2030).to_a, (params[:year] || Date.today.year)), class: "form-select", include_blank: "Ano" %>

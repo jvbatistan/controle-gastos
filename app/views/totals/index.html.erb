@@ -17,31 +17,24 @@
     <div class="col-md-11">
       <div class="container-fluid my-2">
         <h4 class='text-center p-3'> Gastos do mês de <%= I18n.t('date.month_names')[@month.to_i].downcase %> </h4>
-        <div class="cards-container">
+        <div class="credit-cards-container">
           <% @cards.each do |card| %>
             <% color_card = card.color %>
-            <div class="card mb-3">
-              <div class="card-header">
-                <% array_images = card.image.scan(/'([^']+)'/).flatten %>
-                <% if array_images.size > 1 %>
-                  <div class="card-icon">
-                    <img src="<%= array_images[1] %>" alt="<%= card.name.capitalize %>" />
-                  </div>
-                  <div class="card-title mb-0"><%= card.name %></div>
-                  <div class="card-icon">
-                    <img src="<%= array_images[0] %>" alt="<%= card.name.capitalize %>" />
-                  </div>
-                <% else %>
-                  <div class="card-icon">
-                    <img src="<%= card.image %>" alt="<%= card.name.capitalize %>" />
-                  </div>
-                  <div class="card-title mb-0"><%= card.name %></div>
-                <% end %>
-                <div class="card-total" style="background-color: <%= color_card %>;">
+            <div class="card credit-card mb-3">
+              <div class="card-header credit-card-header">
+                <% style = card_style(card) %>
+                <div class="credit-card-icon">
+                  <%= image_tag "cards/#{style[:logo]}", alt: "#{card.name}", class: "img-fluid" %>
+                </div>
+                <div class="credit-card-title mb-0"><%= card.name %></div>
+                <div class="credit-card-icon">
+                  <%= image_tag "flags/#{style[:flag]}", class: "img-fluid bandeira" if style[:flag].present? %>
+                </div>
+                <div class="credit-card-total" style="background-color: <%= color_card %>;">
                   R$ <%= sprintf("%.2f", card.total_debt(@month)).to_s.gsub('.', ',') %>
                 </div>
               </div>
-              <table class="card-table">
+              <table class="credit-card-table">
                 <thead>
                   <tr style="background-color: <%= color_card %>;">
                     <th>Descrição</th>

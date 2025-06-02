@@ -1,4 +1,4 @@
-document.addEventListener("DOMContentLoaded", function () {
+document.addEventListener("turbolinks:load", function () {
   Inputmask("999.999.999-99").mask(document.querySelectorAll(".cpf"));
 
   Inputmask({

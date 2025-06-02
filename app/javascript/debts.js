@@ -1,12 +1,25 @@
 document.addEventListener("turbolinks:load", function() {
-  $("#debt_has_installment").change(function() {
+  const hastInstallment    = $("#debt_has_installment");
+  const currentInstallment = $("#debt_current_installment");
+  const finalInstallment   = $("#debt_final_installment");
+
+  if (hastInstallment.is(":checked")) {
+    currentInstallment.removeAttr("disabled");
+    finalInstallment.removeAttr("disabled");
+  }
+  else {
+    currentInstallment.attr("disabled", true);
+    finalInstallment.attr("disabled", true);
+  }
+
+  hastInstallment.change(function() {
     if ($(this).is(":checked")) {
-      $("#debt_current_installment").removeAttr("disabled");
-      $("#debt_final_installment").removeAttr("disabled");
+      currentInstallment.removeAttr("disabled");
+      finalInstallment.removeAttr("disabled");
     }
     else {
-      $("#debt_current_installment").attr("disabled", true);
-      $("#debt_final_installment").attr("disabled", true);
+      currentInstallment.attr("disabled", true);
+      finalInstallment.attr("disabled", true);
     }
   })
 })
