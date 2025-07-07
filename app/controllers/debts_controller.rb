@@ -107,7 +107,8 @@ class DebtsController < ApplicationController
 
   def pay_all
     if params[:card_id].present? && params[:month].present? && params[:year].present?
-      all_debts = Debt.where(card_id: params[:card_id].to_i).where("strftime('%m', billing_statement) = ?", "#{params[:month].to_s.rjust(2, '0')}").where("strftime('%Y', billing_statement) = ?", "#{params[:year].to_s}")
+      months = Array(params[:month]).map { |m| m.to_s.rjust(2, '0') }
+      all_debts = Debt.where(card_id: params[:card_id].to_i).where("strftime('%m', billing_statement) IN (?)", months).where("strftime('%Y', billing_statement) = ?", "#{params[:year].to_s}")
       
       if all_debts.present?
         paids = all_debts.update_all(paid: true)

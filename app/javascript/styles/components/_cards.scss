@@ -1,11 +1,7 @@
-// Place all the styles related to the credit-Cards controller here.
-// They will automatically be included in application.css.
-// You can use Sass (SCSS) here: https://sass-lang.com/
-
 .credit-card {
   min-width: 300px;
   max-width: 350px;
-  max-height: 350px;;
+  max-height: 350px;
   overflow-y: auto;
   flex: 0 0 auto;
   margin-right: 1rem;
@@ -64,12 +60,11 @@
 }
 
 .text-muted {
-  color: #6c757d !important; /* Cinza mais escuro */
-  display: block; /* Quebra linha */
-  margin-top: 2px; /* Espaço acima */
+  color: #6c757d !important;
+  display: block;
+  margin-top: 2px;
 }
 
-/* Alinhamento de valores */
 .credit-card-table td:nth-child(4) {
   text-align: right;
   padding-right: 12px;
@@ -82,33 +77,32 @@
 
 .credit-cards-container {
   display: flex;
-  flex-wrap: wrap; /* Quebra linhas naturalmente */
+  flex-wrap: wrap;
   gap: 16px;
   padding: 12px;
-  overflow-y: auto; /* Scroll vertical padrão */
+  overflow-y: auto;
   justify-content: center;
 }
 
-/* Desktop: Scroll horizontal apenas se necessário */
 @media (max-width: 767.98px) {
   .credit-cards-container {
     flex-wrap: nowrap;
-    overflow-x: auto; 
+    overflow-x: auto;
     overflow-y: hidden;
-    padding-bottom: 16px; /* Espaço para scroll */
+    padding-bottom: 16px;
   }
 
   .credit-card {
-    flex: 0 0 auto; /* Impede que os credit-cards estiquem */
-    min-width: 300px; /* Largura mínima para legibilidade */
+    flex: 0 0 auto;
+    min-width: 300px;
   }
 }
 
 .card-scroll-grid {
   display: grid;
   grid-auto-flow: column;
-  grid-template-rows: repeat(2, auto); /* 2 linhas */
-  grid-auto-columns: 160px; /* largura dos cartões */
+  grid-template-rows: repeat(2, auto);
+  grid-auto-columns: 160px;
   overflow-x: auto;
   gap: 1rem;
   padding-bottom: 0.5rem;
@@ -138,7 +132,6 @@
 .card-option.selected {
   border: 2px solid var(--card-color, #0d6efd);
   box-shadow: 0 0 0 3px rgba(var(--card-color-rgb), 0.25);
-  // background-color: rgba(var(--card-color-rgb), 0.05);
 }
 
 .card-option:hover {
@@ -149,16 +142,4 @@
 .card-option .bandeira {
   max-height: 16px;
   opacity: 0.7;
-}
-
-/* Scrollbar refinada */
-.card-scroll-grid::-webkit-scrollbar {
-  height: 6px;
-}
-.card-scroll-grid::-webkit-scrollbar-thumb {
-  background: #adb5bd;
-  border-radius: 10px;
-}
-.card-scroll-grid::-webkit-scrollbar-track {
-  background: transparent;
 }

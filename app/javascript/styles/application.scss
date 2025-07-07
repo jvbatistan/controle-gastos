@@ -1,0 +1,16 @@
+// Bootstrap (importado antes de sobrescrever variáveis)
+@import "../../../node_modules/bootstrap/scss/bootstrap";
+
+// Estilos base
+@import "base/reset";
+@import "base/scaffolds";
+
+// Layout e estrutura
+@import "layout/structure";
+@import "layout/navbar";
+
+// Componentes
+@import "components/cards";
+
+// Utilitários
+@import "utilities/scrollbar";

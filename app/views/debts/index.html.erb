@@ -25,11 +25,13 @@
 
       <% if params[:month].present? && params[:year].present? && params[:card_id].present? %>
         <%= form_with url: pay_all_debts_path, method: :post do | form | %>
-          <%= form.text_field :month,   type: :hidden, value: "#{params[:month].present?   ? params[:month]   : ''}" %>
-          <%= form.text_field :year,    type: :hidden, value: "#{params[:year].present?    ? params[:year]    : ''}" %>
-          <%= form.text_field :card_id, type: :hidden, value: "#{params[:card_id].present? ? params[:card_id] : ''}" %>
+          <% Array(params[:month]).each do |m| %>
+            <%= hidden_field_tag 'month[]', m %>
+          <% end %>
+          <%= form.text_field :year,    type: :hidden, value: params[:year] %>
+          <%= form.text_field :card_id, type: :hidden, value: params[:card_id] %>
           
-          <%= button_tag type: "button", class: "btn btn-outline-success" do %>
+          <%= button_tag type: "submit", class: "btn btn-outline-success" do %>
             <i class="fa fa-money-bill-wave me-1"></i> Pagar despesas
           <% end %>
         <% end %>

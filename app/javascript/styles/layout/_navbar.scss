@@ -1,0 +1,28 @@
+.navbar-nav {
+  --bs-nav-link-color: #333 !important;
+}
+
+.nav-link:visited {
+  color: var(--bs-nav-link-color) !important;
+}
+
+.nav-link:hover {
+  background-color: var(--bs-nav-link-color) !important;
+  color: #fff !important;
+}
+
+.nav-link.active {
+  color: #fff !important;
+}
+
+.nav-link.active.menu {
+  color: #2C3E50 !important;
+}
+
+.nav-link.active.menu:hover {
+  color: #fff !important;
+}
+
+.page-link:hover {
+  background-color: var(--bs-pagination-color) !important;
+}

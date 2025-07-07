@@ -6,7 +6,11 @@ document.addEventListener("turbolinks:load", function() {
     $("select").map((index, element) => $(element).val(''))
   });
 
-  $('.select2').select2({
-    width: '100%'
+  const selects = document.querySelectorAll('.select2');
+  selects.forEach((select) => {
+    new Choices(select, {
+      removeItemButton: true,
+      shouldSort: false
+    });
   });
 })
