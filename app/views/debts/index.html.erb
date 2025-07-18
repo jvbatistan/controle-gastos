@@ -67,30 +67,38 @@
             </tr>
           </thead>
           <tbody>
-            <% @debts.each do |debt| %>
-              <tr>
-                <td><%= debt.id %></td>
-                <td>
-                  <%= debt.description %>
-                  <span class="text-muted small" title="<%= debt&.responsible.presence || debt&.note %>"><%= debt&.responsible&.presence || debt&.note&.truncate(25) %></span>
-                </td>
-                <td class="text-end"><%= sprintf("%.2f", debt.value).to_s.gsub('.', ',') %></td>
-                <td><%= debt.paid? ? "Sim" : "Não" %></td>
-                <td><%= debt.card.name %></td>
-                <td><%= l(debt.transaction_date) %></td>
-                <td><%= l(debt.billing_statement) %></td>
-                <td><%= debt.has_installment? ? "Sim" : "Não" %></td>
-                <td class="text-center"><%= debt.current_installment %></td>
-                <td class="text-center"><%= debt.final_installment %></td>
-                <td>
-                  <%= link_to edit_debt_path(debt), class: "btn btn-sm btn-outline-secondary", title: 'Editar' do %>
-                    <i class="fa fa-pen"></i>
-                  <% end %>
-                  <% if debt.parent_id.nil? %>
-                    <%= link_to debt_path(debt), method: :delete, data: { confirm: "Tem certeza que deseja excluir?" }, class: "btn btn-sm btn-outline-danger", title: 'Excluir' do %>
-                      <i class="fa fa-trash"></i>
+            <% if @debts.present? %>
+              <% @debts.each do |debt| %>
+                <tr>
+                  <td><%= debt.id %></td>
+                  <td>
+                    <%= debt.description %>
+                    <span class="text-muted small" title="<%= debt&.responsible.presence || debt&.note %>"><%= debt&.responsible&.presence || debt&.note&.truncate(25) %></span>
+                  </td>
+                  <td class="text-end"><%= sprintf("%.2f", debt.value).to_s.gsub('.', ',') %></td>
+                  <td><%= debt.paid? ? "Sim" : "Não" %></td>
+                  <td><%= debt.card.name %></td>
+                  <td><%= l(debt.transaction_date) %></td>
+                  <td><%= l(debt.billing_statement) %></td>
+                  <td><%= debt.has_installment? ? "Sim" : "Não" %></td>
+                  <td class="text-center"><%= debt.current_installment %></td>
+                  <td class="text-center"><%= debt.final_installment %></td>
+                  <td>
+                    <%= link_to edit_debt_path(debt), class: "btn btn-sm btn-outline-secondary", title: 'Editar' do %>
+                      <i class="fa fa-pen"></i>
                     <% end %>
-                  <% end %>
+                    <% if debt.parent_id.nil? %>
+                      <%= link_to debt_path(debt), method: :delete, data: { confirm: "Tem certeza que deseja excluir?" }, class: "btn btn-sm btn-outline-danger", title: 'Excluir' do %>
+                        <i class="fa fa-trash"></i>
+                      <% end %>
+                    <% end %>
+                  </td>
+                </tr>
+              <% end %>
+            <% else %>
+              <tr>
+                <td colspan="12">
+                  <h3> Sem dívidas encontradas para esses parâmetros </h3>
                 </td>
               </tr>
             <% end %>

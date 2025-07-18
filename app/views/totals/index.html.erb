@@ -48,8 +48,11 @@
                     <% debts.each do |debt| %>
                       <tr>
                         <td>
+                          <% if debt.category&.icon.present? %>
+                            <%= image_tag "categories/#{debt.category.icon}", alt: debt.category.name, class: "me-2", style: "height: 20px; vertical-align: middle;" %>
+                          <% end %>
                           <strong><%= debt.description %></strong>
-                          <span class="text-muted small"><%= debt.responsible %></span>
+                          <span class="text-muted small"><%= debt.responsible.presence || debt.note %></span>
                         </td>
                         <td><%= debt.transaction_date.strftime("%d/%m/%Y") %></td>
                         <td>

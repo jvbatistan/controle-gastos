@@ -31,7 +31,9 @@ class DebtsController < ApplicationController
         ### SQLITE3
         months = Array(params[:month]).map { |m| m.to_s.rjust(2, '0') }
         @debts = @debts.where("strftime('%m', billing_statement) IN (?)", months)
-        @due_date = (Date.new(Date.today.year, Date.today.month, @debts.last.card.due_date) + 1.month) if params[:card_id].present? && params[:month].size <= 1
+        if @debts.present? && params[:card_id].present? && params[:month].size <= 1
+          @due_date = (Date.new(Date.today.year, Date.today.month, @debts.last.card.due_date) + 1.month)
+        end
       end
 
       if params[:year].present? && params[:year] != "0"
@@ -39,7 +41,9 @@ class DebtsController < ApplicationController
         # @debts = @debts.where('EXTRACT(YEAR FROM billing_statement) = ?', "#{params[:year]}")
         ### SQLITE3
         @debts = @debts.where("strftime('%Y', billing_statement) = ?", "#{params[:year].to_s}")
-        @due_date = (Date.new(Date.today.year, Date.today.month, @debts.last.card.due_date) + 1.month) if params[:card_id].present? && params[:month].size <= 1
+        if @debts.present? && params[:card_id].present? && params[:month].size <= 1
+          @due_date = (Date.new(Date.today.year, Date.today.month, @debts.last.card.due_date) + 1.month) if params[:card_id].present? && params[:month].size <= 1
+        end
       end
 
       @debts.each{|debt| @total += debt.value}
@@ -135,7 +139,7 @@ class DebtsController < ApplicationController
     end
 
     def set_cards
-      @cards = Card.all.order(:name)
+      @cards = Card.ordenados
     end
 
     # Only allow a list of trusted parameters through.

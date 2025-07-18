@@ -1,0 +1,33 @@
+.choices__inner {
+  padding: 0rem .75rem !important; // igual ao Bootstrap
+  min-height: 38px !important; // igual aos inputs padrão
+  display: flex;
+  align-items: center;
+  font-size: 1rem !important;
+  // font-weight: 400 !important;
+  line-height: 1.5 !important;
+  color: #212529 !important;
+  background-color: #fff !important;
+  background-clip: padding-box !important;
+  border: 1px solid #ced4da !important;
+  -webkit-appearance: none !important;
+  -moz-appearance: none !important;
+  appearance: none !important;
+  border-radius: .375rem !important;
+}
+
+/* ✨ Quando estiver em foco */
+.choices__inner.is-focused {
+  border-radius: 8px;
+  border-color: #80bdff;
+  box-shadow: 0 0 4px rgba(0, 123, 255, 0.25);
+}
+
+/* 🔍 Corrige o espaçamento entre o select e o texto de ajuda */
+.choices {
+  margin-bottom: 0px !important;
+}
+
+.choices.is-open.is-focused {
+  border-radius: 8px;
+}

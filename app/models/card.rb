@@ -5,6 +5,10 @@ class Card < ApplicationRecord
 
   before_save :make_upcase
 
+  scope :ordenados, -> {
+    order(Arel.sql("CASE WHEN name LIKE 'outros' THEN 1 ELSE 0 END"), :name)
+  }
+
   def debts_by_date(month = Date.today.month, year = Date.today.year)
     debts.where("strftime('%m', billing_statement) = ? AND strftime('%Y', billing_statement) = ?", month.to_s.rjust(2, '0'), year.to_s).order(:transaction_date, :description, :value, :responsible)
   end

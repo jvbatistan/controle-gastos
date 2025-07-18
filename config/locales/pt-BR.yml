@@ -16,6 +16,7 @@ pt-BR:
         card_id: Cartão da dívida
         responsible: Responsável
         note: Observação
+        category_id: Categoria
       card:
         name: Nome cartão
         due_date: Dia do vencimento

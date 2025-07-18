@@ -17,7 +17,7 @@
 </div>
 
 <div class="col-md-4">
-  <%= select_tag :month, options_for_select(I18n.t("date.month_names").compact.each_with_index.map { |m, i| [m, i + 1] }, (params[:month] || Date.today.month)), class: "form-select select2", multiple: true, data: { placeholder: "Selecione os meses" } %>
+  <%= select_tag :month, options_for_select(I18n.t("date.month_names").compact.each_with_index.map { |m, i| [m, i + 1] }, (params[:month] || Date.today.month + 1)), class: "form-select select2", multiple: true, data: { placeholder: "Selecione os meses" } %>
 </div>
 
 <div class="col-md-4">

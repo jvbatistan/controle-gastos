@@ -19,59 +19,68 @@
 <div class="container-fluid mt-5">
   <div class="row d-flex justify-content-center">
     <% @cards.each do |card| %>
-      <div class="col-md-6 col-lg-4 col-xl-3 col-xxl-2 py-3 rounded mx-2 my-2 card-personalizado" style="background-color: <%= card.color %>; border: 2px solid;">
-        <div class="container-fluid h-100 p-0">
-          <div class="row">
-            <h6 class='text-center'> Cartão <%= card.name %> </h6>
-          </div>
-          <hr>
-          <%
-            card_debts = card.debts.where(paid: false).sum(:value)
-            text_color = card.name != "WILL" ? 'text-white' : ''
-          %>
-          <% if card.name != "OUTROS" %>
-            <div class="row d-flex align-items-center">
-              <div class="col">
-                <small class="<%= text_color %>">LIMITE</small>
-              </div>
-              <div class="col text-center" title="Limite">
-                <small class="<%= text_color %>"><%= sprintf("%.2f", (card.limit - card_debts)) %>/<%= card.limit %></small>
-              </div>
-            </div>
+      <% style = card_style(card) %>
+      <div class="col-sm-6 col-md-4 col-lg-3 col-xl-2 col-xxl-2 py-3 rounded mx-2 my-2 card-option text-center"
+          data-card-id="<%= card.id %>" 
+          style="--card-color: <%= style[:color] %>; --card-color-rgb: <%= style[:rgb].delete(' ') %>;">
 
-            <div class="row d-flex align-items-center mt-1">
-              <div class="col text-center">
-                <div class="progress position-relative" role="progressbar" aria-label="Basic example" aria-valuenow=<%= (card_debts * 100.0/card.limit) %> aria-valuemin="0" aria-valuemax="100">
-                  <span class="position-absolute start-50 top-50 translate-middle"><b><%= sprintf("%.2f", (card_debts * 100.0/card.limit)) %>%</b></span>
-                  <div class="progress-bar" style="width: <%= (card_debts * 100.0/card.limit) %>%"></div>
-                </div>
+        <div class="card-body d-flex flex-row align-items-center justify-content-center gap-2">
+          <% style = card_style(card) %>
+          <%= image_tag "cards/#{style[:logo]}", alt: "#{card.name}", style: "max-height: 24px;", class: "img-fluid" %>
+          <h6 class="mb-1"><%= card.name %></h6>
+          <%= image_tag "flags/#{style[:flag]}", class: "img-fluid bandeira", style: "max-height: 24px;" if style[:flag].present? %>
+        </div>
+
+        <hr class="my-2" style="border-color: white;">
+
+        <% card_debts = card.debts.where(paid: false).sum(:value) %>
+
+        <% if card.name != "OUTROS" %>
+          <div class="row d-flex align-items-center mt-1">
+            <div class="col text-center">
+              <div class="progress position-relative" role="progressbar" aria-label="Basic example" aria-valuenow=<%= (card_debts * 100.0/card.limit) %> aria-valuemin="0" aria-valuemax="100">
+                <span class="position-absolute start-50 top-50 translate-middle text-dark">
+                  <b><%= sprintf("%.2f", (card_debts * 100.0/card.limit)) %>%</b>
+                </span>
+                <div class="progress-bar" style="width: <%= (card_debts * 100.0/card.limit) %>%"></div>
               </div>
-            </div>
-          <% else %>
-            <div class="row d-flex align-items-center">
-              <div class="col">
-                <small class="<%= text_color %>">LIMITE</small>
-              </div>
-              <div class="col text-center" title="Limite"></div>
-            </div>
-          <% end %>
-          <div class="row d-flex align-items-center">
-            <div class="col">
-              <small class='<%= text_color %>' title="Dia do fechamento">FECHAMENTO</small>
-            </div>
-            <div class="col text-center" title="Quantidade de dias antes do fechamento da fatura">
-              <% data_fechamento = (Date.new(Date.today.year, Date.today.month, card.due_date) + 1.month) - card.closing_date %>
-              <small class='<%= text_color %>'><%= data_fechamento.strftime("%d/%m/%Y") %></small>
             </div>
           </div>
+
           <div class="row d-flex align-items-center">
             <div class="col">
-              <small class='<%= text_color %>' title="Vencimento">VENCIMENTO</small>
+              <small class="">LIMITE</small>
             </div>
-            <div class="col text-center">
-              <% data_vencimento = (Date.new(Date.today.year, Date.today.month, card.due_date) + 1.month) %>
-              <small class='<%= text_color %>' title="Dia do vencimento da fatura"><%= data_vencimento.strftime("%d/%m/%Y") %></small>
+            <div class="col text-center" title="Limite">
+              <small class=""><%= sprintf("%.2f", (card.limit - card_debts)) %>/<%= card.limit %></small>
             </div>
+          </div>
+        <% else %>
+          <div class="row d-flex align-items-center">
+            <div class="col">
+              <small class="">LIMITE</small>
+            </div>
+            <div class="col text-center" title="Limite"></div>
+          </div>
+        <% end %>
+
+        <div class="row d-flex align-items-center mt-2">
+          <div class="col">
+            <small class='' title="Dia do fechamento">FECHAMENTO</small>
+          </div>
+          <div class="col text-center" title="Quantidade de dias antes do fechamento da fatura">
+            <% data_fechamento = (Date.new(Date.today.year, Date.today.month, card.due_date) + 1.month) - card.closing_date %>
+            <small class=''><%= data_fechamento.strftime("%d/%m/%Y") %></small>
+          </div>
+        </div>
+
+        <div class="row d-flex align-items-center mt-1">
+          <div class="col">
+            <small class='' title="Vencimento">VENCIMENTO</small>
+          </div>
+          <div class="col text-center">
+            <% data_vencimento = (Date.new(Date.today.year, Date.today.month, card.due_date) + 1.month) %>
+            <small class='' title="Dia do vencimento da fatura"><%= data_vencimento.strftime("%d/%m/%Y") %></small>
           </div>
         </div>
       </div>

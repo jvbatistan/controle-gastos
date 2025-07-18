@@ -32,6 +32,7 @@ import './mask';
 import './totals';
 import './debts';
 import './cards';
+import './categories';
 import './main';
 
 // Iniciar Turbolinks (tem que ser depois do import)
