@@ -6,11 +6,15 @@ class DebtsController < ApplicationController
   def index
     @debts = Debt.all
 
-    if params[:description].present? || params[:card_id].present? || params[:paid].present? || params[:has_installment].present? || params[:month].present? || params[:year].present?
+    if params[:description].present? || params[:card_id].present? || params[:paid].present? || params[:has_installment].present? || params[:month].present? || params[:year].present? || params[:note].present?
       @total = 0
 
       if params[:description].present?
         @debts = @debts.where('description LIKE ?', "%#{params[:description]}%")
+      end
+
+      if params[:note].present?
+        @debts = @debts.where('note LIKE ?', "%#{params[:note]}%")
       end
 
       if params[:card_id].present?
@@ -47,7 +51,7 @@ class DebtsController < ApplicationController
       end
 
       @debts.each{|debt| @total += debt.value}
-      @debts = @debts.order(id: :desc, paid: :asc, transaction_date: :desc, value: :desc).page(params[:page]).per(99)
+      @debts = @debts.order(paid: :asc, transaction_date: :desc, value: :desc).page(params[:page]).per(99)
     else
       @debts = @debts.order(created_at: :desc).page(params[:page]).per(10)
     end
@@ -144,6 +148,6 @@ class DebtsController < ApplicationController
 
     # Only allow a list of trusted parameters through.
     def debt_params
-      params.require(:debt).permit(:description, :value, :transaction_date, :billing_statement, :paid, :has_installment, :current_installment, :final_installment, :responsible, :card_id, :note)
+      params.require(:debt).permit(:description, :value, :transaction_date, :billing_statement, :paid, :has_installment, :current_installment, :final_installment, :responsible, :card_id, :note, :category_id)
     end
 end

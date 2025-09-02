@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 2025_07_18_003911) do
+ActiveRecord::Schema.define(version: 2025_07_21_111956) do
 
   create_table "cards", force: :cascade do |t|
     t.string "name"
@@ -46,6 +46,7 @@ ActiveRecord::Schema.define(version: 2025_07_18_003911) do
     t.datetime "updated_at", precision: 6, null: false
     t.text "note"
     t.integer "category_id"
+    t.integer "expense_type"
     t.index ["card_id"], name: "index_debts_on_card_id"
     t.index ["category_id"], name: "index_debts_on_category_id"
   end

@@ -55,14 +55,11 @@
             <tr>
               <th>#</th>
               <th>Descrição</th>
+              <th>Tipo</th>
               <th class="text-end">Valor R$</th>
-              <th>Pago?</th>
-              <th>Cartão</th>
+              <th class="text-center">Cartão</th>
               <th>Data da compra</th>
               <th>Fatura da cobrança</th>
-              <th>Tem parcela?</th>
-              <th class="text-center">Parcela atual</th>
-              <th class="text-center">Parcela final</th>
               <th>Ações</th>
             </tr>
           </thead>
@@ -72,17 +69,44 @@
                 <tr>
                   <td><%= debt.id %></td>
                   <td>
+                    <% if debt.category&.icon.present? %>
+                      <%= image_tag "categories/#{debt.category.icon}", alt: debt.category.name, class: "me-2", style: "height: 20px; vertical-align: middle;" %>
+                    <% end %>
                     <%= debt.description %>
                     <span class="text-muted small" title="<%= debt&.responsible.presence || debt&.note %>"><%= debt&.responsible&.presence || debt&.note&.truncate(25) %></span>
                   </td>
-                  <td class="text-end"><%= sprintf("%.2f", debt.value).to_s.gsub('.', ',') %></td>
-                  <td><%= debt.paid? ? "Sim" : "Não" %></td>
-                  <td><%= debt.card.name %></td>
+                  <td>
+                    <span class="badge <%= badge_class(debt) %>">
+                      <%= translated_expense_type(debt) %>
+                    </span>
+                  </td>
+                  <td class="text-end">
+                    <%= sprintf("%.2f", debt.value).to_s.gsub('.', ',') %>
+                    <% if debt.paid %>
+                      <br>
+                      <span class="text-success small">
+                        <i class="fa fa-check-circle text-success" title="Pago"></i>
+                      </span>
+                    <% else %>
+                      <br>
+                      <span class="text-danger small">
+                        <i class="fa fa-times-circle text-danger" title="Pago"></i>
+                      </span>
+                    <% end %>
+                    <% if debt.has_installment %>
+                      <span class="small ms-1">
+                        <%= debt.current_installment %> / <%= debt.final_installment %>
+                      </span>
+                    <% end %>
+                  </td>
+                  <% style = card_style(debt.card) %>
+                  <td class="text-center">
+                    <div class="credit-card-icon">
+                      <%= image_tag "cards/#{style[:logo]}", alt: "#{debt.card.name}", class: "img-fluid", title: "#{debt.card.name}" %>
+                    </div>
+                  </td>
                   <td><%= l(debt.transaction_date) %></td>
                   <td><%= l(debt.billing_statement) %></td>
-                  <td><%= debt.has_installment? ? "Sim" : "Não" %></td>
-                  <td class="text-center"><%= debt.current_installment %></td>
-                  <td class="text-center"><%= debt.final_installment %></td>
                   <td>
                     <%= link_to edit_debt_path(debt), class: "btn btn-sm btn-outline-secondary", title: 'Editar' do %>
                       <i class="fa fa-pen"></i>

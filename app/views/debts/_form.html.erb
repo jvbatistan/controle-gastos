@@ -50,7 +50,7 @@
               <%= form.label :category_id, class: 'form-label' %>
               <%= select_tag 'debt[category_id]',
                     raw(
-                      Category.all.map do |c|
+                      Category.all.order(:name).map do |c|
                         selected = 'selected' if form.object.category_id == c.id
                         icon_url = image_path("categories/#{c.icon || 'default.png'}")
                         "<option value='#{c.id}' data-custom-properties='#{icon_url}' #{selected}>#{c.name}</option>"
@@ -124,7 +124,7 @@
                   style="--card-color: <%= style[:color] %>; --card-color-rgb: <%= style[:rgb].delete(' ') %>;"
                 >
                   <div class="card-body">
-                    <%= image_tag "cards/#{style[:logo]}", alt: "#{card.name}", style: "max-height: 24px;", class: "img-fluid" %>
+                    <%= image_tag "cards/#{style[:logo]}", alt: "#{card.name}", style: "max-height: 32px;", class: "img-fluid" %>
                     <p class="mb-0"><%= card.name %></p>
                     <%= image_tag "flags/#{style[:flag]}", class: "img-fluid bandeira", style: "max-height: 24px;" if style[:flag].present? %>
                   </div>

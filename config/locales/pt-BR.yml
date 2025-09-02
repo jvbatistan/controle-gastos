@@ -17,6 +17,10 @@ pt-BR:
         responsible: Responsável
         note: Observação
         category_id: Categoria
+        expense_type:
+          single: "Avulso"
+          recurring: "Recorrente"
+          installment: "Parcelado"
       card:
         name: Nome cartão
         due_date: Dia do vencimento
