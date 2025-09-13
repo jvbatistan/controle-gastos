@@ -6,7 +6,7 @@ class DebtsController < ApplicationController
   def index
     @debts = Debt.all
 
-    if params[:description].present? || params[:card_id].present? || params[:paid].present? || params[:has_installment].present? || params[:month].present? || params[:year].present? || params[:note].present?
+    if params[:description].present? || params[:card_id].present? || params[:paid].present? || params[:has_installment].present? || params[:month].present? || params[:year].present? || params[:note].present? || params[:category_id].present? || params[:expense_type].present?
       @total = 0
 
       if params[:description].present?
@@ -29,12 +29,22 @@ class DebtsController < ApplicationController
         @debts = @debts.where('has_installment = ?', "#{params[:has_installment]}")
       end
 
+      if params[:category_id].present?
+        @debts = @debts.where('category_id = ?', "#{params[:category_id]}")
+      end
+
+      # binding.pry
+
+      if params[:expense_type].present?
+        @debts = @debts.where('expense_type = ?', "#{params[:expense_type]}")
+      end
+
       if params[:month].present? && params[:month] != "0"
         ### POSTGRES OU MYSQL
-        # @debts = @debts.where('EXTRACT(MONTH FROM billing_statement) = ?', "#{params[:month]}")
-        ### SQLITE3
         months = Array(params[:month]).map { |m| m.to_s.rjust(2, '0') }
-        @debts = @debts.where("strftime('%m', billing_statement) IN (?)", months)
+        @debts = @debts.where('EXTRACT(MONTH FROM billing_statement) = ?', months)
+        ### SQLITE3
+        # @debts = @debts.where("strftime('%m', billing_statement) IN (?)", months)
         if @debts.present? && params[:card_id].present? && params[:month].size <= 1
           @due_date = (Date.new(Date.today.year, Date.today.month, @debts.last.card.due_date) + 1.month)
         end
@@ -42,9 +52,9 @@ class DebtsController < ApplicationController
 
       if params[:year].present? && params[:year] != "0"
         ### POSTGRES OU MYSQL
-        # @debts = @debts.where('EXTRACT(YEAR FROM billing_statement) = ?', "#{params[:year]}")
+        @debts = @debts.where('EXTRACT(YEAR FROM billing_statement) = ?', "#{params[:year]}")
         ### SQLITE3
-        @debts = @debts.where("strftime('%Y', billing_statement) = ?", "#{params[:year].to_s}")
+        # @debts = @debts.where("strftime('%Y', billing_statement) = ?", "#{params[:year].to_s}")
         if @debts.present? && params[:card_id].present? && params[:month].size <= 1
           @due_date = (Date.new(Date.today.year, Date.today.month, @debts.last.card.due_date) + 1.month) if params[:card_id].present? && params[:month].size <= 1
         end

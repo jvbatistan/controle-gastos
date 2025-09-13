@@ -5,8 +5,6 @@ ruby '2.6.4'
 
 # Bundle edge Rails instead: gem 'rails', github: 'rails/rails', branch: 'main'
 gem 'rails', '~> 6.0.5', '>= 6.0.5.1'
-# Use sqlite3 as the database for Active Record
-gem 'sqlite3', '~> 1.4'
 # Use Puma as the app server
 gem 'puma', '~> 4.1'
 # Use SCSS for stylesheets
@@ -23,6 +21,8 @@ gem 'jbuilder', '~> 2.7'
 
 # Use Active Storage variant
 # gem 'image_processing', '~> 1.2'
+
+gem 'pg'
 
 # Reduces boot times through caching; required in config/boot.rb
 gem 'bootsnap', '>= 1.4.2', require: false
@@ -41,6 +41,9 @@ group :development do
   gem 'spring-watcher-listen', '~> 2.0.0'
   gem 'pry', '~> 0.13.1'
   gem 'awesome_print'
+  # Use sqlite3 as the database for Active Record
+  gem 'sqlite3', '~> 1.4'
+  gem 'yaml_db'
 end
 
 group :test do

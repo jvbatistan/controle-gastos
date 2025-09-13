@@ -12,6 +12,9 @@
 
 ActiveRecord::Schema.define(version: 2025_07_21_111956) do
 
+  # These are extensions that must be enabled in order to support this database
+  enable_extension "plpgsql"
+
   create_table "cards", force: :cascade do |t|
     t.string "name"
     t.integer "due_date"
@@ -41,11 +44,11 @@ ActiveRecord::Schema.define(version: 2025_07_21_111956) do
     t.integer "final_installment"
     t.string "responsible"
     t.integer "parent_id"
-    t.integer "card_id", null: false
+    t.bigint "card_id", null: false
     t.datetime "created_at", precision: 6, null: false
     t.datetime "updated_at", precision: 6, null: false
     t.text "note"
-    t.integer "category_id"
+    t.bigint "category_id"
     t.integer "expense_type"
     t.index ["card_id"], name: "index_debts_on_card_id"
     t.index ["category_id"], name: "index_debts_on_category_id"
@@ -56,7 +59,7 @@ ActiveRecord::Schema.define(version: 2025_07_21_111956) do
     t.bigint "item_id", null: false
     t.string "event", null: false
     t.string "whodunnit"
-    t.text "object", limit: 1073741823
+    t.text "object"
     t.datetime "created_at"
     t.index ["item_type", "item_id"], name: "index_versions_on_item_type_and_item_id"
   end

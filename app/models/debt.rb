@@ -9,9 +9,9 @@ class Debt < ApplicationRecord
   validates :transaction_date, presence: true
 
   before_save :make_upcase
-  before_save :belongs_next_statement
-  before_save :set_expense_type
-  after_create :next_installments
+  # before_save :belongs_next_statement
+  # before_save :set_expense_type
+  # after_create :next_installments
   before_destroy :destroy_all_installments
 
   enum expense_type: { single: 0, recurring: 1, installment: 2 }
