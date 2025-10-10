@@ -24,15 +24,12 @@ pre {
   font-size: 11px;
 }
 
-a {
+a:not(.btn),
+a:not(.btn):visited {
   color: #333;
 }
 
-a:visited {
-  color: #333;
-}
-
-a:hover {
+a:not(.btn):hover {
   color: #fff !important;
   background-color: #333;
 }

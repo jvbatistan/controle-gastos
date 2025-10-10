@@ -8,10 +8,18 @@ import Choices from 'choices.js';
 import 'choices.js/public/assets/styles/choices.min.css';
 window.Choices = Choices;
 
-// Substitutos dos requires
-import '@rails/ujs';
+// Rails UJS (precisa importar corretamente)
+import Rails from '@rails/ujs';
+Rails.start();
+window.Rails = Rails;
+
+// Turbolinks (não é Turbo)
 import Turbolinks from 'turbolinks';
-import '@rails/activestorage';
+Turbolinks.start();
+
+// ActiveStorage
+import * as ActiveStorage from '@rails/activestorage';
+ActiveStorage.start();
 
 // Bootstrap
 import 'bootstrap';
@@ -34,6 +42,3 @@ import './debts';
 import './cards';
 import './categories';
 import './main';
-
-// Iniciar Turbolinks (tem que ser depois do import)
-Turbolinks.start();

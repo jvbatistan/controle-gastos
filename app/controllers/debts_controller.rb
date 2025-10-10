@@ -115,7 +115,7 @@ class DebtsController < ApplicationController
 
   # DELETE /debts/1 or /debts/1.json
   def destroy
-    # @debt.destroy
+    @debt.destroy
 
     respond_to do |format|
       format.html { redirect_to debts_url, notice: "Debt was successfully destroyed." }
@@ -126,7 +126,7 @@ class DebtsController < ApplicationController
   def pay_all
     if params[:card_id].present? && params[:month].present? && params[:year].present?
       months = Array(params[:month]).map { |m| m.to_s.rjust(2, '0') }
-      all_debts = Debt.where(card_id: params[:card_id].to_i).where("strftime('%m', billing_statement) IN (?)", months).where("strftime('%Y', billing_statement) = ?", "#{params[:year].to_s}")
+      all_debts = Debt.where(card_id: params[:card_id].to_i).where("to_char(billing_statement, 'MM') IN (?)", months).where("to_char(billing_statement, 'YYYY') = ?", "#{params[:year].to_s}")
       
       if all_debts.present?
         paids = all_debts.update_all(paid: true)
