@@ -23,8 +23,6 @@ class CardsController < ApplicationController
   def create
     @card = Card.new(card_params)
 
-    @card.name = params[:card][:name].upcase
-
     respond_to do |format|
       if @card.save
         format.html { redirect_to root_path, notice: "Cartão cadastrado com sucesso." }
@@ -38,8 +36,6 @@ class CardsController < ApplicationController
 
   # PATCH/PUT /cards/1 or /cards/1.json
   def update
-    @card.name = params[:card][:name].upcase
-    
     respond_to do |format|
       if @card.update(card_params)
         format.html { redirect_to card_url(@card), notice: "Card was successfully updated." }

@@ -19,6 +19,22 @@ class Card < ApplicationRecord
     debts.where("EXTRACT(MONTH FROM billing_statement) = ? AND EXTRACT(YEAR FROM billing_statement) = ?", month, year).sum(:value)
   end
 
+  def self.with_totals(month = Date.today.month, year = Date.today.year)
+    left_joins(:debts)
+      .select("cards.*, COALESCE(SUM(debts.value), 0) AS total_value")
+      .where("EXTRACT(MONTH FROM debts.billing_statement) = ? AND EXTRACT(YEAR FROM debts.billing_statement) = ? OR debts.id IS NULL", month, year)
+      .where("debts.paid = ?", false)
+      .group("cards.id")
+      .order("total_value DESC")
+  end
+
+   def self.total_sum_for(month = Date.today.month, year = Date.today.year)
+    joins(:debts)
+      .where("EXTRACT(MONTH FROM debts.billing_statement) = ? AND EXTRACT(YEAR FROM debts.billing_statement) = ?", month, year)
+      .where("debts.paid = ?", false)
+      .sum(:value)
+  end
+
   private
 
   def make_upcase

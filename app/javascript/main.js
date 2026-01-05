@@ -3,7 +3,7 @@ document.addEventListener("turbolinks:load", function() {
     event.preventDefault();
 
     $("input[type='text']").map((index, element) => $(element).val(''))
-    $("select").map((index, element) => $(element).val(''))
+    $("select").map((index, element) => $(element).val('').eq(0).trigger('change'))
   });
 
   const selects = document.querySelectorAll('.select2');

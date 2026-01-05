@@ -1,0 +1,36 @@
+<div class="container mt-5 text-center">
+  <h1 class="text-primary mb-2">
+    Gastos por Cartão - <%= I18n.l(@current_date, format: "%B de %Y").capitalize %>
+  </h1>
+
+  <h5 class="text-muted mb-4">
+    Total geral:
+    <strong>
+      <%= number_to_currency(@total_sum.to_f, unit: "R$ ", separator: ",", delimiter: ".") %>
+    </strong>
+  </h5>
+
+  <div class="d-flex justify-content-center align-items-center gap-2 mb-4 flex-wrap">
+    <% prev_date = @current_date.prev_month %>
+    <% next_date = @current_date.next_month %>
+
+    <%= link_to "Mês Anterior", dashboard_path(month: prev_date.month, year: prev_date.year), class: "btn btn-outline-secondary" %>
+    <%= link_to "Mês Atual", dashboard_path(month: Date.today.month, year: Date.today.year), class: "btn btn-outline-primary" %>
+    <%= link_to "Próximo Mês", dashboard_path(month: next_date.month, year: next_date.year), class: "btn btn-outline-secondary" %>
+  </div>
+
+  <div class="row justify-content-center">
+    <% @cards.each do |card| %>
+      <div class="col-md-3 col-sm-6 mb-3">
+        <div class="card shadow-sm border-0">
+          <div class="card-body text-center">
+            <h5 class="fw-semibold text-uppercase mb-2"><%= card.name %></h5>
+            <h4 class="text-success mb-0">
+              <%= number_to_currency(card.total_value.to_f, unit: "R$ ", separator: ",", delimiter: ".") %>
+            </h4>
+          </div>
+        </div>
+      </div>
+    <% end %>
+  </div>
+</div>

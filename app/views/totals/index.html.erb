@@ -93,7 +93,7 @@
         <li class="nav-item d-flex justify-content-center align-items-center" role="presentation">
           <select class="form-select form-select-sm" aria-label="Default select example">
             <option selected value=<%= Date.today.year %>><%= Date.today.year %></option>
-            <% (2023..(Date.today.year - 1)).reverse_each do |year| %>
+            <% (2023..2030).reverse_each do |year| %>
               <option value=<%= year %>><%= year %></option>
             <% end %>
           </select>

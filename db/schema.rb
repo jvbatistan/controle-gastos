@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 2025_07_21_111956) do
+ActiveRecord::Schema.define(version: 2025_10_25_184627) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
@@ -54,6 +54,28 @@ ActiveRecord::Schema.define(version: 2025_07_21_111956) do
     t.index ["category_id"], name: "index_debts_on_category_id"
   end
 
+  create_table "transactions", force: :cascade do |t|
+    t.string "description", null: false
+    t.decimal "value", precision: 12, scale: 2, null: false
+    t.date "date", null: false
+    t.integer "kind", default: 1, null: false
+    t.integer "source", default: 0, null: false
+    t.boolean "paid", default: false, null: false
+    t.text "note"
+    t.string "responsible"
+    t.bigint "card_id"
+    t.bigint "category_id"
+    t.datetime "created_at", precision: 6, null: false
+    t.datetime "updated_at", precision: 6, null: false
+    t.index ["card_id"], name: "index_transactions_on_card_id"
+    t.index ["category_id"], name: "index_transactions_on_category_id"
+    t.index ["date"], name: "index_transactions_on_date"
+    t.index ["kind", "date"], name: "index_transactions_on_kind_and_date"
+    t.index ["kind"], name: "index_transactions_on_kind"
+    t.index ["source", "date"], name: "index_transactions_on_source_and_date"
+    t.index ["source"], name: "index_transactions_on_source"
+  end
+
   create_table "versions", force: :cascade do |t|
     t.string "item_type", null: false
     t.bigint "item_id", null: false
@@ -66,4 +88,6 @@ ActiveRecord::Schema.define(version: 2025_07_21_111956) do
 
   add_foreign_key "debts", "cards"
   add_foreign_key "debts", "categories"
+  add_foreign_key "transactions", "cards"
+  add_foreign_key "transactions", "categories"
 end

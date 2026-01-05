@@ -83,25 +83,22 @@ class DebtsController < ApplicationController
 
   # POST /debts or /debts.json
   def create
-    @debt = Debt.new(debt_params)
-
-    @debt.value = params[:debt][:value].gsub('.', '').gsub(',', '.')
+    result = Debts::CreateService.new(debt_params).call
 
     respond_to do |format|
-      if @debt.save
+      if result.success?
         format.html { redirect_to debts_path, notice: "Dívida cadastrada com sucesso." }
-        format.json { render :show, status: :created, location: @debt }
+        format.json { render :show, status: :created, location: result.debt }
       else
+        @debt = result.debt
         format.html { render :new, status: :unprocessable_entity }
-        format.json { render json: @debt.errors, status: :unprocessable_entity }
+        format.json { render json: result.errors, status: :unprocessable_entity }
       end
     end
   end
 
   # PATCH/PUT /debts/1 or /debts/1.json
   def update
-    params[:debt][:value] = params[:debt][:value].gsub('.', '').gsub(',', '.')
-
     respond_to do |format|
       if @debt.update(debt_params)
         format.html { redirect_to debt_url(@debt), notice: "Debt was successfully updated." }
@@ -132,7 +129,7 @@ class DebtsController < ApplicationController
         paids = all_debts.update_all(paid: true)
 
         respond_to do |format|
-          if paids.size > 0
+          if paids > 0
             format.html { redirect_to debts_path, notice: "Dívidas atualizadas com sucesso." }
             format.json { render :show, status: :created, location: @debt }
           else
