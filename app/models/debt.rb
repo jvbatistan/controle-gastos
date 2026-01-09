@@ -13,9 +13,16 @@ class Debt < ApplicationRecord
   before_destroy :destroy_all_installments
   
   before_validation :set_billing_statement, on: :create
-  before_validation :normalize_value
   
   enum expense_type: { single: 0, recurring: 1, installment: 2 }
+
+  def value=(val)
+    if val.is_a?(String)
+      val = val.gsub('.', '').tr(',', '.')
+    end
+
+    super(val)
+  end
 
   def set_billing_statement
     DebtStatementService.new(self).call
@@ -46,14 +53,5 @@ class Debt < ApplicationRecord
     def recurring_by_description?
       termos_recorrentes = ["academia", "internet", "brisanet", "spotify", "prime", "netflix", "crunchyroll", "streaming", "gym", "wi-fi", "plano", "claro"]
       termos_recorrentes.any? { |termo| description.to_s.downcase.include?(termo) }
-    end
-
-    def normalize_value
-      return if value.blank?
-
-      if value.is_a?(String)
-        normalized = value.gsub('.', '').gsub(',', '.')
-        self.value = normalized
-      end
     end
 end

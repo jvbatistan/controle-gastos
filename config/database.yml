@@ -14,7 +14,8 @@ default: &default
 
 development:
   <<: *default
-  database: controle_gastos_sandbox
+  # database: controle_gastos_sandbox
+  database: controle_gastos_development
 
 test:
   <<: *default
