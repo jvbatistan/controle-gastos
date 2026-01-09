@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 2026_01_08_215137) do
+ActiveRecord::Schema.define(version: 2026_01_09_052457) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
@@ -50,8 +50,10 @@ ActiveRecord::Schema.define(version: 2026_01_08_215137) do
     t.text "note"
     t.bigint "category_id"
     t.integer "expense_type"
+    t.bigint "financial_transaction_id"
     t.index ["card_id"], name: "index_debts_on_card_id"
     t.index ["category_id"], name: "index_debts_on_category_id"
+    t.index ["financial_transaction_id"], name: "index_debts_on_financial_transaction_id"
   end
 
   create_table "transactions", force: :cascade do |t|
@@ -88,6 +90,7 @@ ActiveRecord::Schema.define(version: 2026_01_08_215137) do
 
   add_foreign_key "debts", "cards"
   add_foreign_key "debts", "categories"
+  add_foreign_key "debts", "transactions", column: "financial_transaction_id"
   add_foreign_key "transactions", "cards"
   add_foreign_key "transactions", "categories"
 end

@@ -2,6 +2,8 @@ class Transaction < ApplicationRecord
   belongs_to :card, optional: true
   belongs_to :category, optional: true
 
+  has_one :debt, foreign_key: :financial_transaction_id
+
   enum kind: { income: 0, expense: 1 }
   enum source: { card: 0, cash: 1, bank: 2 }
 

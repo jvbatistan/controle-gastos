@@ -3,6 +3,7 @@ class Debt < ApplicationRecord
   
   belongs_to :card, optional: true
   belongs_to :category, optional: true
+  belongs_to :financial_transaction, class_name: 'Transaction', optional: true
 
   validates :description, presence: true
   validates :value, presence: true
