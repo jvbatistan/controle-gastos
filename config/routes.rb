@@ -13,6 +13,7 @@ Rails.application.routes.draw do
     member do
       post :accept
       post :reject
+      post :correct
     end
   end
   # For details on the DSL available within this file, see https://guides.rubyonrails.org/routing.html

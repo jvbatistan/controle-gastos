@@ -30,4 +30,25 @@ class ClassificationSuggestionsController < ApplicationController
 
     redirect_to classification_suggestions_path, notice: "Sugestão recusada."
   end
+
+  def correct
+    suggestion = ClassificationSuggestion.find(params[:id])
+    category_id = params.dig(:classification_suggestion, :category_id)
+
+    raise ActionController::ParameterMissing, :classification_suggestion if category_id.blank?
+
+    Transaction.transaction do
+      suggestion.financial_transaction.update!(category_id: category_id)
+      suggestion.update!(rejected_at: Time.current)
+
+      Merchants::UpsertAliasService.new(
+        description: suggestion.financial_transaction.description,
+        category_id: category_id,
+        confidence: 1.0,
+        source: :user_override
+      ).call
+    end
+
+    redirect_to classification_suggestions_path, notice: "Categoria corrigida e aprendizado salvo."
+  end
 end
