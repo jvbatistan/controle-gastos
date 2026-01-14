@@ -18,6 +18,8 @@ class Transaction < ApplicationRecord
 
   before_validation :normalize_strings
 
+  after_commit :create_category_suggestion, on: [:create, :update]
+
   scope :by_month, ->(month, year) {
     where("EXTRACT(MONTH FROM date) = ? AND EXTRACT(YEAR FROM date) = ?", month, year)
   }
@@ -63,5 +65,14 @@ class Transaction < ApplicationRecord
   def normalize_strings
     self.description = description.to_s.upcase.strip
     self.responsible = responsible.to_s.upcase.strip
+  end
+
+  def create_category_suggestion
+    return if destroyed?
+    return if category_id.present?
+
+    return unless previous_changes.key?("id") || previous_changes.key?("description")
+
+    Transactions::CreateCategorySuggestionService.new(self).call
   end
 end

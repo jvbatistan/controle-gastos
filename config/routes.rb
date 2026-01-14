@@ -1,5 +1,5 @@
 Rails.application.routes.draw do
-  root "totals#index"
+  root "totals#dashboard"
 
   resources :debts do
     post :pay_all, on: :collection
@@ -8,5 +8,12 @@ Rails.application.routes.draw do
   resources :cards
   resources :totals, only: [:index]
   get 'dashboard', to: 'totals#dashboard'
+
+  resources :classification_suggestions, only: [:index] do
+    member do
+      post :accept
+      post :reject
+    end
+  end
   # For details on the DSL available within this file, see https://guides.rubyonrails.org/routing.html
 end

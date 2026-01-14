@@ -1,0 +1,77 @@
+<div class="container mt-5 py-4">
+  <div class="d-flex align-items-center justify-content-between mb-3">
+    <div>
+      <h1 class="display-5 mb-0">Sugestões pendentes</h1>
+      <p class="text-muted mb-0">Revise e aplique categorias sugeridas automaticamente.</p>
+    </div>
+
+    <span class="badge bg-secondary fs-6">
+      <%= @suggestions.size %> pendente<%= @suggestions.size == 1 ? "" : "s" %>
+    </span>
+  </div>
+
+  <% if @suggestions.empty? %>
+    <div class="alert alert-success">
+      Nenhuma sugestão pendente 🎉
+    </div>
+  <% end %>
+
+  <div class="row g-3">
+    <% @suggestions.each do |s| %>
+      <% t = s.financial_transaction %>
+
+      <div class="col-12 col-lg-8">
+        <div class="card shadow-sm">
+          <div class="card-body">
+            <div class="d-flex justify-content-between align-items-start">
+              <div>
+                <h5 class="card-title mb-1"><%= t.description %></h5>
+                <div class="text-muted small">
+                  <span class="me-3"><b>Data:</b> <%= l(t.date) rescue t.date %></span>
+                  <span><b>Valor:</b> <%= number_to_currency(t.value) rescue t.value %></span>
+                </div>
+              </div>
+
+              <span class="badge bg-info text-dark">
+                <%= s.source %>
+              </span>
+            </div>
+
+            <hr>
+
+            <div class="row">
+              <div class="col-md-8">
+                <div class="mb-1 text-muted small">Categoria sugerida</div>
+                <div class="fs-5">
+                  <%= s.suggested_category&.name || "-" %>
+                </div>
+              </div>
+
+              <div class="col-md-4 text-md-end">
+                <div class="mb-1 text-muted small">Confiança</div>
+                <% confidence_percent = (s.confidence.to_f * 100).round %>
+                <div class="fw-bold"><%= confidence_percent %>%</div>
+                <div class="progress mt-2" style="height: 8px;">
+                  <div class="progress-bar" role="progressbar" style="width: <%= confidence_percent %>%"></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="d-flex gap-2 mt-3">
+              <%= button_to "Aceitar",
+                    accept_classification_suggestion_path(s),
+                    method: :post,
+                    class: "btn btn-primary" %>
+
+              <%= button_to "Recusar",
+                    reject_classification_suggestion_path(s),
+                    method: :post,
+                    class: "btn btn-outline-secondary" %>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    <% end %>
+  </div>
+</div>

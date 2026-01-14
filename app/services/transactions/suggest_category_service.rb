@@ -7,6 +7,8 @@ module Transactions
     end
 
     def call
+      return nil if @transaction.category_id.present?
+
       merchant = Merchants::Normalize.call(@transaction.description)
 
       alias_record = MerchantAlias.find_by(normalized_merchant: merchant)
