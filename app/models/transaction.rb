@@ -4,6 +4,8 @@ class Transaction < ApplicationRecord
 
   has_one :debt, foreign_key: :financial_transaction_id
 
+  has_many :classification_suggestions, foreign_key: :financial_transaction_id, dependent: :destroy
+
   enum kind: { income: 0, expense: 1 }
   enum source: { card: 0, cash: 1, bank: 2 }
 

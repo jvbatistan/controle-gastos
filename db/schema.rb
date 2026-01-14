@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 2026_01_09_052457) do
+ActiveRecord::Schema.define(version: 2026_01_09_061651) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
@@ -31,6 +31,20 @@ ActiveRecord::Schema.define(version: 2026_01_09_052457) do
     t.datetime "created_at", precision: 6, null: false
     t.datetime "updated_at", precision: 6, null: false
     t.string "icon"
+  end
+
+  create_table "classification_suggestions", force: :cascade do |t|
+    t.bigint "financial_transaction_id", null: false
+    t.bigint "suggested_category_id", null: false
+    t.float "confidence", default: 1.0, null: false
+    t.integer "source", default: 0, null: false
+    t.datetime "accepted_at"
+    t.datetime "rejected_at"
+    t.datetime "created_at", precision: 6, null: false
+    t.datetime "updated_at", precision: 6, null: false
+    t.index ["financial_transaction_id", "accepted_at", "rejected_at"], name: "idx_suggestions_pending"
+    t.index ["financial_transaction_id"], name: "index_classification_suggestions_on_financial_transaction_id"
+    t.index ["suggested_category_id"], name: "index_classification_suggestions_on_suggested_category_id"
   end
 
   create_table "debts", force: :cascade do |t|
@@ -54,6 +68,17 @@ ActiveRecord::Schema.define(version: 2026_01_09_052457) do
     t.index ["card_id"], name: "index_debts_on_card_id"
     t.index ["category_id"], name: "index_debts_on_category_id"
     t.index ["financial_transaction_id"], name: "index_debts_on_financial_transaction_id"
+  end
+
+  create_table "merchant_aliases", force: :cascade do |t|
+    t.string "normalized_merchant", null: false
+    t.bigint "category_id", null: false
+    t.float "confidence", default: 1.0, null: false
+    t.integer "source", default: 0, null: false
+    t.datetime "created_at", precision: 6, null: false
+    t.datetime "updated_at", precision: 6, null: false
+    t.index ["category_id"], name: "index_merchant_aliases_on_category_id"
+    t.index ["normalized_merchant"], name: "index_merchant_aliases_on_normalized_merchant", unique: true
   end
 
   create_table "transactions", force: :cascade do |t|
@@ -88,9 +113,12 @@ ActiveRecord::Schema.define(version: 2026_01_09_052457) do
     t.index ["item_type", "item_id"], name: "index_versions_on_item_type_and_item_id"
   end
 
+  add_foreign_key "classification_suggestions", "categories", column: "suggested_category_id"
+  add_foreign_key "classification_suggestions", "transactions", column: "financial_transaction_id"
   add_foreign_key "debts", "cards"
   add_foreign_key "debts", "categories"
   add_foreign_key "debts", "transactions", column: "financial_transaction_id"
+  add_foreign_key "merchant_aliases", "categories"
   add_foreign_key "transactions", "cards"
   add_foreign_key "transactions", "categories"
 end
