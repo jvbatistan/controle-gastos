@@ -42,3 +42,4 @@ import './debts';
 import './cards';
 import './categories';
 import './main';
+import './classification_suggestions';
