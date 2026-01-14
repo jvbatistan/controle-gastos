@@ -45,3 +45,7 @@ yarn-debug.log*
 /test
 /app/assets/builds/*
 !/app/assets/builds/.keep
+
+.env
+.env.*
+!.env.example
