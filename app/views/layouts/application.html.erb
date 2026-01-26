@@ -14,6 +14,20 @@
   <body class='container-fluid'>
     <div class="row">
       <div class="d-flex flex-column">
+        <% if notice.present? %>
+          <div class="alert alert-success alert-dismissible fade show mx-3 mt-3" role="alert">
+            <%= notice %>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+          </div>
+        <% end %>
+
+        <% if alert.present? %>
+          <div class="alert alert-danger alert-dismissible fade show mx-3 mt-3" role="alert">
+            <%= alert %>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+          </div>
+        <% end %>
+
         <%= render 'layouts/navbar' %>
         <%= yield %>
       </div>

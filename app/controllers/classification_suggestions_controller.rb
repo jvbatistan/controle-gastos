@@ -21,14 +21,14 @@ class ClassificationSuggestionsController < ApplicationController
       ).call
     end
 
-    redirect_to classification_suggestions_path, notice: "Sugestão aplicada."
+    redirect_to classification_suggestions_path, notice: "✅ Sugestão aplicada!"
   end
 
   def reject
     suggestion = ClassificationSuggestion.find(params[:id])
     suggestion.update!(rejected_at: Time.current)
 
-    redirect_to classification_suggestions_path, notice: "Sugestão recusada."
+    redirect_to classification_suggestions_path, notice: "🚫 Sugestão recusada."
   end
 
   def correct
@@ -49,6 +49,6 @@ class ClassificationSuggestionsController < ApplicationController
       ).call
     end
 
-    redirect_to classification_suggestions_path, notice: "Categoria corrigida e aprendizado salvo."
+    redirect_to classification_suggestions_path, notice: "✅ Correção aplicada e aprendizado salvo!"
   end
 end
