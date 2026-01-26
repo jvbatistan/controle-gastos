@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 2026_01_09_061651) do
+ActiveRecord::Schema.define(version: 2026_01_26_222623) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_graphql"
@@ -40,7 +40,7 @@ ActiveRecord::Schema.define(version: 2026_01_09_061651) do
 
   create_table "classification_suggestions", force: :cascade do |t|
     t.bigint "financial_transaction_id", null: false
-    t.bigint "suggested_category_id", null: false
+    t.bigint "suggested_category_id"
     t.float "confidence", default: 1.0, null: false
     t.integer "source", default: 0, null: false
     t.datetime "accepted_at"

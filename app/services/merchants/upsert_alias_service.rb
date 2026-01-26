@@ -8,9 +8,9 @@ module Merchants
     end
 
     def call
-      normalized = Merchants::Normalize.call(@description)
+      merchant = Merchants::Canonicalize.call(@description)
 
-      MerchantAlias.find_or_initialize_by(normalized_merchant: normalized).tap do |alias_record|
+      MerchantAlias.find_or_initialize_by(normalized_merchant: merchant).tap do |alias_record|
         alias_record.category_id = @category_id
         alias_record.confidence  = [@confidence, 0.95].max
         alias_record.source      = @source

@@ -1,6 +1,6 @@
 class ClassificationSuggestion < ApplicationRecord
   belongs_to :financial_transaction, class_name: "Transaction", foreign_key: :financial_transaction_id
-  belongs_to :suggested_category, class_name: 'Category'
+  belongs_to :suggested_category, class_name: 'Category', optional: true
 
   enum source: { alias: 0, rule: 1 }
 

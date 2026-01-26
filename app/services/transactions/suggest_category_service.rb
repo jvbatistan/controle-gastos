@@ -9,9 +9,9 @@ module Transactions
     def call
       return nil if @transaction.category_id.present?
 
-      merchant = Merchants::Normalize.call(@transaction.description)
+      merchant = Merchants::Canonicalize.call(@transaction.description)
 
-      alias_record = MerchantAlias.find_by(normalized_merchant: merchant)
+      alias_record = MerchantAlias.find_by(normalized_merchant: merchant) || MerchantAlias.find_by(normalized_merchant: Merchants::Canonicalize.call(@transaction.description))
       return nil unless alias_record
 
       Result.new(

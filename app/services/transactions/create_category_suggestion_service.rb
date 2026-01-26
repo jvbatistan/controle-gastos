@@ -5,17 +5,16 @@ module Transactions
     end
 
     def call
-      result = Transactions::SuggestCategoryService.new(@transaction).call
-      return nil unless result
-
       existing = @transaction.classification_suggestions.pending.first
       return existing if existing
 
+      result = Transactions::SuggestCategoryService.new(@transaction).call
+
       ClassificationSuggestion.create!(
         financial_transaction_id: @transaction.id,
-        suggested_category: result.suggested_category,
-        confidence: result.confidence,
-        source: ClassificationSuggestion.sources[result.source]
+        suggested_category: result&.suggested_category,
+        confidence: result&.confidence || 0.0,
+        source: ClassificationSuggestion.sources[result&.source || :rule]
       )
     end
   end

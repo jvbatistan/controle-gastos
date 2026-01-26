@@ -2,7 +2,9 @@ class Transaction < ApplicationRecord
   belongs_to :card, optional: true
   belongs_to :category, optional: true
 
-  has_one :debt, foreign_key: :financial_transaction_id
+  has_one :debt, foreign_key: :financial_transaction_id, dependent: :destroy
+  accepts_nested_attributes_for :debt, update_only: true, allow_destroy: true
+  attr_accessor :has_installments
 
   has_many :classification_suggestions, foreign_key: :financial_transaction_id, dependent: :destroy
 
@@ -20,27 +22,11 @@ class Transaction < ApplicationRecord
 
   after_commit :create_category_suggestion, on: [:create, :update]
 
-  scope :by_month, ->(month, year) {
-    where("EXTRACT(MONTH FROM date) = ? AND EXTRACT(YEAR FROM date) = ?", month, year)
-  }
-
-  scope :by_period, ->(start_date, end_date) {
-    where(date: start_date..end_date)
-  }
-
-  scope :by_card, ->(card_id) {
-    where(card_id: card_id) if card_id.present?
-  }
-
-  scope :by_category, ->(category_id) {
-    where(category_id: category_id) if category_id.present?
-  }
-
-  scope :by_paid, ->(paid) {
-    return all if paid.nil?
-    where(paid: ActiveRecord::Type::Boolean.new.cast(paid))
-  }
-
+  scope :by_month, ->(month, year) { where("EXTRACT(MONTH FROM date) = ? AND EXTRACT(YEAR FROM date) = ?", month, year) }
+  scope :by_period, ->(start_date, end_date) { where(date: start_date..end_date) }
+  scope :by_card, ->(card_id) { where(card_id: card_id) if card_id.present? }
+  scope :by_category, ->(category_id) { where(category_id: category_id) if category_id.present? }
+  scope :by_paid, ->(paid) { return all if paid.nil? where(paid: ActiveRecord::Type::Boolean.new.cast(paid)) }
   scope :expenses, -> { where(kind: kinds[:expense]) }
   scope :incomes,  -> { where(kind: kinds[:income]) }
 
@@ -58,6 +44,14 @@ class Transaction < ApplicationRecord
 
   def self.balance_for(month = Date.today.month, year = Date.today.year)
     incomes_total_for(month, year) - expenses_total_for(month, year)
+  end
+
+  def value=(val)
+    if val.is_a?(String)
+      val = val.gsub('.', '').tr(',', '.')
+    end
+
+    super(val)
   end
 
   private

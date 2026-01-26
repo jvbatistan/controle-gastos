@@ -1,0 +1,58 @@
+<%= form_with model: @transaction, local: true, class: "mt-5" do |f| %>
+
+  <!-- Informações da transação -->
+  <%= f.label :description, "Descrição" %>
+  <%= f.text_field :description, class: "form-control" %>
+
+  <%= f.label :value, "Valor" %>
+  <%= f.text_field :value, class: "form-control" %>
+
+  <%= f.label :date, "Data" %>
+  <%= f.date_field :date, class: "form-control" %>
+
+  <div class="form-check">
+    <%= f.check_box :paid, class: "form-check-input" %>
+    <%= f.label :paid, "Pago", class: "form-check-label" %>
+  </div>
+
+  <%= f.label :responsible, "Responsável" %>
+  <%= f.text_field :responsible, class: "form-control" %>
+
+  <!-- Cartão -->
+  <%= f.label :card_id, "Cartão" %>
+  <%= f.collection_select :card_id, Card.order(:name), :id, :name, { prompt: "Selecione..." }, class: "form-select" %>
+
+  <hr>
+
+  <!-- Parcelamento (opcional) -->
+  <div class="form-check">
+    <%= f.check_box :has_installments, {}, "1", "0" %>
+    <%= f.label :has_installments, "Tem parcela", class: "form-check-label" %>
+  </div>
+
+  <div id="installments-fields" class="d-none mt-3">
+    <%= f.fields_for :debt do |df| %>
+      <div class="row g-2">
+        <div class="col-md-4">
+          <%= df.label :current_installment, "Parcela atual" %>
+          <%= df.number_field :current_installment, class: "form-control" %>
+        </div>
+
+        <div class="col-md-4">
+          <%= df.label :final_installment, "Parcela final" %>
+          <%= df.number_field :final_installment, class: "form-control" %>
+        </div>
+
+        <div class="col-12">
+          <%= df.label :note, "Observação" %>
+          <%= df.text_area :note, class: "form-control", rows: 2 %>
+        </div>
+      </div>
+    <% end %>
+  </div>
+
+  <div class="mt-4">
+    <%= f.submit "Cadastrar transação", class: "btn btn-primary" %>
+  </div>
+
+<% end %>
