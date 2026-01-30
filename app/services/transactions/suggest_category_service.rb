@@ -36,13 +36,14 @@ module Transactions
     end
 
     def find_alias(merchant)
-      MerchantAlias.find_by(normalized_merchant: merchant || find_alias_in_merchant_string(merchant))
+      MerchantAlias.find_by(normalized_merchant: merchant) || find_alias_in_merchant_string(merchant)
     end
 
     def find_alias_in_merchant_string(merchant)
       return nil if merchant.blank?
 
       parts = merchant.to_s.upcase.split(/\s+/)
+      return nil if parts.empty?
 
       candidates = []
       candidates << parts.join(" ") if parts.size > 1
@@ -100,7 +101,7 @@ module Transactions
       Result.new(
         suggested_category: category,
         confidence: 0.6,
-        source: :fallback
+        source: :rule
       )
     end
   end
