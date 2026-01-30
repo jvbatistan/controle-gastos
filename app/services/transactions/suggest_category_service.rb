@@ -9,62 +9,34 @@ module Transactions
     def call
       return nil if @transaction.category_id.present?
 
-      merchant = Merchants::Canonicalize.call(@transaction.description)
-      merchant = "UBER EATS" if uber_eats?(@transaction.description)
-      merchant = "UBER"      if uber_trip?(@transaction.description)
+      merchant = merchant_key_for(@transaction.description)
 
-      alias_record ||= find_alias_in_merchant_string(merchant)
-
-      if alias_record
-        return Result.new(
-          suggested_category: alias_record.category,
-          confidence: alias_record.confidence,
-          source: :alias
-        )
+      if (alias_record = find_alias(merchant))
+        return result_from_alias(alias_record)
       end
 
-      fallback = fallback_category_for(@transaction.description)
-      return nil unless fallback
+      if (fallback_category = fallback_category_for(@transaction.description))
+        return result_from_fallback(fallback_category)
+      end
 
-      Result.new(
-        suggested_category: fallback,
-        confidence: 0.6,
-        source: :rule
-      )
+      nil
     end
 
     private 
 
-    def uber_eats?(description)
-      d = description.to_s.upcase
-      d.include?("UBER") && (d.include?("EATS") || d.include?("UBER EATS"))
+    attr_reader :transaction
+
+    def merchant_key_for(description)
+      merchant = Merchants::Canonicalize.call(description)
+
+      merchant = "UBER EATS"  if uber_eats?(description)
+      merchant = "UBER"       if uber_trip?(description)
+
+      merchant.to_s.upcase.strip
     end
 
-    def uber_trip?(description)
-      d = description.to_s.upcase
-      d.include?("UBER") && !d.include?("EATS")
-    end
-
-    def fallback_category_for(description)
-      d = description.to_s.upcase
-
-      if d.include?("POSTO") || d.include?("SHELL") || d.include?("IPIRANGA") || d.include?("PETROBRAS") || d.include?("ALE")
-        return Category.find_by(name: "Transporte")
-      end
-
-      if d.include?("IFOOD")
-        return Category.find_by(name: "Alimentação")
-      end
-
-      if d.include?("UBER") && (d.include?("EATS") || d.include?("UBER EATS"))
-        return Category.find_by(name: "Alimentação")
-      end
-
-      if d.include?("UBER")
-        return Category.find_by(name: "Transporte")
-      end
-
-      nil
+    def find_alias(merchant)
+      MerchantAlias.find_by(normalized_merchant: merchant || find_alias_in_merchant_string(merchant))
     end
 
     def find_alias_in_merchant_string(merchant)
@@ -82,6 +54,54 @@ module Transactions
       end
 
       nil
+    end
+
+    def uber_eats?(description)
+      d = description.to_s.upcase
+      d.include?("UBER") && (d.include?("EATS") || d.include?("UBER EATS"))
+    end
+
+    def uber_trip?(description)
+      d = description.to_s.upcase
+      d.include?("UBER") && !d.include?("EATS")
+    end
+
+    def fallback_category_for(description)
+      d = description.to_s.upcase
+      
+      return Category.find_by(name: "Alimentação") if d.include?("IFOOD")
+
+      if d.include?("PAGUE MENOS") || d.include?("DROGASIL") || d.include?("DROGA RAIA") || d.include?("EXTRAFARMA")
+        return Category.find_by(name: "Saúde")
+      end
+
+      if d.include?("POSTO") || d.include?("SHELL") || d.include?("IPIRANGA") || d.include?("PETROBRAS") || d.include?("ALE")
+        return Category.find_by(name: "Transporte")
+      end
+
+      if d.include?("UBER") && (d.include?("EATS") || d.include?("UBER EATS"))
+        return Category.find_by(name: "Alimentação")
+      end
+
+      return Category.find_by(name: "Transporte") if d.include?("UBER")
+
+      nil
+    end
+
+    def result_from_alias(alias_record)
+      Result.new(
+        suggested_category: alias_record.category,
+        confidence: alias_record.confidence,
+        source: :alias
+      )
+    end
+
+    def result_from_fallback(category)
+      Result.new(
+        suggested_category: category,
+        confidence: 0.6,
+        source: :fallback
+      )
     end
   end
 end
