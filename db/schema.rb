@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 2026_01_26_222623) do
+ActiveRecord::Schema.define(version: 2026_02_02_163630) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_graphql"
@@ -63,13 +63,13 @@ ActiveRecord::Schema.define(version: 2026_01_26_222623) do
     t.integer "final_installment"
     t.string "responsible"
     t.integer "parent_id"
-    t.bigint "card_id", null: false
+    t.bigint "card_id"
     t.datetime "created_at", precision: 6, null: false
     t.datetime "updated_at", precision: 6, null: false
     t.text "note"
     t.bigint "category_id"
     t.integer "expense_type"
-    t.bigint "financial_transaction_id"
+    t.bigint "financial_transaction_id", null: false
     t.index ["card_id"], name: "index_debts_on_card_id"
     t.index ["category_id"], name: "index_debts_on_category_id"
     t.index ["financial_transaction_id"], name: "index_debts_on_financial_transaction_id"
@@ -99,9 +99,15 @@ ActiveRecord::Schema.define(version: 2026_01_26_222623) do
     t.bigint "category_id"
     t.datetime "created_at", precision: 6, null: false
     t.datetime "updated_at", precision: 6, null: false
+    t.date "billing_statement"
+    t.string "installment_group_id"
+    t.integer "installment_number"
+    t.integer "installments_count"
     t.index ["card_id"], name: "index_transactions_on_card_id"
     t.index ["category_id"], name: "index_transactions_on_category_id"
     t.index ["date"], name: "index_transactions_on_date"
+    t.index ["installment_group_id", "installment_number"], name: "idx_transactions_installment_group_number", unique: true
+    t.index ["installment_group_id"], name: "index_transactions_on_installment_group_id"
     t.index ["kind", "date"], name: "index_transactions_on_kind_and_date"
     t.index ["kind"], name: "index_transactions_on_kind"
     t.index ["source", "date"], name: "index_transactions_on_source_and_date"
