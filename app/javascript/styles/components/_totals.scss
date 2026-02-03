@@ -1,0 +1,36 @@
+.credit-card .cc-logo {
+  height: 26px;
+  width: auto;
+}
+
+.credit-card .cc-flag {
+  height: 16px;
+  width: auto;
+  opacity: 0.9;
+}
+
+.credit-card .cc-total {
+  font-size: 0.9rem;
+  padding: 0.45rem 0.7rem;
+}
+
+.credit-card .cc-list {
+  max-height: 360px; /* ajusta pra seu gosto */
+  overflow: auto;
+}
+
+.credit-card .cc-item {
+  border-top: 1px solid rgba(0,0,0,0.06);
+}
+
+.credit-card .cc-item:hover {
+  background: rgba(0,0,0,0.02);
+}
+
+.credit-card .cc-cat-icon {
+  height: 18px;
+  width: 18px;
+  flex: 0 0 auto;
+}
+
+.min-w-0 { min-width: 0; }

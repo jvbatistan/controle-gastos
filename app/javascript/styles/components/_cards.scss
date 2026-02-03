@@ -1,145 +1,75 @@
+/* O card vira uma coluna: header fixo + body elástico */
 .credit-card {
-  min-width: 300px;
-  max-width: 350px;
-  max-height: 350px;
-  overflow-y: auto;
-  flex: 0 0 auto;
-  margin-right: 1rem;
-  border: 1px solid #ddd;
-  border-radius: 8px;
-  background-color: #fff;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+  height: 440px;              /* ajuste fino aqui (420~520) */
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;           /* impede a lista de "vazar" pro arredondado */
 }
 
-.credit-card-header {
+/* Header não cresce */
+.credit-card .card-header {
+  flex: 0 0 auto;
+}
+
+/* Body ocupa todo o resto, mas NÃO rola */
+.credit-card .card-body {
+  flex: 1 1 auto;
+  overflow: hidden;
+}
+
+/* Quem rola é só a lista */
+.cc-list {
+  height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+
+  /* mantém espaço da barra estável (Chrome/Edge) */
+  scrollbar-gutter: stable;
+}
+
+.credit-card .card-body {
+  min-height: 120px;
+}
+
+/* container da bandeira */
+.card-brand {
+  margin-top: 6px;
+  height: 22px;                /* espaço garantido */
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 10px;
+  justify-content: flex-end;
 }
 
-.credit-card-icon img {
-  width: 30px;
-  height: auto;
+/* imagem da bandeira */
+.card-brand img {
+  height: 18px;        /* ajuste: 18–22px costuma ficar ótimo */
+  width: auto;
+  max-width: 70px;     /* evita estourar em logos longos */
+  object-fit: contain;
+  image-rendering: auto;
 }
 
-.credit-card-title {
-  flex-grow: 1;
-  margin-left: 0.5rem;
-  font-size: 0.8rem;
+/* se usar SVG inline, também ajuda */
+.card-brand svg {
+  height: 18px;
+  width: auto;
 }
 
-.credit-card-total {
-  color: white;
-  padding: 5px 10px;
-  border-radius: 10px;
-  font-weight: bold;
-  font-size: 0.9rem;
-}
-
-.credit-card-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.85rem;
-}
-
-.credit-card-table th {
-  color: white;
-}
-
-.credit-card-table thead {
-  background-color: #f1f1f1;
-}
-
-.credit-card-table th, .credit-card-table td {
-  padding: 8px 6px;
-}
-
-.credit-card-table tbody tr:nth-child(even) {
-  background-color: #d9d7d7;
-}
-
-.text-muted {
-  color: #6c757d !important;
+.cc-flag {
+  height: 18px !important;     /* 18–20 fica ótimo */
+  width: auto !important;
+  max-width: 72px;
+  object-fit: contain;
   display: block;
-  margin-top: 2px;
 }
 
-.credit-card-table td:nth-child(4) {
-  text-align: right;
-  padding-right: 12px;
-}
-
-.credit-card-table .text-muted.small {
-  font-size: 0.65em !important;
-  color: #888 !important;
-}
-
-.credit-cards-container {
+.cc-empty {
+  height: 100%;
   display: flex;
-  flex-wrap: wrap;
-  gap: 16px;
-  padding: 12px;
-  overflow-y: auto;
+  align-items: center;
   justify-content: center;
-}
-
-@media (max-width: 767.98px) {
-  .credit-cards-container {
-    flex-wrap: nowrap;
-    overflow-x: auto;
-    overflow-y: hidden;
-    padding-bottom: 16px;
-  }
-
-  .credit-card {
-    flex: 0 0 auto;
-    min-width: 300px;
-  }
-}
-
-.card-scroll-grid {
-  display: grid;
-  grid-auto-flow: column;
-  grid-template-rows: repeat(2, auto);
-  grid-auto-columns: 160px;
-  overflow-x: auto;
-  gap: 1rem;
-  padding-bottom: 0.5rem;
-  scroll-snap-type: x mandatory;
-}
-
-.card-scroll-grid .card-option {
-  scroll-snap-align: start;
-  border: 2px solid transparent;
-  transition: 0.2s ease-in-out;
-  cursor: pointer;
-  height: 100%;
-}
-
-.card-option {
-  scroll-snap-align: start;
-  border: 2px solid transparent;
-  transition: all 0.2s ease-in-out;
-  cursor: pointer;
-  height: 100%;
-  border-radius: 0.5rem;
-  background: white;
-  box-shadow: 0 1px 2px rgba(0,0,0,0.1);
-  transition: border-color 0.2s ease-in-out, box-shadow 0.2s;
-}
-
-.card-option.selected {
-  border: 2px solid var(--card-color, #0d6efd);
-  box-shadow: 0 0 0 3px rgba(var(--card-color-rgb), 0.25);
-}
-
-.card-option:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-}
-
-.card-option .bandeira {
-  max-height: 16px;
-  opacity: 0.7;
+  padding: 16px;
+  text-align: center;
+  color: #6c757d; /* text-muted */
+  font-size: 0.875rem;
 }

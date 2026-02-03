@@ -1,124 +1,166 @@
-<% 
-  @month = @month.present? ? @month : Date.today.next_month.month
-%>
+<div class="container-fluid mt-5">
+  <% month_name = I18n.t('date.month_names')[@month.to_i].downcase %>
 
-<% if notice.present? %>
-  <div class="col-6 mt-3">
-    <div class="alert alert-success alert-dismissible fade show" role="alert">
-      <span id="notice"> <%= notice %> </span>
-      
-      <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+  <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+    <div>
+      <h3 class="mb-0">Gastos de <span class="text-capitalize"><%= month_name %></span></h3>
+      <div class="text-muted small">
+        <%= @year %> • <%= @cards.length %> cartões
+      </div>
+    </div>
+
+    <div class="d-flex gap-2">
+      <!-- Ano -->
+      <select id="totals-year" class="form-select form-select-sm" style="max-width: 120px;">
+        <option selected value="<%= Date.today.year %>"><%= Date.today.year %></option>
+        <% (2023..2030).reverse_each do |year| %>
+          <option value="<%= year %>" <%= 'selected' if year.to_i == @year.to_i %>><%= year %></option>
+        <% end %>
+      </select>
+
+      <!-- Mês -->
+      <select id="totals-month" class="form-select form-select-sm" style="max-width: 170px;">
+        <% @months.each_with_index do |month, index| %>
+          <% next if index == 0 %>
+          <option value="<%= index %>" <%= 'selected' if index == @month.to_i %>>
+            <%= month.upcase %>
+          </option>
+        <% end %>
+      </select>
     </div>
   </div>
-<% end %>
+</div>
 
-<div class="container-fluid mt-3">
-  <div class="row mobile-totals-row">
-    <div class="col-md-11">
-      <div class="container-fluid my-2">
-        <h4 class='text-center p-3'> Gastos do mês de <%= I18n.t('date.month_names')[@month.to_i].downcase %> </h4>
-        <div class="credit-cards-container">
-          <% @cards.each do |card| %>
-            <% color_card = card.color %>
-            <div class="card credit-card mb-3">
-              <div class="card-header credit-card-header">
-                <% style = card_style(card) %>
-                <div class="credit-card-icon">
-                  <%= image_tag "cards/#{style[:logo]}", alt: "#{card.name}", class: "img-fluid" %>
-                </div>
-                <div class="credit-card-title mb-0"><%= card.name %></div>
-                <div class="credit-card-icon">
-                  <%= image_tag "flags/#{style[:flag]}", class: "img-fluid bandeira" if style[:flag].present? %>
-                </div>
-                <div class="credit-card-total" style="background-color: <%= color_card %>;">
-                  R$ <%= sprintf("%.2f", card.total_debt(@month)).to_s.gsub('.', ',') %>
-                </div>
-              </div>
-              <table class="credit-card-table">
-                <thead>
-                  <tr style="background-color: <%= color_card %>;">
-                    <th>Descrição</th>
-                    <th class="text-center">Data</th>
-                    <th class="text-center" colspan="2">Valor</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <% debts = card.debts_by_date(@month.to_s.rjust(2, '0'), Date.today.year.to_s) %>
-                  <%if debts.present? %>
-                    <% debts.each do |debt| %>
-                      <tr>
-                        <td>
-                          <% if debt.category&.icon.present? %>
-                            <%= image_tag "categories/#{debt.category.icon}", alt: debt.category.name, class: "me-2", style: "height: 20px; vertical-align: middle;" %>
-                          <% end %>
-                          <strong><%= debt.description %></strong>
-                          <span class="text-muted small"><%= debt.responsible.presence || debt.note %></span>
-                        </td>
-                        <td><%= debt.transaction_date.strftime("%d/%m/%Y") %></td>
-                        <td>
-                          R$
-                          <% if debt.paid %>
-                            <br>
-                            <span class="text-success small">
-                              <i class="fa fa-check-circle text-success" title="Pago"></i>
-                            </span>
-                          <% else %>
-                            <br>
-                            <span class="text-danger small">
-                              <i class="fa fa-times-circle text-danger" title="Pago"></i>
-                            </span>
-                          <% end %>
-                        </td>
-                        <td class="text-end">
-                          <%= sprintf("%.2f", debt.value).to_s.gsub('.', ',') %>
-                          <% if debt.has_installment %>
-                            <span class="text-muted small">
-                              <%= debt.current_installment %> / <%= debt.final_installment %>
-                            </span>
-                          <% end %>
-                        </td>
-                      </tr>
-                    <% end %>
-                  <% end %>
-                </tbody>
-              </table>
+<div class="row row-cols-1 row-cols-md-2 row-cols-xl-3 row-cols-xxl-4 g-3">
+  <% @cards.each do |card| %>
+    <% style = card_style(card) %>
+    <% color = card.color || style[:color] %>
+    <% transactions = card.transactions_by_date(@month.to_s.rjust(2, '0'), Date.today.year.to_s) %>
+
+    <div class="col">
+      <div class="card shadow-sm credit-card">
+        <!-- Header -->
+        <div class="card-header bg-white d-flex align-items-center justify-content-between gap-2">
+          <div class="d-flex align-items-center gap-2">
+            <%= image_tag "cards/#{style[:logo]}", class: "cc-logo", alt: "#{card.name} logo", loading: "lazy" %>
+            <div>
+              <div class="fw-semibold"><%= card.name %></div>
+              <div class="text-muted small"><%= transactions.size %> lançamentos</div>
             </div>
+          </div>
+
+          <div class="text-end">
+            <div class="badge rounded-pill cc-total" style="background: <%= color %>;">
+              R$ <%= sprintf("%.2f", card.total_transactions(@month)).tr('.', ',') %>
+            </div>
+            <div class="card-brand">
+              <%= image_tag "flags/#{style[:flag]}", class: "cc-flag" if style[:flag].present? %>
+            </div>
+          </div>
+        </div>
+
+        <!-- Body -->
+        <div class="card-body p-0">
+          <% if transactions.present? %>
+            <div class="cc-list">
+              <% transactions.each do |t| %>
+                <div class="cc-item px-3 py-2">
+                  <div class="d-flex justify-content-between gap-2">
+                    <div class="min-w-0">
+                      <div class="d-flex align-items-center gap-2 min-w-0">
+                        <% if t.category&.icon.present? %>
+                          <%= image_tag "categories/#{t.category.icon}", class: "cc-cat-icon" %>
+                        <% end %>
+
+                        <div class="fw-semibold text-truncate">
+                          <%= t.description %>
+                          <% if t.installment_group_id.present? %>
+                            <span class="text-muted small ms-1"><%= t.installment_label %></span>
+                          <% end %>
+                        </div>
+                      </div>
+
+                      <% details = t.responsible.presence || t.note %>
+                      <% if details.present? %>
+                        <div class="text-muted small text-truncate"><%= details %></div>
+                      <% end %>
+                    </div>
+
+                    <div class="text-end flex-shrink-0">
+                      <div class="fw-semibold">R$ <%= sprintf("%.2f", t.value).tr('.', ',') %></div>
+                      <div class="small">
+                        <span class="text-muted"><%= t.date.strftime("%d/%m") %></span>
+                        <% if t.paid %>
+                          <span class="badge bg-success-subtle text-success ms-1">Pago</span>
+                        <% else %>
+                          <span class="badge bg-secondary-subtle text-secondary ms-1">Aberto</span>
+                        <% end %>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              <% end %>
+            </div>
+          <% else %>
+              <div class="cc-empty">
+                Nenhuma transação neste mês.
+              </div>
           <% end %>
         </div>
       </div>
     </div>
-    
-    <div class="col-md-1 col-12 mt-5" style="right: 0; left: auto;">
-      <ul class="nav nav-pills nav-fill p-3" id="pills-tab" role="tablist">
-        <li class="nav-item d-flex justify-content-center align-items-center" role="presentation">
-          <select class="form-select form-select-sm" aria-label="Default select example">
-            <option selected value=<%= Date.today.year %>><%= Date.today.year %></option>
-            <% (2023..2030).reverse_each do |year| %>
-              <option value=<%= year %>><%= year %></option>
-            <% end %>
-          </select>
-        </li>
+  <% end %>
 
-        <!-- Select para os meses (visível apenas no mobile) -->
-        <li class="nav-item d-flex justify-content-center align-items-center d-md-none" role="presentation">
-          <select class="form-select form-select-sm mobile-month-select" aria-label="Selecione o mês" id="mobile-month-select">
-            <% @months.each_with_index do |month, index| %>
-              <% unless index == 0 %>
-                <option value="<%= index %>" <%= 'selected' if index == @month.to_i %>><%= month.upcase %></option>
-              <% end %>
-            <% end %>
-          </select>
-        </li>
+  <%# Card OUTROS (transações sem cartão) %>
+  <% style = card_style(OpenStruct.new(name: "OUTROS")) %>
+  <% color = style[:color] %>
+  <% transactions = @other_transactions %>
 
-        <% @months.each_with_index do |month, index| %>
-          <% unless index == 0 %>
-            <li class="nav-item d-flex justify-content-center align-items-center d-none d-md-flex" role="presentation">
-              <%= link_to "#{month.upcase}", totals_path(month: index), class: index == @month.to_i ? "nav-link active" : "nav-link", "role": "tab", "aria-selected": index == @month.to_i ? "true" : "false", id: "pills-#{month.downcase}-tab" %>
-            </li>
-          <% end %>  
+  <div class="col">
+    <div class="card shadow-sm credit-card">
+      <div class="card-header bg-white d-flex align-items-center justify-content-between gap-2">
+        <div class="d-flex align-items-center gap-2">
+          <%= image_tag "cards/creditcard.png", class: "cc-logo" %>
+          <div>
+            <div class="fw-semibold">OUTROS</div>
+            <div class="text-muted small"><%= transactions.size %> lançamentos</div>
+          </div>
+        </div>
+
+        <div class="text-end">
+          <div class="badge rounded-pill cc-total" style="background: <%= color %>;">
+            R$ <%= sprintf("%.2f", @other_total).tr('.', ',') %>
+          </div>
+        </div>
+      </div>
+
+      <div class="card-body p-0">
+        <% if transactions.present? %>
+          <div class="cc-list">
+            <% transactions.each do |t| %>
+              <div class="cc-item px-3 py-2">
+                <div class="d-flex justify-content-between gap-2">
+                  <div class="min-w-0">
+                    <div class="fw-semibold text-truncate"><%= t.description %></div>
+                    <% details = t.note.presence || t.responsible %>
+                    <% if details.present? %>
+                      <div class="text-muted small text-truncate"><%= details %></div>
+                    <% end %>
+                  </div>
+
+                  <div class="text-end flex-shrink-0">
+                    <div class="fw-semibold">R$ <%= sprintf("%.2f", t.value).tr('.', ',') %></div>
+                    <div class="small text-muted"><%= t.date.strftime("%d/%m") %></div>
+                  </div>
+                </div>
+              </div>
+            <% end %>
+          </div>
+        <% else %>
+          <div class="cc-empty">Nenhuma transação neste mês.</div>
         <% end %>
-      </ul>
+      </div>
     </div>
-
   </div>
 </div>
+

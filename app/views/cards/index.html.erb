@@ -33,7 +33,7 @@
 
         <hr class="my-2" style="border-color: white;">
 
-        <% card_debts = card.debts.where(paid: false).sum(:value) %>
+        <% card_debts = card.transactions.where(paid: false).sum(:value) %>
 
         <% if card.name != "OUTROS" %>
           <div class="row d-flex align-items-center mt-1">

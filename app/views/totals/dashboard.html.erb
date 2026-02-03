@@ -32,5 +32,16 @@
         </div>
       </div>
     <% end %>
+
+    <div class="col-md-3 col-sm-6 mb-3">
+      <div class="card shadow-sm border-0">
+        <div class="card-body text-center">
+          <h5 class="fw-semibold text-uppercase mb-2">OUTROS</h5>
+          <h4 class="text-success mb-0">
+            <%= number_to_currency(@other_total.to_f, unit: "R$ ", separator: ",", delimiter: ".") %>
+          </h4>
+        </div>
+      </div>
+    </div>
   </div>
 </div>

@@ -1,58 +1,104 @@
-<%= form_with model: @transaction, local: true, class: "mt-5" do |f| %>
+<%= form_with model: @transaction, local: true, class: "mt-5", data: { controller: "installments-toggle" } do |f| %>
 
-  <!-- Informações da transação -->
-  <%= f.label :description, "Descrição" %>
-  <%= f.text_field :description, class: "form-control" %>
-
-  <%= f.label :value, "Valor" %>
-  <%= f.text_field :value, class: "form-control" %>
-
-  <%= f.label :date, "Data" %>
-  <%= f.date_field :date, class: "form-control" %>
-
-  <div class="form-check">
-    <%= f.check_box :paid, class: "form-check-input" %>
-    <%= f.label :paid, "Pago", class: "form-check-label" %>
-  </div>
-
-  <%= f.label :responsible, "Responsável" %>
-  <%= f.text_field :responsible, class: "form-control" %>
-
-  <!-- Cartão -->
-  <%= f.label :card_id, "Cartão" %>
-  <%= f.collection_select :card_id, Card.order(:name), :id, :name, { prompt: "Selecione..." }, class: "form-select" %>
-
-  <hr>
-
-  <!-- Parcelamento (opcional) -->
-  <div class="form-check">
-    <%= f.check_box :has_installments, {}, "1", "0" %>
-    <%= f.label :has_installments, "Tem parcela", class: "form-check-label" %>
-  </div>
-
-  <div id="installments-fields" class="d-none mt-3">
-    <%= f.fields_for :debt do |df| %>
-      <div class="row g-2">
-        <div class="col-md-4">
-          <%= df.label :current_installment, "Parcela atual" %>
-          <%= df.number_field :current_installment, class: "form-control" %>
-        </div>
-
-        <div class="col-md-4">
-          <%= df.label :final_installment, "Parcela final" %>
-          <%= df.number_field :final_installment, class: "form-control" %>
-        </div>
-
-        <div class="col-12">
-          <%= df.label :note, "Observação" %>
-          <%= df.text_area :note, class: "form-control", rows: 2 %>
+  <div class="container" style="max-width: 820px;">
+    <div class="card shadow-sm">
+      <div class="card-header bg-white">
+        <div class="d-flex align-items-center justify-content-between">
+          <h5 class="mb-0">Nova transação</h5>
+          <span class="text-muted small">Registre seus gastos/receitas</span>
         </div>
       </div>
-    <% end %>
-  </div>
 
-  <div class="mt-4">
-    <%= f.submit "Cadastrar transação", class: "btn btn-primary" %>
+      <div class="card-body">
+        <!-- Descrição -->
+        <div class="mb-3">
+          <%= f.label :description, "Descrição", class: "form-label" %>
+          <%= f.text_field :description, class: "form-control", placeholder: "Ex: UBER *TRIP, IFood, Mercado, Aluguel..." %>
+          <div class="form-text">Dica: copie a descrição do extrato/cartão para melhorar as sugestões.</div>
+        </div>
+
+        <div class="row g-3">
+          <!-- Valor -->
+          <div class="col-12 col-md-6">
+            <%= f.label :value, "Valor", class: "form-label" %>
+            <div class="input-group">
+              <span class="input-group-text">R$</span>
+              <%= f.number_field :value, class: "form-control", step: "0.01", placeholder: "0,00" %>
+            </div>
+          </div>
+
+          <!-- Data -->
+          <div class="col-12 col-md-6">
+            <%= f.label :date, "Data", class: "form-label" %>
+            <%= f.date_field :date, class: "form-control" %>
+          </div>
+
+          <!-- Responsável -->
+          <div class="col-12 col-md-6">
+            <%= f.label :responsible, "Responsável", class: "form-label" %>
+            <%= f.text_field :responsible, class: "form-control", placeholder: "Ex: João / Namorada / Casa" %>
+          </div>
+
+          <!-- Cartão -->
+          <div class="col-12 col-md-6">
+            <%= f.label :card_id, "Cartão", class: "form-label" %>
+            <%= f.collection_select :card_id, Card.order(:name), :id, :name, { prompt: "Selecione..." }, class: "form-select" %>
+          </div>
+
+          <div class="mb-3">
+            <%= f.label :note, "Observação", class: "form-label" %>
+            <%= f.text_area :note, class: "form-control", rows: 2, placeholder: "Ex: sapato, presente, uso pessoal..." %>
+          </div>
+        </div>
+
+        <hr class="my-4">
+
+        <div class="row g-3">
+          <!-- Pago (switch) -->
+          <div class="col-12 col-md-6">
+            <div class="form-check form-switch">
+              <%= f.check_box :paid, class: "form-check-input", id: "transaction_paid" %>
+              <%= f.label :paid, "Pago", class: "form-check-label", for: "transaction_paid" %>
+            </div>
+            <div class="text-muted small mt-1">Marque se já foi pago/quitado.</div>
+          </div>
+
+          <!-- Tem parcela (switch) -->
+          <div class="col-12 col-md-6">
+            <div class="form-check form-switch">
+              <%= check_box_tag :has_installments, "1", false, class: "form-check-input", id: "transaction_has_installments" %>
+              <%= label_tag :has_installments, "Tem parcelas", class: "form-check-label", for: "transaction_has_installments" %>
+            </div>
+            <div class="text-muted small mt-1">Use para compras parceladas.</div>
+          </div>
+
+        <!-- Campos de parcelas -->
+        <div id="installments-fields" class="mt-3 d-none">
+          <div class="border rounded p-3 bg-light">
+            <h6 class="mb-3">Detalhes do parcelamento</h6>
+
+            <div class="row g-3">
+              <div class="col-12 col-md-4">
+                <%= f.label :installment_number, "Parcela atual", class: "form-label" %>
+                <%= f.number_field :installment_number, class: "form-control", min: 1, value: 1 %>
+              </div>
+
+              <div class="col-12 col-md-4">
+                <%= f.label :installments_count, "Total de parcelas", class: "form-label" %>
+                <%= f.number_field :installments_count, class: "form-control", min: 2, placeholder: "Ex: 12" %>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card-footer bg-white">
+        <div class="d-flex gap-2 justify-content-end">
+          <%= link_to "Cancelar", transactions_path, class: "btn btn-outline-secondary" %>
+          <%= f.submit "Cadastrar transação", class: "btn btn-primary" %>
+        </div>
+      </div>
+    </div>
   </div>
 
 <% end %>
