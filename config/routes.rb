@@ -1,12 +1,14 @@
 Rails.application.routes.draw do
   root "totals#dashboard"
 
-  resources :transactions, only: [:new, :create]
+  resources :transactions, only: [:index, :new, :create]
 
   resources :debts do
     get "/debts/new", to: redirect("/transactions/new")
     post :pay_all, on: :collection
   end
+
+  get "/debts", to: redirect("/transactions")
     
   resources :cards
   resources :totals, only: [:index]

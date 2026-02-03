@@ -67,24 +67,29 @@ module Transactions
       d.include?("UBER") && !d.include?("EATS")
     end
 
+    def category_by_name(name)
+      @category_cache ||= {}
+      @category_cache[name] ||= Category.find_by(name: name)
+    end
+
     def fallback_category_for(description)
       d = description.to_s.upcase
       
-      return Category.find_by(name: "Alimentação") if d.include?("IFOOD")
+      return category_by_name("Alimentação") if d.include?("IFOOD")
 
       if d.include?("PAGUE MENOS") || d.include?("DROGASIL") || d.include?("DROGA RAIA") || d.include?("EXTRAFARMA")
-        return Category.find_by(name: "Saúde")
+        return category_by_name("Saúde")
       end
 
       if d.include?("POSTO") || d.include?("SHELL") || d.include?("IPIRANGA") || d.include?("PETROBRAS") || d.include?("ALE")
-        return Category.find_by(name: "Transporte")
+        return category_by_name("Transporte")
       end
 
       if d.include?("UBER") && (d.include?("EATS") || d.include?("UBER EATS"))
-        return Category.find_by(name: "Alimentação")
+        return category_by_name("Alimentação")
       end
 
-      return Category.find_by(name: "Transporte") if d.include?("UBER")
+      return category_by_name("Transporte") if d.include?("UBER")
 
       nil
     end

@@ -3,13 +3,28 @@ class TotalsController < ApplicationController
 
   def index
     @months = I18n.t("date.abbr_month_names")
+
+    @month = (params[:month] || Date.today.month).to_i
+    @year  = (params[:year] || Date.today.year).to_i
     
-    if params[:month].present?
-      @month = params[:month].to_i
-    end
+    @current_date = Date.new(@year, @month, 1)
+
+    @cards = Card.with_totals(@month, @year)
+    @total_sum = Card.total_sum_for(@month, @year)
+
+    start_date = Date.new(@year.to_i, @month.to_i, 1)
+    end_date   = start_date.end_of_month
+
+    @other_transactions = Transaction
+      .where(card_id: nil)
+      .where(source: [:cash, :bank]) # avulsas
+      .where(date: start_date..end_date)
+      .order(date: :desc, value: :desc, description: :asc)
+
+    @other_total = @other_transactions.where(paid: false).sum(:value)
   end
 
-   def dashboard
+  def dashboard
     @month = (params[:month] || Date.today.month).to_i
     @year  = (params[:year] || Date.today.year).to_i
 
@@ -18,6 +33,20 @@ class TotalsController < ApplicationController
 
     @cards = Card.with_totals(@month, @year)
     @total_sum = Card.total_sum_for(@month, @year)
+
+    start_date = @current_date
+    end_date   = @current_date.end_of_month
+
+    @other_transactions = Transaction
+      .where(card_id: nil)
+      .where(source: [:cash, :bank])
+      .where(date: start_date..end_date)
+      .order(date: :desc, value: :desc, description: :asc)
+
+    @other_total = @other_transactions.where(paid: false).sum(:value)
+
+    # soma no total geral
+    @total_sum += @other_total
   end
 
   private
