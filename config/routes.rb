@@ -1,7 +1,7 @@
 Rails.application.routes.draw do
   root "totals#dashboard"
 
-  resources :transactions, only: [:index, :new, :create]
+  resources :transactions, only: [:index, :new, :create, :edit, :update, :destroy]
 
   resources :debts do
     get "/debts/new", to: redirect("/transactions/new")
@@ -21,5 +21,10 @@ Rails.application.routes.draw do
       post :correct
     end
   end
-  # For details on the DSL available within this file, see https://guides.rubyonrails.org/routing.html
+  
+  resources :card_statements, only: [] do
+    member do
+      post :add_payment
+    end
+  end
 end

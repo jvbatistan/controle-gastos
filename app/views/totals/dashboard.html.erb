@@ -26,8 +26,45 @@
           <div class="card-body text-center">
             <h5 class="fw-semibold text-uppercase mb-2"><%= card.name %></h5>
             <h4 class="text-success mb-0">
-              <%= number_to_currency(card.total_value.to_f, unit: "R$ ", separator: ",", delimiter: ".") %>
+              <% st = @statements_by_card_id[card.id] %>
+              <%= number_to_currency(st.remaining_amount.to_f, unit: "R$ ", separator: ",", delimiter: ".") %>
             </h4>
+            <div class="text-muted small mt-2">
+              Pago: R$ <%= sprintf("%.2f", st.paid_amount).tr('.', ',') %> /
+              Total: R$ <%= sprintf("%.2f", st.total_amount).tr('.', ',') %>
+              <button class="btn btn-sm btn-outline-primary mt-2" data-bs-toggle="modal" data-bs-target="#payStatementModal-<%= st.id %>"> Registrar pagamento </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal fade" id="payStatementModal-<%= st.id %>" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+          <div class="modal-content">
+            <div class="modal-header">
+              <h5 class="modal-title"> Pagamento — <%= card.name %> (<%= l(st.billing_statement, format: "%m/%Y") %>) </h5>
+              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+
+            <%= form_with url: add_payment_card_statement_path(st), method: :post, local: true do |f| %>
+              <div class="modal-body">
+                <div class="mb-2 small text-muted">
+                  Total: <b><%= number_to_currency(st.total_amount) %></b> •
+                  Pago: <b><%= number_to_currency(st.paid_amount) %></b> •
+                  Falta: <b><%= number_to_currency(st.remaining_amount) %></b>
+                </div>
+
+                <div class="mb-3">
+                  <label class="form-label">Valor pago agora</label>
+                  <input type="number" name="card_statement[paid_amount]" step="0.01" min="0" class="form-control" required>
+                </div>
+              </div>
+
+              <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="submit" class="btn btn-primary">Salvar pagamento</button>
+              </div>
+            <% end %>
           </div>
         </div>
       </div>

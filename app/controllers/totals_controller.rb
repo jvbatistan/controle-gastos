@@ -32,8 +32,19 @@ class TotalsController < ApplicationController
     @current_date = Date.new(@year, @month, 1)
 
     @cards = Card.with_totals(@month, @year)
-    @total_sum = Card.total_sum_for(@month, @year)
+    # @total_sum = Card.total_sum_for(@month, @year)
 
+    @statements_by_card_id = {}
+
+    @total_sum = 0.to_d
+
+    @cards.each do |card|
+      st = card.sync_statement!(@month, @year)
+      @statements_by_card_id[card.id] = st
+
+      @total_sum += st.remaining_amount
+    end
+    
     start_date = @current_date
     end_date   = @current_date.end_of_month
 

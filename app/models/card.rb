@@ -1,5 +1,6 @@
 class Card < ApplicationRecord
   has_many :transactions, dependent: :nullify
+  has_many :card_statements, dependent: :destroy
 
   validates :name, :due_date, :closing_date, presence: true
 
@@ -23,6 +24,28 @@ class Card < ApplicationRecord
 
   def self.total_sum_for(month = Date.today.month, year = Date.today.year)
     joins(:transactions).where("EXTRACT(MONTH FROM transactions.billing_statement) = ? AND EXTRACT(YEAR FROM transactions.billing_statement) = ?", month, year).where(transactions: { paid: false }).sum("transactions.value")
+  end
+
+  def month_total(month, year)
+    transactions.where("EXTRACT(MONTH FROM billing_statement) = ? AND EXTRACT(YEAR FROM billing_statement) = ?", month, year).sum(:value)
+  end
+
+  def statement_for(month, year)
+    bs = Date.new(year.to_i, month.to_i, due_date)
+    card_statements.find_or_create_by!(billing_statement: bs)
+  end
+
+  def sync_statement!(month, year)
+    st = statement_for(month, year)
+
+    total = month_total(month, year).to_d
+
+    # só atualiza se mudou (evita update atoa)
+    if st.total_amount.to_d != total
+      st.update!(total_amount: total)
+    end
+
+    st
   end
 
   private

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 2026_02_02_163630) do
+ActiveRecord::Schema.define(version: 2026_02_06_220606) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_graphql"
@@ -19,6 +19,18 @@ ActiveRecord::Schema.define(version: 2026_02_02_163630) do
   enable_extension "plpgsql"
   enable_extension "supabase_vault"
   enable_extension "uuid-ossp"
+
+  create_table "card_statements", force: :cascade do |t|
+    t.bigint "card_id", null: false
+    t.date "billing_statement", null: false
+    t.decimal "total_amount", precision: 12, scale: 2, default: "0.0", null: false
+    t.decimal "paid_amount", precision: 12, scale: 2, default: "0.0", null: false
+    t.datetime "paid_at"
+    t.datetime "created_at", precision: 6, null: false
+    t.datetime "updated_at", precision: 6, null: false
+    t.index ["card_id", "billing_statement"], name: "index_card_statements_on_card_id_and_billing_statement", unique: true
+    t.index ["card_id"], name: "index_card_statements_on_card_id"
+  end
 
   create_table "cards", force: :cascade do |t|
     t.string "name"
@@ -124,6 +136,7 @@ ActiveRecord::Schema.define(version: 2026_02_02_163630) do
     t.index ["item_type", "item_id"], name: "index_versions_on_item_type_and_item_id"
   end
 
+  add_foreign_key "card_statements", "cards"
   add_foreign_key "classification_suggestions", "categories", column: "suggested_category_id"
   add_foreign_key "classification_suggestions", "transactions", column: "financial_transaction_id"
   add_foreign_key "debts", "cards"

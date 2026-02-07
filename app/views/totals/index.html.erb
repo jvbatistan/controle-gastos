@@ -141,7 +141,21 @@
               <div class="cc-item px-3 py-2">
                 <div class="d-flex justify-content-between gap-2">
                   <div class="min-w-0">
-                    <div class="fw-semibold text-truncate"><%= t.description %></div>
+                    <div class="d-flex align-items-center gap-2 min-w-0">
+                      <% if t.category&.icon.present? %>
+                        <%= image_tag "categories/#{t.category.icon}", class: "cc-cat-icon" %>
+                      <% end %>
+
+                      <div class="fw-semibold text-truncate">
+                        <%= t.description %>
+                        <% if t.installment_group_id.present? %>
+                          <span class="text-muted small ms-1"><%= t.installment_label %></span>
+                        <% end %>
+                        <% if t.paid? %>
+                          <span class="paid-icon" title="Pago">✓</span>
+                        <% end %>
+                      </div>
+                    </div>
                     <% details = t.note.presence || t.responsible %>
                     <% if details.present? %>
                       <div class="text-muted small text-truncate"><%= details %></div>
@@ -149,7 +163,7 @@
                   </div>
 
                   <div class="text-end flex-shrink-0">
-                    <div class="fw-semibold">R$ <%= sprintf("%.2f", t.value).tr('.', ',') %></div>
+                    <div class="fw-semibold"> R$ <%= sprintf("%.2f", t.value).tr('.', ',') %> </div>
                     <div class="small text-muted"><%= t.date.strftime("%d/%m") %></div>
                   </div>
                 </div>

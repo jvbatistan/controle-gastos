@@ -1,81 +1,51 @@
 class TransactionsController < ApplicationController
   before_action :set_transaction, only: %i[show edit update destroy]
-  before_action :set_cards, only: %i[new edit create]
+  before_action :set_cards, only: %i[index new edit create]
 
   # GET /transactions or /transactions.json
   def index
-    @transactions = Transaction.order(date: :desc, created_at: :desc).limit(200)
+    @transactions = Transaction.order(date: :desc, id: :desc)
 
-    # if params[:description].present? || params[:card_id].present? || params[:paid].present? || params[:has_installment].present? || params[:month].present? || params[:year].present? || params[:note].present? || params[:category_id].present? || params[:expense_type].present?
-    #   @total = 0
+    @month = params[:month].presence
+    @year  = params[:year].presence
+    @card_id = params[:card_id].presence
 
-    #   if params[:description].present?
-    #     @transactions = @transactions.where('description LIKE ?', "%#{params[:description]}%")
-    #   end
+    if @card_id.present?
+      if @card_id == "none"
+        @transactions = @transactions.where(card_id: nil)
+      else 
+        @transactions = @transactions.where(card_id: @card_id)
+      end
+    end
 
-    #   if params[:note].present?
-    #     @transactions = @transactions.where('note LIKE ?', "%#{params[:note]}%")
-    #   end
+    if @month.present? && @year.present?
+      month_i = @month.to_i
+      year_i  = @year.to_i
 
-    #   if params[:card_id].present?
-    #     @transactions    = @transactions.where('card_id = ?', "#{params[:card_id]}")
-    #   end
+      start_date = Date.new(year_i, month_i, 1)
+      end_date   = start_date.end_of_month
 
-    #   if params[:paid].present?
-    #     @transactions = @transactions.where('paid = ?', params[:paid] == 'true' ? true : false)
-    #   end
+      if @card_id.blank?
+        @transactions = @transactions.where("(card_id IS NOT NULL AND billing_statement >= ? AND billing_statement <= ?) OR (card_id IS NULL AND date >= ? AND date <= ?)", start_date, end_date, start_date, end_date)
+      else
+        if @card_id == "none"
+          @transactions = @transactions.where(date: start_date..end_date)
+        else
+          @transactions = @transactions.where(billing_statement: start_date..end_date)
+        end
+      end
+    end
 
-    #   if params[:has_installment].present?
-    #     @transactions = @transactions.where('has_installment = ?', "#{params[:has_installment]}")
-    #   end
-
-    #   if params[:category_id].present?
-    #     @transactions = @transactions.where('category_id = ?', "#{params[:category_id]}")
-    #   end
-
-    #   if params[:expense_type].present?
-    #     @transactions = @transactions.where('expense_type = ?', "#{params[:expense_type]}")
-    #   end
-
-    #   if params[:month].present? && params[:month] != "0"
-    #     ### POSTGRES OU MYSQL
-    #     months = Array(params[:month]).map { |m| m.to_s.rjust(2, '0') }
-    #     @transactions = @transactions.where('EXTRACT(MONTH FROM billing_statement) = ?', months)
-    #     ### SQLITE3
-    #     # @transactions = @transactions.where("strftime('%m', billing_statement) IN (?)", months)
-    #     if @transactions.present? && params[:card_id].present? && params[:month].size <= 1
-    #       @due_date = (Date.new(Date.today.year, Date.today.month, @transactions.last.card.due_date) + 1.month)
-    #     end
-    #   end
-
-    #   if params[:year].present? && params[:year] != "0"
-    #     ### POSTGRES OU MYSQL
-    #     @transactions = @transactions.where('EXTRACT(YEAR FROM billing_statement) = ?', "#{params[:year]}")
-    #     ### SQLITE3
-    #     # @transactions = @transactions.where("strftime('%Y', billing_statement) = ?", "#{params[:year].to_s}")
-    #     if @transactions.present? && params[:card_id].present? && params[:month].size <= 1
-    #       @due_date = (Date.new(Date.today.year, Date.today.month, @transactions.last.card.due_date) + 1.month) if params[:card_id].present? && params[:month].size <= 1
-    #     end
-    #   end
-
-    #   @transactions.each{|transaction| @total += transaction.value}
-    #   @transactions = @transactions.order(paid: :asc, transaction_date: :desc, value: :desc).page(params[:page]).per(99)
-    # else
-    #   @transactions = @transactions.order(created_at: :desc).page(params[:page]).per(10)
-    # end
+    @total_sum = @transactions.sum(:value) if @month.present? && @year.present?
   end
 
   # GET /transactions/1 or /transactions/1.json
-  def show
-  end
+  # def show
+  # end
 
   # GET /transactions/new
   def new
     @transaction = Transaction.new(kind: :expense, date: Date.today, source: :card)
-  end
-
-  # GET /transactions/1/edit
-  def edit
   end
 
   # POST /transactions or /transactions.json
@@ -109,52 +79,50 @@ class TransactionsController < ApplicationController
     render :new
   end
 
+  # GET /transactions/1/edit
+  def edit
+  end
 
   # PATCH/PUT /transactions/1 or /transactions/1.json
   def update
-    respond_to do |format|
-      if @transaction.update(transaction_params)
-        format.html { redirect_to transaction_url(@transaction), notice: "Transaction was successfully updated." }
-        format.json { render :show, status: :ok, location: @transaction }
-      else
-        format.html { render :edit, status: :unprocessable_entity }
-        format.json { render json: @transaction.errors, status: :unprocessable_entity }
-      end
+    if @transaction.update(transaction_params_for_update)
+      redirect_to transactions_path, notice: "✅ Transação atualizada!"
+    else
+      render :edit
     end
+  rescue ActiveRecord::RecordInvalid => e
+    flash.now[:alert] = e.record.errors.full_messages.to_sentence
+    render :edit
   end
 
   # DELETE /transactions/1 or /transactions/1.json
   def destroy
     @transaction.destroy
-
-    respond_to do |format|
-      format.html { redirect_to transactions_url, notice: "Transaction was successfully destroyed." }
-      format.json { head :no_content }
-    end
+    redirect_to transactions_path, notice: "Transação excluída com sucesso."
   end
 
-  def pay_all
-    if params[:card_id].present? && params[:month].present? && params[:year].present?
-      months = Array(params[:month]).map { |m| m.to_s.rjust(2, '0') }
-      all_transactions = Transaction.where(card_id: params[:card_id].to_i).where("to_char(billing_statement, 'MM') IN (?)", months).where("to_char(billing_statement, 'YYYY') = ?", "#{params[:year].to_s}")
+  # def pay_all
+  #   if params[:card_id].present? && params[:month].present? && params[:year].present?
+  #     months = Array(params[:month]).map { |m| m.to_s.rjust(2, '0') }
+  #     all_transactions = Transaction.where(card_id: params[:card_id].to_i).where("to_char(billing_statement, 'MM') IN (?)", months).where("to_char(billing_statement, 'YYYY') = ?", "#{params[:year].to_s}")
       
-      if all_transactions.present?
-        paids = all_transactions.update_all(paid: true)
+  #     if all_transactions.present?
+  #       paids = all_transactions.update_all(paid: true)
 
-        respond_to do |format|
-          if paids > 0
-            format.html { redirect_to transactions_path, notice: "Dívidas atualizadas com sucesso." }
-            format.json { render :show, status: :created, location: @transaction }
-          else
-            format.html { render :index, status: :unprocessable_entity }
-            format.json { render json: @transaction.errors, status: :unprocessable_entity }
-          end
-        end
-      else
-        flash[:notice] = "Nenhuma dívida encontrada com esses parâmetros"
-      end
-    end
-  end
+  #       respond_to do |format|
+  #         if paids > 0
+  #           format.html { redirect_to transactions_path, notice: "Dívidas atualizadas com sucesso." }
+  #           format.json { render :show, status: :created, location: @transaction }
+  #         else
+  #           format.html { render :index, status: :unprocessable_entity }
+  #           format.json { render json: @transaction.errors, status: :unprocessable_entity }
+  #         end
+  #       end
+  #     else
+  #       flash[:notice] = "Nenhuma dívida encontrada com esses parâmetros"
+  #     end
+  #   end
+  # end
 
   private
     # Use callbacks to share common setup or constraints between actions.
@@ -166,12 +134,18 @@ class TransactionsController < ApplicationController
       @cards = Card.ordenados
     end
 
-    # Only allow a list of trusted parameters through.
     def transaction_params
       params.require(:transaction).permit(
-        :description, :value, :date, :kind, :source, :paid, :responsible,
-        :card_id, :category_id, :note,
-        :installments_count, :installment_number
+        :description, :value, :date, :kind, :source, :paid,
+        :note, :responsible, :card_id, :category_id, :billing_statement,
+        :installment_number, :installments_count # <-- permitido só no create (se você quiser)
+      )
+    end
+
+    def transaction_params_for_update
+      params.require(:transaction).permit(
+        :description, :value, :date, :kind, :source, :paid,
+        :note, :responsible, :card_id, :category_id, :billing_statement
       )
     end
 end
