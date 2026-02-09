@@ -25,4 +25,11 @@ Rails.application.routes.draw do
       post :add_payment
     end
   end
+
+  namespace :api do
+    get "health",    to: "health#show"
+    get "me",        to: "me#show"
+    post "login",    to: "sessions#create"
+    delete "logout", to: "sessions#destroy"
+  end
 end
