@@ -31,5 +31,7 @@ Rails.application.routes.draw do
     get "me",        to: "me#show"
     post "login",    to: "sessions#create"
     delete "logout", to: "sessions#destroy"
+
+    resources :transactions, only: [:index]
   end
 end
