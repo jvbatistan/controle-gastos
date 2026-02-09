@@ -45,7 +45,7 @@
             <% end %>
 
             <%= link_to classification_suggestions_path,
-              class: "#{nav_item_class(classification_suggestions_path)} nav-suggestions #{'has-pending' if @pending_suggestions_count > 0}" do %>
+              class: "#{nav_item_class(classification_suggestions_path)} nav-suggestions #{'has-pending' if @pending_suggestions_count.to_i > 0}" do %>
 
               <i class="bi bi-lightbulb fs-5 nav-icon"></i>
               <span class="fw-semibold">Sugestões</span>

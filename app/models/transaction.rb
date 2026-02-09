@@ -21,7 +21,8 @@ class Transaction < ApplicationRecord
   before_validation :normalize_strings
   before_validation :set_billing_statement, if: -> { card_id.present? && date.present? }
 
-  after_commit :create_category_suggestion, on: [:create, :update]
+  after_create_commit :create_category_suggestion
+  after_update_commit :create_category_suggestion, if: -> { saved_change_to_description? }
 
   scope :by_month,          -> (month, year)          { where("EXTRACT(MONTH FROM date) = ? AND EXTRACT(YEAR FROM date) = ?", month, year) }
   scope :by_period,         -> (start_date, end_date) { where(date: start_date..end_date) }
@@ -94,8 +95,6 @@ class Transaction < ApplicationRecord
   def create_category_suggestion
     return if destroyed?
     return if category_id.present?
-
-    return unless previous_changes.key?("id") || previous_changes.key?("description")
 
     Transactions::CreateCategorySuggestionService.new(self).call
   end

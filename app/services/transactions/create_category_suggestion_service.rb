@@ -2,6 +2,7 @@ module Transactions
   class CreateCategorySuggestionService
     def initialize(transaction)
       @transaction = transaction
+      @user = transaction.user
     end
 
     def call
@@ -17,6 +18,7 @@ module Transactions
 
       if (result.nil? || result.suggested_category.nil?) || result&.confidence.to_f < 0.95
         return ClassificationSuggestion.create!(
+          user: @user,
           financial_transaction_id: @transaction.id,
           suggested_category: result&.suggested_category,
           confidence: result&.confidence || 0.0,

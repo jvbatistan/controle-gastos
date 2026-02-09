@@ -1,0 +1,60 @@
+<div class="container py-5">
+  <div class="row justify-content-center">
+    <div class="col-12 col-sm-10 col-md-7 col-lg-5">
+
+      <div class="text-center mb-4">
+        <h1 class="h3 mb-1 fw-bold">Controle de Gastos</h1>
+        <div class="text-muted">Controle suas finanças pessoais</div>
+      </div>
+
+      <div class="card shadow-sm border-0">
+        <div class="card-body p-4 p-md-5">
+          <h2 class="h5 mb-4">Entrar</h2>
+
+          <%= form_for(resource, as: resource_name, url: session_path(resource_name)) do |f| %>
+
+            <div class="mb-3">
+              <%= f.label :email, class: "form-label" %>
+              <%= f.email_field :email,
+                    autofocus: true,
+                    autocomplete: "email",
+                    class: "form-control",
+                    placeholder: "seuemail@exemplo.com" %>
+            </div>
+
+            <div class="mb-3">
+              <%= f.label :password, class: "form-label" %>
+              <%= f.password_field :password,
+                    autocomplete: "current-password",
+                    class: "form-control",
+                    placeholder: "••••••••" %>
+            </div>
+
+            <% if devise_mapping.rememberable? %>
+              <div class="form-check mb-3">
+                <%= f.check_box :remember_me, class: "form-check-input" %>
+                <%= f.label :remember_me, class: "form-check-label" %>
+              </div>
+            <% end %>
+
+            <div class="d-grid gap-2">
+              <%= f.submit "Entrar", class: "btn btn-primary btn-lg" %>
+            </div>
+
+          <% end %>
+
+          <hr class="my-4">
+
+          <div class="small">
+            <%= render "devise/shared/links" %>
+          </div>
+        </div>
+      </div>
+
+      <div class="text-center text-muted small mt-3">
+        © <%= Time.current.year %> Controle de Gastos
+      </div>
+
+    </div>
+  </div>
+</div>

@@ -28,8 +28,12 @@
           </div>
         <% end %>
 
-        <%= render 'layouts/navbar' %>
-        <%= yield %>
+        <% if user_signed_in? %>
+          <%= render "layouts/navbar" %>
+          <%= yield %>
+        <% else %>
+          <%= yield %>
+        <% end %>
       </div>
     </div>
   </body>
