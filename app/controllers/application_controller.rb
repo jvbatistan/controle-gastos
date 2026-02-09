@@ -1,3 +1,8 @@
 class ApplicationController < ActionController::Base
-  http_basic_authenticate_with name: ENV["BASIC_AUTH_USER"], password: ENV["BASIC_AUTH_PASSWORD"] if Rails.env.production?
+  before_action :authenticate_user!
+  before_action :set_nav_counts
+
+  def set_nav_counts
+    @pending_suggestions_count = current_user.classification_suggestions.pending.count
+  end
 end

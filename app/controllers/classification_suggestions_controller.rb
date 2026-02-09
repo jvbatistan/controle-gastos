@@ -1,13 +1,13 @@
 class ClassificationSuggestionsController < ApplicationController
   def index
-    @suggestions = ClassificationSuggestion
+    @suggestions = current_user.classification_suggestions
       .pending
       .includes(:financial_transaction, :suggested_category)
       .order(created_at: :desc)
   end
 
   def accept
-    suggestion = ClassificationSuggestion.find(params[:id])
+    suggestion = current_user.classification_suggestions.find(params[:id])
     tx = suggestion.financial_transaction
     category_id = suggestion.suggested_category_id
 
@@ -17,14 +17,20 @@ class ClassificationSuggestionsController < ApplicationController
 
       propagate_to_installment_group!(tx, category_id, mark_as: :accepted)
 
-      Merchants::UpsertAliasService.new(description: tx.description, category_id: category_id, confidence: suggestion.confidence, source: :user_override).call
+      Merchants::UpsertAliasService.new(
+        user: current_user,
+        description: tx.description, 
+        category_id: category_id, 
+        confidence: suggestion.confidence, 
+        source: :user_override
+      ).call
     end
 
     redirect_to classification_suggestions_path, notice: "✅ Sugestão aplicada!"
   end
 
   def reject
-    suggestion = ClassificationSuggestion.find(params[:id])
+    suggestion = current_user.classification_suggestions.find(params[:id])
     tx = suggestion.financial_transaction
 
     Transaction.transaction do
@@ -37,7 +43,7 @@ class ClassificationSuggestionsController < ApplicationController
   end
 
   def correct
-    suggestion = ClassificationSuggestion.find(params[:id])
+    suggestion = current_user.classification_suggestions.find(params[:id])
     category_id = params.dig(:classification_suggestion, :category_id)
 
     raise ActionController::ParameterMissing, :classification_suggestion if category_id.blank?
@@ -50,7 +56,13 @@ class ClassificationSuggestionsController < ApplicationController
 
       propagate_to_installment_group!(tx, category_id, mark_as: :rejected)
 
-      Merchants::UpsertAliasService.new(description: tx.description, category_id: category_id, confidence: 1.0, source: :user_override).call
+      Merchants::UpsertAliasService.new(
+        user: current_user,
+        description: tx.description, 
+        category_id: category_id, 
+        confidence: 1.0, 
+        source: :user_override
+      ).call
     end
 
     redirect_to classification_suggestions_path, notice: "✅ Correção aplicada e aprendizado salvo!"
@@ -62,11 +74,18 @@ class ClassificationSuggestionsController < ApplicationController
     gid = transaction.installment_group_id
     return 0 if gid.blank?
 
-    updated = Transactions::ApplyCategoryToInstallmentGroupService.new(transaction: transaction, category_id: category_id).call
+    updated = Transactions::ApplyCategoryToInstallmentGroupService.new(
+      transaction: transaction, 
+      category_id: category_id
+    ).call
 
     tx_ids = Transaction.where(installment_group_id: gid).pluck(:id)
 
-    scope = ClassificationSuggestion.where(financial_transaction_id: tx_ids, accepted_at: nil, rejected_at: nil)
+    scope = ClassificationSuggestion.where(
+      financial_transaction_id: tx_ids, 
+      accepted_at: nil, 
+      rejected_at: nil
+    )
 
     now = Time.current
 

@@ -3,7 +3,7 @@ class CardsController < ApplicationController
 
   # GET /cards or /cards.json
   def index
-    @cards = Card.ordenados
+    @cards = current_user.cards.ordenados
   end
 
   # GET /cards/1 or /cards/1.json
@@ -12,7 +12,7 @@ class CardsController < ApplicationController
 
   # GET /cards/new
   def new
-    @card = Card.new
+    @card = current_user.cards.new
   end
 
   # GET /cards/1/edit
@@ -21,11 +21,11 @@ class CardsController < ApplicationController
 
   # POST /cards or /cards.json
   def create
-    @card = Card.new(card_params)
+    @card = current_user.cards.new(card_params)
 
     respond_to do |format|
       if @card.save
-        format.html { redirect_to root_path, notice: "Cartão cadastrado com sucesso." }
+        format.html { redirect_to cards_path, notice: "Cartão cadastrado com sucesso." }
         format.json { render :show, status: :created, location: @card }
       else
         format.html { render :new, status: :unprocessable_entity }
@@ -38,7 +38,7 @@ class CardsController < ApplicationController
   def update
     respond_to do |format|
       if @card.update(card_params)
-        format.html { redirect_to card_url(@card), notice: "Card was successfully updated." }
+        format.html { redirect_to card_url(@card), notice: "Cartão atualizado com sucesso." }
         format.json { render :show, status: :ok, location: @card }
       else
         format.html { render :edit, status: :unprocessable_entity }
@@ -52,19 +52,17 @@ class CardsController < ApplicationController
     @card.destroy
 
     respond_to do |format|
-      format.html { redirect_to cards_url, notice: "Card was successfully destroyed." }
+      format.html { redirect_to cards_url, notice: "Cartão excluído com sucesso." }
       format.json { head :no_content }
     end
   end
 
   private
-    # Use callbacks to share common setup or constraints between actions.
-    def set_card
-      @card = Card.find(params[:id])
-    end
+  def set_card
+    @card = current_user.cards.find(params[:id])
+  end
 
-    # Only allow a list of trusted parameters through.
-    def card_params
-      params.require(:card).permit(:name, :due_date, :closing_date, :limit, :image, :color)
-    end
+  def card_params
+    params.require(:card).permit(:name, :due_date, :closing_date, :limit)
+  end
 end

@@ -33,6 +33,8 @@ $.jMaskGlobals.watchDataMask = true;
 // FontAwesome
 import '@fortawesome/fontawesome-free/css/all.css';
 
+import "bootstrap-icons/font/bootstrap-icons.css";
+
 // Seus arquivos locais
 import './styles/application.scss';
 import './custom_color';

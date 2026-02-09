@@ -1,0 +1,21 @@
+<%= form_with(model: @category, local: true) do |f| %>
+  <% if @category.errors.any? %>
+    <div class="alert alert-danger">
+      <ul class="mb-0">
+        <% @category.errors.full_messages.each do |msg| %>
+          <li><%= msg %></li>
+        <% end %>
+      </ul>
+    </div>
+  <% end %>
+
+  <div class="mb-3">
+    <%= f.label :name, "Nome", class: "form-label" %>
+    <%= f.text_field :name, class: "form-control", autofocus: true %>
+  </div>
+
+  <div class="d-flex gap-2">
+    <%= f.submit "Salvar", class: "btn btn-primary" %>
+    <%= link_to "Cancelar", categories_path, class: "btn btn-outline-secondary" %>
+  </div>
+<% end %>

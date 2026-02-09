@@ -35,6 +35,8 @@ module Transactions
         date = base_date + (n - @current).months
 
         Transaction.create!(
+          user_id: @transaction.user_id,
+
           description: @transaction.description,
           value: installment_value,
           date: date,

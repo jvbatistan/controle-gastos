@@ -4,17 +4,21 @@ class TransactionsController < ApplicationController
 
   # GET /transactions or /transactions.json
   def index
-    @transactions = Transaction.order(date: :desc, id: :desc)
+    @transactions = current_user.transactions.order(date: :desc, id: :desc)
 
-    @month = params[:month].presence
-    @year  = params[:year].presence
-    @card_id = params[:card_id].presence
+    @month    = params[:month].presence
+    @year     = params[:year].presence
+    @card_id  = params[:card_id].presence
 
     if @card_id.present?
       if @card_id == "none"
         @transactions = @transactions.where(card_id: nil)
-      else 
-        @transactions = @transactions.where(card_id: @card_id)
+      else
+        if current_user.cards.exists?(@card_id)
+          @transactions = @transactions.where(card_id: @card_id)
+        else
+          @transactions = @transactions.none
+        end
       end
     end
 
@@ -39,18 +43,19 @@ class TransactionsController < ApplicationController
     @total_sum = @transactions.sum(:value) if @month.present? && @year.present?
   end
 
-  # GET /transactions/1 or /transactions/1.json
-  # def show
-  # end
-
   # GET /transactions/new
   def new
-    @transaction = Transaction.new(kind: :expense, date: Date.today, source: :card)
+    @transaction = current_user.transactions.new(kind: :expense, date: Date.today, source: :card)
   end
 
   # POST /transactions or /transactions.json
   def create
-    @transaction = Transaction.new(transaction_params)
+    @transaction = current_user.transactions.new(transaction_params)
+
+    unless valid_card_and_category_owner?(@transaction)
+      flash.now[:alert] = "Cartão e/ou categoria inválidos."
+      return render :new
+    end
 
     final   = params[:transaction][:installments_count].to_i
     current = (params[:transaction][:installment_number].presence || 1).to_i
@@ -85,7 +90,14 @@ class TransactionsController < ApplicationController
 
   # PATCH/PUT /transactions/1 or /transactions/1.json
   def update
-    if @transaction.update(transaction_params_for_update)
+    @transaction.assign_attributes(transaction_params_for_update)
+
+    unless valid_card_and_category_owner?(@transaction)
+      flash.now[:alert] = "Cartão e/ou categoria inválidos."
+      return render :edit
+    end
+
+    if @transaction.save
       redirect_to transactions_path, notice: "✅ Transação atualizada!"
     else
       render :edit
@@ -127,18 +139,32 @@ class TransactionsController < ApplicationController
   private
     # Use callbacks to share common setup or constraints between actions.
     def set_transaction
-      @transaction = Transaction.find(params[:id])
+      @transaction = current_user.transactions.find(params[:id])
     end
 
     def set_cards
-      @cards = Card.ordenados
+      @cards = current_user.cards.ordenados
+    end
+
+    def valid_card_and_category_owner?(transaction)
+      if transaction.card_id.present? && !current_user.cards.exists?(transaction.card_id)
+        transaction.errors.add(:card, "inválido")
+        return false
+      end
+
+      if transaction.category_id.present? && !current_user.categories.exists?(transaction.category_id)
+        transaction.errors.add(:category, "inválido")
+        return false
+      end
+
+      true
     end
 
     def transaction_params
       params.require(:transaction).permit(
         :description, :value, :date, :kind, :source, :paid,
         :note, :responsible, :card_id, :category_id, :billing_statement,
-        :installment_number, :installments_count # <-- permitido só no create (se você quiser)
+        :installment_number, :installments_count
       )
     end
 

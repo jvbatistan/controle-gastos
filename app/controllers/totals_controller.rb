@@ -9,13 +9,13 @@ class TotalsController < ApplicationController
     
     @current_date = Date.new(@year, @month, 1)
 
-    @cards = Card.with_totals(@month, @year)
-    @total_sum = Card.total_sum_for(@month, @year)
+    @cards = current_user.cards.with_totals(@month, @year)
+    @total_sum = current_user.cards.total_sum_for(@month, @year)
 
     start_date = Date.new(@year.to_i, @month.to_i, 1)
     end_date   = start_date.end_of_month
 
-    @other_transactions = Transaction
+    @other_transactions = current_user.transactions
       .where(card_id: nil)
       .where(source: [:cash, :bank]) # avulsas
       .where(date: start_date..end_date)
@@ -31,7 +31,7 @@ class TotalsController < ApplicationController
     # Usa Date para normalizar o mês/ano (corrige automaticamente meses > 12 ou < 1)
     @current_date = Date.new(@year, @month, 1)
 
-    @cards = Card.with_totals(@month, @year)
+    @cards = current_user.cards.with_totals(@month, @year)
     # @total_sum = Card.total_sum_for(@month, @year)
 
     @statements_by_card_id = {}
@@ -48,7 +48,7 @@ class TotalsController < ApplicationController
     start_date = @current_date
     end_date   = @current_date.end_of_month
 
-    @other_transactions = Transaction
+    @other_transactions = current_user.transactions
       .where(card_id: nil)
       .where(source: [:cash, :bank])
       .where(date: start_date..end_date)
@@ -63,6 +63,6 @@ class TotalsController < ApplicationController
   private
     # Use callbacks to share common setup or constraints between actions.
     def set_all_cards
-      @cards = Card.ordenados
+      @cards = current_user.cards.ordenados
     end
 end

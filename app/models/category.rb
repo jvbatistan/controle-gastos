@@ -1,4 +1,6 @@
 class Category < ApplicationRecord
+  belongs_to :user
+  
   has_many :debts
   has_many :transactions
   

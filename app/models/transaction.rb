@@ -1,6 +1,7 @@
 class Transaction < ApplicationRecord
   belongs_to :card, optional: true
   belongs_to :category, optional: true
+  belongs_to :user
   
   has_many :classification_suggestions, foreign_key: :financial_transaction_id, dependent: :destroy
 

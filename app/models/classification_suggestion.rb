@@ -1,4 +1,6 @@
 class ClassificationSuggestion < ApplicationRecord
+  belongs_to :user
+  
   belongs_to :financial_transaction, class_name: "Transaction", foreign_key: :financial_transaction_id
   belongs_to :suggested_category, class_name: 'Category', optional: true
 

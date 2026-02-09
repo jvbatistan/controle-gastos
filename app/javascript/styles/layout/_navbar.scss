@@ -26,3 +26,25 @@
 .page-link:hover {
   background-color: var(--bs-pagination-color) !important;
 }
+
+.offcanvas .list-group-item.active {
+  background-color: #0d6efd; /* bootstrap primary */
+  color: #fff;
+}
+
+.offcanvas .list-group-item.active i {
+  color: #fff;
+}
+
+.nav-icon {
+  width: 24px;
+  text-align: center;
+}
+
+.nav-suggestions.has-pending {
+  font-weight: 600;
+}
+
+.nav-suggestions.has-pending i {
+  color: #dc3545; /* danger */
+}
