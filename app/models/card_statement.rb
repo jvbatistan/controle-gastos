@@ -30,8 +30,12 @@ class CardStatement < ApplicationRecord
   end
 
   def mark_transactions_as_paid!
-    Transaction
-      .where(card_id: card_id, billing_statement: billing_statement, paid: false)
-      .update_all(paid: true, updated_at: Time.current)
+    start_date = Date.new(billing_statement.year, billing_statement.month, 1)
+    end_date   = start_date.end_of_month
+    if card_id.present?
+      Transaction.where("card_id = ? AND billing_statement >= ? AND billing_statement <= ? and paid IS false", card_id, start_date, end_date).update_all(paid: true, updated_at: Time.current)
+    else
+      Transaction.where("card_id IS NULL AND date >= ? AND date <= ? and paid IS false", start_date, end_date).update_all(paid: true, updated_at: Time.current)
+    end
   end
 end

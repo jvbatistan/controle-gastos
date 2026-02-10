@@ -15,7 +15,6 @@ class Card < ApplicationRecord
     left_joins(:transactions)
       .select("cards.*, COALESCE(SUM(transactions.value), 0) AS total_value")
       .where("(EXTRACT(MONTH FROM transactions.billing_statement) = ? AND EXTRACT(YEAR FROM transactions.billing_statement) = ?) OR transactions.id IS NULL", month, year)
-      .where("transactions.paid = ? OR transactions.id IS NULL", false)
       .group("cards.id")
       .order("total_value DESC")
   }
