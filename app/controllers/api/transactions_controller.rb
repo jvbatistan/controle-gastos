@@ -1,5 +1,6 @@
 class Api::TransactionsController < ApplicationController
   before_action :authenticate_user!
+  before_action :set_transaction, only: [:update, :destroy]
 
   def index
     scope = current_user.transactions.includes(:category, :card).order(date: :desc, created_at: :desc)
@@ -39,6 +40,52 @@ class Api::TransactionsController < ApplicationController
     render json: scope.as_json(
       only: [:id, :description, :value, :date, :kind, :source, :paid, :installment_number, :installments_count],
       methods: [],
+      include: {
+        category: { only: [:id, :name] },
+        card: { only: [:id, :name] }
+      }
+    )
+  end
+
+  def create
+    transaction = current_user.transactions.new(transaction_params)
+
+    if transaction.save
+      render json: tx_json(transaction), status: :created
+    else
+      render json: { error: transaction.errors.full_messages.to_sentence }, status: :unprocessable_entity
+    end
+  end
+
+  def update
+    if @transaction.update(transaction_params)
+      render json: tx_json(@transaction), status: :ok
+    else
+      render json: { error: @transaction.errors.full_messages.to_sentence }, status: :unprocessable_entity
+    end
+  end
+
+  def destroy
+    @transaction.destroy
+    head :no_content
+  end
+
+  private
+
+  def set_transaction
+    @transaction = current_user.transactions.find(params[:id])
+  end
+
+  def transaction_params
+    params.require(:transaction).permit(
+      :description, :value, :date, :kind, :source, :paid,
+      :note, :responsible, :card_id, :category_id, :billing_statement
+    )
+  end
+
+  def tx_json(transaction)
+    transaction.as_json(
+      only: [:id, :description, :value, :date, :kind, :source, :paid, :installment_number, :installments_count],
       include: {
         category: { only: [:id, :name] },
         card: { only: [:id, :name] }

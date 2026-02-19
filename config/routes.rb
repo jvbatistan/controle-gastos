@@ -32,7 +32,7 @@ Rails.application.routes.draw do
     post "login",    to: "sessions#create"
     delete "logout", to: "sessions#destroy"
 
-    resources :transactions, only: [:index]
+    resources :transactions, only: [:index, :create, :update, :destroy]
     resources :categories, only: [:index]
   end
 end
