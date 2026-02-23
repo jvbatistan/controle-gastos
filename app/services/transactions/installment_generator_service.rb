@@ -30,11 +30,12 @@ module Transactions
     def generate_installments(group_id)
       installment_value = @transaction.value.to_d
       base_date         = @transaction.date.to_date
+      first_installment = nil
 
       (@current..@final).each do |n|
         date = base_date + (n - @current).months
 
-        Transaction.create!(
+        created_transaction = Transaction.create!(
           user_id: @transaction.user_id,
 
           description: @transaction.description,
@@ -51,7 +52,11 @@ module Transactions
           installment_number: n,
           installments_count: @final
         )
+
+        first_installment ||= created_transaction
       end
+
+      Transactions::CreateCategorySuggestionService.new(first_installment).call if first_installment.present?
     end
   end
 end

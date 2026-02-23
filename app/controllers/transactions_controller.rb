@@ -72,6 +72,12 @@ class TransactionsController < ApplicationController
     @transaction.installment_group_id = nil
     
     if @transaction.save
+      begin
+        Transactions::CreateCategorySuggestionService.new(@transaction).call
+      rescue StandardError => e
+        Rails.logger.error("[CategorySuggestion] tx=#{@transaction.id} erro ao gerar sugestão: #{e.class} #{e.message}")
+      end
+
       redirect_to transactions_path, notice: "✅ Transação cadastrada!"
     else
       render :new

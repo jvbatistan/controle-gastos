@@ -33,8 +33,6 @@ class DebtsController < ApplicationController
         @debts = @debts.where('category_id = ?', "#{params[:category_id]}")
       end
 
-      # binding.pry
-
       if params[:expense_type].present?
         @debts = @debts.where('expense_type = ?', "#{params[:expense_type]}")
       end

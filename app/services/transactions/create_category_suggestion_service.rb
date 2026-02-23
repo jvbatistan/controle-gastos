@@ -33,13 +33,14 @@ module Transactions
     end
 
     private
+
     def pending_for_installment_group
       gid = @transaction.installment_group_id
       return nil if gid.blank?
 
       tx_ids = Transaction.where(installment_group_id: gid).pluck(:id)
 
-       ClassificationSuggestion.where(financial_transaction_id: tx_ids).pending.first
+      ClassificationSuggestion.where(financial_transaction_id: tx_ids).pending.first
     end
   end
 end

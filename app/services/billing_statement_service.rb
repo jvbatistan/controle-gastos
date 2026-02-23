@@ -18,10 +18,10 @@ class BillingStatementService
     statement_date =
       if reference_date >= closing_date
         # due_date = closing_date + 1.month + @card.closing_date
-        closing_date.next_month
+        reference_date.next_month
       else
         # due_date = closing_date + @card.closing_date
-        closing_date
+        reference_date
       end
 
     @transaction.billing_statement = Date.new(statement_date.year, statement_date.month, 1)

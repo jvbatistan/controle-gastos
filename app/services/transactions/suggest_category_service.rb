@@ -4,6 +4,7 @@ module Transactions
 
     def initialize(transaction)
       @transaction = transaction
+      @user = transaction.user
     end
 
     def call
@@ -36,7 +37,7 @@ module Transactions
     end
 
     def find_alias(merchant)
-      MerchantAlias.find_by(normalized_merchant: merchant) || find_alias_in_merchant_string(merchant)
+      @user.merchant_aliases.find_by(normalized_merchant: merchant) || find_alias_in_merchant_string(merchant)
     end
 
     def find_alias_in_merchant_string(merchant)
@@ -50,7 +51,7 @@ module Transactions
       candidates.concat(parts.reverse)
 
       candidates.each do |candidate|
-        found = MerchantAlias.find_by(normalized_merchant: candidate)
+        found = @user.merchant_aliases.find_by(normalized_merchant: candidate)
         return found if found
       end
 
@@ -69,7 +70,7 @@ module Transactions
 
     def category_by_name(name)
       @category_cache ||= {}
-      @category_cache[name] ||= Category.find_by(name: name)
+      @category_cache[name] ||= @user.categories.find_by(name: name)
     end
 
     def fallback_category_for(description)
