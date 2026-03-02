@@ -3,34 +3,47 @@ class Api::TransactionsController < ApplicationController
   before_action :set_transaction, only: [:update, :destroy]
 
   def index
-    scope = current_user.transactions.includes(:category, :card).order(date: :desc, created_at: :desc)
+    scope = current_user.transactions.includes(:category, :card).order(date: :desc, id: :desc)
 
-    if params[:q].present?
-      q = params[:q].to_s.strip
-      scope = scope.where("LOWER(description) LIKE ?", "%#{q.downcase}%")
+    month   = params[:month].presence
+    year    = params[:year].presence
+    card_id = params[:card_id].presence
+
+    if card_id.present?
+      if card_id == "none"
+        scope = scope.where(card_id: nil)
+      elsif current_user.cards.exists?(card_id)
+        scope = scope.where(card_id: card_id)
+      else
+        scope = scope.none
+      end
     end
 
-    if params[:category_id].present? && params[:category_id] != "all"
-      scope = scope.where(category_id: params[:category_id])
-    end
+    if month.present? && year.present?
+      month_i = month.to_i
+      year_i  = year.to_i
 
-    # 3) Pago / Em aberto
-    if params[:paid].present? && params[:paid] != "all"
-      paid_value = params[:paid].to_s == "1"
-      scope = scope.where(paid: paid_value)
-    end
+      begin
+        start_date = Date.new(year_i, month_i, 1)
+        end_date   = start_date.end_of_month
+      rescue Date::Error
+        scope = scope.none
+        start_date = nil
+        end_date = nil
+      end
 
-    # 4) Período
-    case params[:period]
-    when "today"
-      scope = scope.where(date: Date.current)
-    when "week"
-      scope = scope.where(date: 6.days.ago.to_date..Date.current)
-    when "month"
-      scope = scope.where(date: Date.current.beginning_of_month..Date.current.end_of_month)
-    when "last-month"
-      last = Date.current.last_month
-      scope = scope.where(date: last.beginning_of_month..last.end_of_month)
+      if start_date && end_date
+        if card_id.blank?
+          scope = scope.where(
+            "(card_id IS NOT NULL AND billing_statement >= ? AND billing_statement <= ?) OR (card_id IS NULL AND date >= ? AND date <= ?)",
+            start_date, end_date, start_date, end_date
+          )
+        elsif card_id == "none"
+          scope = scope.where(date: start_date..end_date)
+        else
+          scope = scope.where(billing_statement: start_date..end_date)
+        end
+      end
     end
 
     limit = params[:limit].presence&.to_i || 50

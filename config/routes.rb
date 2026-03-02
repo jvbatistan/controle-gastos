@@ -34,5 +34,6 @@ Rails.application.routes.draw do
 
     resources :transactions, only: [:index, :create, :update, :destroy]
     resources :categories, only: [:index]
+    resources :cards, only: [:index]
   end
 end
