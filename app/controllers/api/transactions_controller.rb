@@ -51,7 +51,7 @@ class Api::TransactionsController < ApplicationController
     scope = scope.limit(limit)
 
     render json: scope.as_json(
-      only: [:id, :description, :value, :date, :kind, :source, :paid, :installment_number, :installments_count],
+      only: [:id, :description, :value, :date, :kind, :source, :paid, :note, :installment_number, :installments_count],
       methods: [],
       include: {
         category: { only: [:id, :name] },
