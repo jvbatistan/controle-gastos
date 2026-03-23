@@ -1,12 +1,15 @@
 class BackfillUserOnAllTables < ActiveRecord::Migration[6.0]
   def up
-    user = User.first
+    user_id = select_value("SELECT id FROM users ORDER BY id ASC LIMIT 1")
+    return unless user_id.present?
 
-    execute "UPDATE cards SET user_id = #{user.id} WHERE user_id IS NULL"
-    execute "UPDATE categories SET user_id = #{user.id} WHERE user_id IS NULL"
-    execute "UPDATE transactions SET user_id = #{user.id} WHERE user_id IS NULL"
-    execute "UPDATE classification_suggestions SET user_id = #{user.id} WHERE user_id IS NULL"
-    execute "UPDATE merchant_aliases SET user_id = #{user.id} WHERE user_id IS NULL"
+    %w[cards categories transactions merchant_aliases classification_suggestions].each do |table|
+      execute <<~SQL
+        UPDATE #{table}
+        SET user_id = #{user_id}
+        WHERE user_id IS NULL
+      SQL
+    end
   end
 
   def down

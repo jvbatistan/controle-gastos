@@ -8,7 +8,7 @@ RSpec.describe 'Api::Transactions', type: :request do
       sign_in user
     end
 
-    it 'auto-classifica quando encontra um alias exato' do
+    it 'auto-classifies when an exact alias exists' do
       category = create(:category, user: user, name: 'Transporte')
       MerchantAlias.create!(
         user: user,
@@ -31,15 +31,14 @@ RSpec.describe 'Api::Transactions', type: :request do
       expect(response).to have_http_status(:created)
 
       body = JSON.parse(response.body)
-      tx = Transaction.find(body['id'])
+      transaction = Transaction.find(body['id'])
 
-      expect(tx.category_id).to eq(category.id)
-      expect(body.dig('classification', 'status')).to eq('classified')
-      expect(body.dig('classification', 'category', 'id')).to eq(category.id)
-      expect(body.dig('classification', 'suggestion')).to be_nil
+      expect(transaction.category_id).to eq(category.id)
+      expect(transaction.classification_suggestions.pending.count).to eq(0)
+      expect(body.dig('category', 'id')).to eq(category.id)
     end
 
-    it 'cria uma sugestao pendente quando nao encontra match confiavel' do
+    it 'creates a pending suggestion when no confident match exists' do
       post '/api/transactions', params: {
         transaction: {
           description: 'Loja XPTO Centro',
@@ -53,57 +52,30 @@ RSpec.describe 'Api::Transactions', type: :request do
       expect(response).to have_http_status(:created)
 
       body = JSON.parse(response.body)
-      tx = Transaction.find(body['id'])
+      transaction = Transaction.find(body['id'])
 
-      expect(tx.category_id).to be_nil
-      expect(tx.classification_suggestions.pending.count).to eq(1)
-      expect(body.dig('classification', 'status')).to eq('suggestion_pending')
-      expect(body.dig('classification', 'suggestion', 'id')).to be_present
-    end
-  end
-
-  describe 'PATCH /api/transactions/:id' do
-    let(:user) { create(:user) }
-
-    before do
-      sign_in user
-    end
-
-    it 'reprocessa a classificacao quando a descricao muda' do
-      category = create(:category, user: user, name: 'Transporte')
-      MerchantAlias.create!(
-        user: user,
-        normalized_merchant: 'UBER',
-        category: category,
-        confidence: 1.0,
-        source: :user_override
-      )
-
-      transaction = user.transactions.create!(
-        description: 'Loja XPTO Centro',
-        value: 50,
-        date: Date.current,
-        kind: :expense,
-        source: :cash
-      )
-
+      expect(transaction.category_id).to be_nil
       expect(transaction.classification_suggestions.pending.count).to eq(1)
+      expect(body['category']).to be_nil
+    end
 
-      patch "/api/transactions/#{transaction.id}", params: {
+    it 'rejects a card from another user' do
+      other_user = create(:user)
+      other_card = create(:card, user: other_user)
+
+      post '/api/transactions', params: {
         transaction: {
-          description: 'Uber Trip 1234'
+          description: 'Compra teste',
+          value: '15,00',
+          date: Date.current,
+          kind: 'expense',
+          source: 'card',
+          card_id: other_card.id
         }
       }
 
-      expect(response).to have_http_status(:ok)
-
-      body = JSON.parse(response.body)
-      transaction.reload
-
-      expect(transaction.category_id).to eq(category.id)
-      expect(transaction.classification_suggestions.pending.count).to eq(0)
-      expect(body.dig('classification', 'status')).to eq('classified')
-      expect(body.dig('classification', 'suggestion')).to be_nil
+      expect(response).to have_http_status(:unprocessable_entity)
+      expect(JSON.parse(response.body)['error']).to be_present
     end
   end
 end

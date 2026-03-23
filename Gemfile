@@ -1,15 +1,15 @@
 source 'https://rubygems.org'
 git_source(:github) { |repo| "https://github.com/#{repo}.git" }
 
-ruby '2.6.4'
+ruby '3.2.6'
 
-gem 'rails', '~> 6.0.5', '>= 6.0.5.1'
-gem 'puma', '~> 4.1'
+gem 'rails', '~> 6.1.7', '>= 6.1.7.10'
+gem 'puma', '~> 5.6'
 gem 'sass-rails', '>= 6'
 gem 'turbolinks', '~> 5'
 gem 'jbuilder', '~> 2.7'
 gem 'pg'
-gem 'bootsnap', '>= 1.4.2', require: false
+gem 'bootsnap', '~> 1.18', '>= 1.18.4', require: false
 
 group :development, :test do
   gem 'byebug', platforms: [:mri, :mingw, :x64_mingw]
@@ -21,7 +21,7 @@ group :development do
   gem 'listen', '~> 3.2'
   gem 'spring'
   gem 'spring-watcher-listen', '~> 2.0.0'
-  gem 'pry', '~> 0.13.1'
+  gem 'pry', '~> 0.15.2'
   gem 'awesome_print'
   gem 'sqlite3', '~> 1.4'
   gem 'yaml_db'
@@ -42,8 +42,8 @@ end
 gem 'bootstrap', '~> 5.2.0'
 gem 'kaminari'
 gem 'paper_trail'
-gem "jsbundling-rails", "~> 1.3"
-gem "cssbundling-rails", "~> 1.4"
-gem "devise", "~> 4.9"
+gem 'jsbundling-rails', '~> 1.3'
+gem 'cssbundling-rails', '~> 1.4'
+gem 'devise', '~> 4.9'
 
-gem "rack-cors"
+gem 'rack-cors'
