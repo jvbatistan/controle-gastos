@@ -1,26 +1,19 @@
 class BillingStatementService
   def initialize(transaction)
     @transaction = transaction
-    @card        = transaction.card
+    @card = transaction.card
   end
 
   def call
     return unless @card.present? && @transaction.date.present?
 
-    month = @transaction.date.month
-    year  = @transaction.date.year
-
     reference_date = @transaction.date.to_date
-
-    # Calcula a data de fechamento e vencimento
-    closing_date = Date.new(year, month, @card.due_date) - @card.closing_date
+    closing_date = @card.closing_on(reference_date.year, reference_date.month)
 
     statement_date =
       if reference_date >= closing_date
-        # due_date = closing_date + 1.month + @card.closing_date
         reference_date.next_month
       else
-        # due_date = closing_date + @card.closing_date
         reference_date
       end
 

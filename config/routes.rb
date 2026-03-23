@@ -1,10 +1,10 @@
 Rails.application.routes.draw do
   root "totals#dashboard"
-  
+
   devise_for :users
 
   resources :transactions, only: [:index, :new, :create, :edit, :update, :destroy]
-    
+
   resources :cards
   resources :totals, only: [:index]
   get 'dashboard', to: 'totals#dashboard'
@@ -19,7 +19,7 @@ Rails.application.routes.draw do
       post :correct
     end
   end
-  
+
   resources :card_statements, only: [] do
     member do
       post :add_payment
@@ -43,6 +43,6 @@ Rails.application.routes.draw do
       end
     end
     resources :categories, only: [:index, :create, :update, :destroy]
-    resources :cards, only: [:index]
+    resources :cards, only: [:index, :create, :update, :destroy]
   end
 end
