@@ -57,6 +57,15 @@ class Api::PaymentsController < Api::BaseController
     }, status: :ok
   end
 
+  def pay_loose_expense
+    transaction = current_user_loose_expenses.find(params[:id])
+    transaction.update!(paid: true) unless transaction.paid?
+
+    render json: loose_transaction_json(transaction.reload), status: :ok
+  rescue ActiveRecord::RecordInvalid => e
+    render json: { error: e.record.errors.full_messages.to_sentence }, status: :unprocessable_entity
+  end
+
   private
 
   def selected_month
@@ -90,6 +99,10 @@ class Api::PaymentsController < Api::BaseController
 
   def current_user_card_statements
     CardStatement.joins(:card).where(cards: { user_id: current_user.id })
+  end
+
+  def current_user_loose_expenses
+    current_user.transactions.expenses.where(card_id: nil)
   end
 
   def payment_amount_param(default_amount)

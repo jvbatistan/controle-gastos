@@ -47,6 +47,7 @@ Rails.application.routes.draw do
 
     get  "payments", to: "payments#index"
     post "payments/card_statements/:id/pay", to: "payments#pay_card_statement"
+    post "payments/loose_expenses/:id/pay", to: "payments#pay_loose_expense"
     post "payments/loose_expenses/pay", to: "payments#pay_loose_expenses"
   end
 end

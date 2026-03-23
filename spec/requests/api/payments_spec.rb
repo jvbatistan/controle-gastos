@@ -62,4 +62,22 @@ RSpec.describe "Api::Payments", type: :request do
       expect(body["total_amount"]).to eq("80.0")
     end
   end
+
+  describe "POST /api/payments/loose_expenses/:id/pay" do
+    it "marks a single loose expense as paid" do
+      transaction = create(:transaction, user: user, card: nil, source: :bank, date: Date.new(2026, 3, 10), value: 80, paid: false, description: "Uber")
+      create(:transaction, user: user, card: nil, source: :bank, date: Date.new(2026, 3, 11), value: 50, paid: false)
+
+      post "/api/payments/loose_expenses/#{transaction.id}/pay"
+
+      expect(response).to have_http_status(:ok)
+
+      transaction.reload
+      body = JSON.parse(response.body)
+      expect(transaction.paid).to eq(true)
+      expect(body["id"]).to eq(transaction.id)
+      expect(body["description"]).to eq("Uber")
+      expect(body["paid"]).to eq(true)
+    end
+  end
 end
