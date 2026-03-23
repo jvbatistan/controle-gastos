@@ -105,13 +105,13 @@ class Transaction < ApplicationRecord
   def create_initial_category_suggestion
     return if destroyed? || category_id.present?
 
-    Transactions::CreateCategorySuggestionService.new(self).call
+    Transactions::ClassifyService.new(self).call
   end
 
   def refresh_category_suggestion
     return if destroyed? || category_id.present?
 
-    Transactions::CreateCategorySuggestionService.new(self, force_recompute: true).call
+    Transactions::ClassifyService.new(self, force_recompute: true).call
   end
 
   def installment_consistency

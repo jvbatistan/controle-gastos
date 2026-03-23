@@ -1,7 +1,7 @@
 module Merchants
   class Normalize
     def self.call(text)
-      text.to_s
+      I18n.transliterate(text.to_s)
           .upcase
           .strip
           .gsub(/[0-9]/, ' ')

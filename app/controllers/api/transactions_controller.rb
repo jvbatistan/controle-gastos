@@ -60,8 +60,7 @@ class Api::TransactionsController < Api::BaseController
     end
 
     if transaction.save
-      Transactions::CreateCategorySuggestionService.new(transaction).call if transaction.category_id.blank?
-      transaction.reload
+      Transactions::ClassifyService.new(transaction).call
 
       render json: tx_json(transaction), status: :created
     else
@@ -77,6 +76,11 @@ class Api::TransactionsController < Api::BaseController
     end
 
     if @transaction.save
+      Transactions::ClassifyService.new(
+        @transaction,
+        force_recompute: @transaction.saved_change_to_description?
+      ).call
+
       @transaction.reload
       render json: tx_json(@transaction), status: :ok
     else
