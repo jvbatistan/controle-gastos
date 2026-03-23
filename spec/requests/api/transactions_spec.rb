@@ -115,5 +115,74 @@ RSpec.describe 'Api::Transactions', type: :request do
       expect(body.dig('classification', 'category', 'id')).to eq(category.id)
       expect(body.dig('classification', 'suggestion')).to be_nil
     end
+
+    it 'creates one pending suggestion for the whole installment group' do
+      card = create(:card, user: user)
+
+      post '/api/transactions', params: {
+        transaction: {
+          description: 'SMARTPHONE XPTO 10X',
+          value: '199,90',
+          date: Date.current,
+          kind: 'expense',
+          source: 'card',
+          card_id: card.id,
+          installment_number: 1,
+          installments_count: 3
+        }
+      }
+
+      expect(response).to have_http_status(:created)
+
+      body = JSON.parse(response.body)
+      group_id = body['installment_group_id']
+      transactions = user.transactions.where(installment_group_id: group_id).order(:installment_number)
+      suggestion_ids = transactions.map { |tx| tx.pending_classification_suggestion&.id }.uniq
+
+      expect(group_id).to be_present
+      expect(transactions.count).to eq(3)
+      expect(ClassificationSuggestion.pending.where(financial_transaction_id: transactions.pluck(:id)).count).to eq(1)
+      expect(suggestion_ids.size).to eq(1)
+      expect(suggestion_ids.first).to be_present
+      expect(body['transactions'].size).to eq(3)
+      expect(body['transactions'].map { |tx| tx.dig('classification', 'status') }.uniq).to eq(['suggestion_pending'])
+      expect(body['transactions'].map { |tx| tx.dig('classification', 'suggestion', 'id') }.uniq.size).to eq(1)
+    end
+
+    it 'propagates auto-classification to every installment in the group' do
+      card = create(:card, user: user)
+      category = create(:category, user: user, name: 'Transporte')
+      MerchantAlias.create!(
+        user: user,
+        normalized_merchant: 'UBER',
+        category: category,
+        confidence: 1.0,
+        source: :user_override
+      )
+
+      post '/api/transactions', params: {
+        transaction: {
+          description: 'Uber Trip 1234',
+          value: '55,00',
+          date: Date.current,
+          kind: 'expense',
+          source: 'card',
+          card_id: card.id,
+          installment_number: 1,
+          installments_count: 2
+        }
+      }
+
+      expect(response).to have_http_status(:created)
+
+      body = JSON.parse(response.body)
+      transactions = user.transactions.where(installment_group_id: body['installment_group_id']).order(:installment_number)
+
+      expect(transactions.count).to eq(2)
+      expect(transactions.pluck(:category_id).uniq).to eq([category.id])
+      expect(ClassificationSuggestion.pending.where(financial_transaction_id: transactions.pluck(:id)).count).to eq(0)
+      expect(body['transactions'].map { |tx| tx.dig('classification', 'status') }.uniq).to eq(['classified'])
+      expect(body['transactions'].map { |tx| tx.dig('classification', 'category', 'id') }.uniq).to eq([category.id])
+    end
   end
 end

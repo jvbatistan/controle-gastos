@@ -55,14 +55,17 @@ class Transaction < ApplicationRecord
   end
 
   def pending_classification_suggestion
-    classification_suggestions.pending.order(created_at: :desc).first
+    ClassificationSuggestion.pending
+                            .where(financial_transaction_id: classification_suggestion_target_ids)
+                            .order(created_at: :desc)
+                            .first
   end
 
   def classification_status
-    return "classified" if category_id.present?
-    return "suggestion_pending" if pending_classification_suggestion.present?
+    return 'classified' if category_id.present?
+    return 'suggestion_pending' if pending_classification_suggestion.present?
 
-    "unclassified"
+    'unclassified'
   end
 
   def self.total_for_month(month = Date.today.month, year = Date.today.year)
@@ -84,7 +87,7 @@ class Transaction < ApplicationRecord
   def value=(val)
     if val.is_a?(String)
       s = val.strip
-      s = s.gsub(".", "").tr(",", ".") if s.include?(",")
+      s = s.gsub('.', '').tr(',', '.') if s.include?(',')
       val = s
     end
 
@@ -114,12 +117,18 @@ class Transaction < ApplicationRecord
     Transactions::ClassifyService.new(self, force_recompute: true).call
   end
 
+  def classification_suggestion_target_ids
+    return [id].compact unless installment?
+
+    installment_siblings.pluck(:id)
+  end
+
   def installment_consistency
     if installment_group_id.present?
-      errors.add(:installment_number, "é obrigatório quando parcelado") if installment_number.blank?
-      errors.add(:installments_count, "é obrigatório quando parcelado") if installments_count.blank?
+      errors.add(:installment_number, 'é obrigatório quando parcelado') if installment_number.blank?
+      errors.add(:installments_count, 'é obrigatório quando parcelado') if installments_count.blank?
     elsif installment_number.present? || installments_count.present?
-      errors.add(:base, "campos de parcela não podem existir sem installment_group_id")
+      errors.add(:base, 'campos de parcela não podem existir sem installment_group_id')
     end
   end
 end

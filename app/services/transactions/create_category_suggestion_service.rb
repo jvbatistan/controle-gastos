@@ -20,7 +20,8 @@ module Transactions
       result = Transactions::SuggestCategoryService.new(@transaction).call
 
       if result&.suggested_category.present? && result.confidence.to_f >= 0.95
-        @transaction.update!(category_id: result.suggested_category.id)
+        apply_category(result.suggested_category)
+        clear_pending_suggestions!
         return nil
       end
 
@@ -34,6 +35,17 @@ module Transactions
     end
 
     private
+
+    def apply_category(category)
+      if @transaction.installment_group_id.present?
+        Transactions::ApplyCategoryToInstallmentGroupService.new(
+          transaction: @transaction,
+          category_id: category.id
+        ).call
+      else
+        @transaction.update!(category_id: category.id)
+      end
+    end
 
     def clear_pending_suggestions!
       scope = ClassificationSuggestion.pending.where(financial_transaction_id: suggestion_target_ids)

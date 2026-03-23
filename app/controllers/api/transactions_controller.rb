@@ -10,7 +10,7 @@ class Api::TransactionsController < Api::BaseController
     card_id = params[:card_id].presence
 
     if card_id.present?
-      if card_id == "none"
+      if card_id == 'none'
         scope = scope.where(card_id: nil)
       elsif current_user.cards.exists?(card_id)
         scope = scope.where(card_id: card_id)
@@ -35,10 +35,10 @@ class Api::TransactionsController < Api::BaseController
       if start_date && end_date
         if card_id.blank?
           scope = scope.where(
-            "(card_id IS NOT NULL AND billing_statement >= ? AND billing_statement <= ?) OR (card_id IS NULL AND date >= ? AND date <= ?)",
+            '(card_id IS NOT NULL AND billing_statement >= ? AND billing_statement <= ?) OR (card_id IS NULL AND date >= ? AND date <= ?)',
             start_date, end_date, start_date, end_date
           )
-        elsif card_id == "none"
+        elsif card_id == 'none'
           scope = scope.where(date: start_date..end_date)
         else
           scope = scope.where(billing_statement: start_date..end_date)
@@ -59,17 +59,42 @@ class Api::TransactionsController < Api::BaseController
       return render json: { error: transaction.errors.full_messages.to_sentence }, status: :unprocessable_entity
     end
 
+    if installment_request?
+      group_id = Transactions::InstallmentGeneratorService.new(
+        transaction,
+        current_installment: requested_installment_number,
+        final_installment: requested_installments_count
+      ).call
+
+      installments = current_user.transactions
+                                 .includes(:category, :card, :classification_suggestions)
+                                 .where(installment_group_id: group_id)
+                                 .order(:installment_number)
+
+      return render json: {
+        installment_group_id: group_id,
+        transactions: installments.map { |installment| tx_json(installment) }
+      }, status: :created
+    end
+
+    clear_installment_attributes(transaction)
+
     if transaction.save
       Transactions::ClassifyService.new(transaction).call
+      transaction.reload
 
       render json: tx_json(transaction), status: :created
     else
       render json: { error: transaction.errors.full_messages.to_sentence }, status: :unprocessable_entity
     end
+  rescue ArgumentError => e
+    render json: { error: e.message }, status: :unprocessable_entity
+  rescue ActiveRecord::RecordInvalid => e
+    render json: { error: e.record.errors.full_messages.to_sentence }, status: :unprocessable_entity
   end
 
   def update
-    @transaction.assign_attributes(transaction_params)
+    @transaction.assign_attributes(transaction_params.except(:installment_number, :installments_count))
 
     unless valid_card_and_category_owner?(@transaction)
       return render json: { error: @transaction.errors.full_messages.to_sentence }, status: :unprocessable_entity
@@ -102,8 +127,27 @@ class Api::TransactionsController < Api::BaseController
   def transaction_params
     params.require(:transaction).permit(
       :description, :value, :date, :kind, :source, :paid,
-      :note, :responsible, :card_id, :category_id, :billing_statement
+      :note, :responsible, :card_id, :category_id, :billing_statement,
+      :installment_number, :installments_count
     )
+  end
+
+  def installment_request?
+    requested_installments_count > 1
+  end
+
+  def requested_installment_number
+    transaction_params[:installment_number].presence || 1
+  end
+
+  def requested_installments_count
+    transaction_params[:installments_count].to_i
+  end
+
+  def clear_installment_attributes(transaction)
+    transaction.installment_number = nil
+    transaction.installments_count = nil
+    transaction.installment_group_id = nil
   end
 
   def valid_card_and_category_owner?(transaction)
@@ -132,6 +176,7 @@ class Api::TransactionsController < Api::BaseController
       note: transaction.note,
       responsible: transaction.responsible,
       billing_statement: transaction.billing_statement,
+      installment_group_id: transaction.installment_group_id,
       installment_number: transaction.installment_number,
       installments_count: transaction.installments_count,
       classification: {
