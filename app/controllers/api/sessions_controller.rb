@@ -2,7 +2,7 @@ class Api::SessionsController < Api::BaseController
   def create
     user = User.find_for_authentication(email: params[:email])
 
-    if user&.valid_password?(params[:password])
+    if user&.active? && user.valid_password?(params[:password])
       sign_in(user)
       render json: { ok: true }
     else

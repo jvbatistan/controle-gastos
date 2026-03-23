@@ -29,6 +29,8 @@ Rails.application.routes.draw do
   namespace :api do
     get "health",    to: "health#show"
     get "me",        to: "me#show"
+    patch "me",      to: "me#update"
+    post "register", to: "registrations#create"
     post "login",    to: "sessions#create"
     delete "logout", to: "sessions#destroy"
 
