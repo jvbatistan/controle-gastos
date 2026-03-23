@@ -33,6 +33,13 @@ Rails.application.routes.draw do
     delete "logout", to: "sessions#destroy"
 
     resources :transactions, only: [:index, :create, :update, :destroy]
+    resources :classification_suggestions, only: [:index] do
+      member do
+        post :accept
+        post :reject
+        post :correct
+      end
+    end
     resources :categories, only: [:index]
     resources :cards, only: [:index]
   end
