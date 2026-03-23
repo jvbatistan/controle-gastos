@@ -44,5 +44,9 @@ Rails.application.routes.draw do
     end
     resources :categories, only: [:index, :create, :update, :destroy]
     resources :cards, only: [:index, :create, :update, :destroy]
+
+    get  "payments", to: "payments#index"
+    post "payments/card_statements/:id/pay", to: "payments#pay_card_statement"
+    post "payments/loose_expenses/pay", to: "payments#pay_loose_expenses"
   end
 end
