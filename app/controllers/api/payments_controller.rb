@@ -58,12 +58,14 @@ class Api::PaymentsController < Api::BaseController
   end
 
   def pay_loose_expense
-    transaction = current_user_loose_expenses.find(params[:id])
-    transaction.update!(paid: true) unless transaction.paid?
+    transaction = loose_expenses_scope.find(params[:id])
+    transaction.update!(paid: true)
 
     render json: loose_transaction_json(transaction.reload), status: :ok
   rescue ActiveRecord::RecordInvalid => e
     render json: { error: e.record.errors.full_messages.to_sentence }, status: :unprocessable_entity
+  rescue ActiveRecord::RecordNotFound
+    render json: { error: "Despesa avulsa não encontrada para o período selecionado." }, status: :not_found
   end
 
   private
@@ -101,9 +103,6 @@ class Api::PaymentsController < Api::BaseController
     CardStatement.joins(:card).where(cards: { user_id: current_user.id })
   end
 
-  def current_user_loose_expenses
-    current_user.transactions.expenses.where(card_id: nil)
-  end
 
   def payment_amount_param(default_amount)
     value = params[:amount].presence || params.dig(:payment, :amount).presence

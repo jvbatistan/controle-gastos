@@ -64,11 +64,11 @@ RSpec.describe "Api::Payments", type: :request do
   end
 
   describe "POST /api/payments/loose_expenses/:id/pay" do
-    it "marks a single loose expense as paid" do
+    it "marks a single loose expense as paid for the selected period" do
       transaction = create(:transaction, user: user, card: nil, source: :bank, date: Date.new(2026, 3, 10), value: 80, paid: false, description: "Uber")
       create(:transaction, user: user, card: nil, source: :bank, date: Date.new(2026, 3, 11), value: 50, paid: false)
 
-      post "/api/payments/loose_expenses/#{transaction.id}/pay"
+      post "/api/payments/loose_expenses/#{transaction.id}/pay", params: { month: 3, year: 2026 }
 
       expect(response).to have_http_status(:ok)
 
@@ -76,8 +76,21 @@ RSpec.describe "Api::Payments", type: :request do
       body = JSON.parse(response.body)
       expect(transaction.paid).to eq(true)
       expect(body["id"]).to eq(transaction.id)
-      expect(body["description"]).to eq("Uber")
+      expect(body["description"]).to eq("UBER")
       expect(body["paid"]).to eq(true)
+    end
+
+    it "returns not found when the expense is outside the selected period" do
+      transaction = create(:transaction, user: user, card: nil, source: :bank, date: Date.new(2026, 4, 10), value: 80, paid: false)
+
+      post "/api/payments/loose_expenses/#{transaction.id}/pay", params: { month: 3, year: 2026 }
+
+      expect(response).to have_http_status(:not_found)
+
+      transaction.reload
+      body = JSON.parse(response.body)
+      expect(transaction.paid).to eq(false)
+      expect(body["error"]).to eq("Despesa avulsa não encontrada para o período selecionado.")
     end
   end
 end
