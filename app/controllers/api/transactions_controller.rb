@@ -1,9 +1,9 @@
-class Api::TransactionsController < ApplicationController
+class Api::TransactionsController < Api::BaseController
   before_action :authenticate_user!
-  before_action :set_transaction, only: [:update, :destroy]
+  before_action :set_transaction, only: %i[update destroy]
 
   def index
-    scope = current_user.transactions.includes(:category, :card).order(date: :desc, id: :desc)
+    scope = current_user.transactions.includes(:category, :card, :classification_suggestions).order(date: :desc, id: :desc)
 
     month   = params[:month].presence
     year    = params[:year].presence
@@ -48,22 +48,19 @@ class Api::TransactionsController < ApplicationController
 
     limit = params[:limit].presence&.to_i || 50
     limit = 200 if limit > 200
-    scope = scope.limit(limit)
 
-    render json: scope.as_json(
-      only: [:id, :description, :value, :date, :kind, :source, :paid, :note, :installment_number, :installments_count],
-      methods: [],
-      include: {
-        category: { only: [:id, :name] },
-        card: { only: [:id, :name] }
-      }
-    )
+    render json: scope.limit(limit).map { |transaction| tx_json(transaction) }
   end
 
   def create
     transaction = current_user.transactions.new(transaction_params)
 
+    unless valid_card_and_category_owner?(transaction)
+      return render json: { error: transaction.errors.full_messages.to_sentence }, status: :unprocessable_entity
+    end
+
     if transaction.save
+      transaction.reload
       render json: tx_json(transaction), status: :created
     else
       render json: { error: transaction.errors.full_messages.to_sentence }, status: :unprocessable_entity
@@ -71,7 +68,14 @@ class Api::TransactionsController < ApplicationController
   end
 
   def update
-    if @transaction.update(transaction_params)
+    @transaction.assign_attributes(transaction_params)
+
+    unless valid_card_and_category_owner?(@transaction)
+      return render json: { error: @transaction.errors.full_messages.to_sentence }, status: :unprocessable_entity
+    end
+
+    if @transaction.save
+      @transaction.reload
       render json: tx_json(@transaction), status: :ok
     else
       render json: { error: @transaction.errors.full_messages.to_sentence }, status: :unprocessable_entity
@@ -96,13 +100,52 @@ class Api::TransactionsController < ApplicationController
     )
   end
 
+  def valid_card_and_category_owner?(transaction)
+    if transaction.card_id.present? && !current_user.cards.exists?(transaction.card_id)
+      transaction.errors.add(:card, "inválido")
+    end
+
+    if transaction.category_id.present? && !current_user.categories.exists?(transaction.category_id)
+      transaction.errors.add(:category, "inválida")
+    end
+
+    transaction.errors.empty?
+  end
+
   def tx_json(transaction)
-    transaction.as_json(
-      only: [:id, :description, :value, :date, :kind, :source, :paid, :installment_number, :installments_count],
-      include: {
-        category: { only: [:id, :name] },
-        card: { only: [:id, :name] }
-      }
-    )
+    suggestion = transaction.pending_classification_suggestion
+
+    {
+      id: transaction.id,
+      description: transaction.description,
+      value: transaction.value,
+      date: transaction.date,
+      kind: transaction.kind,
+      source: transaction.source,
+      paid: transaction.paid,
+      note: transaction.note,
+      responsible: transaction.responsible,
+      billing_statement: transaction.billing_statement,
+      installment_number: transaction.installment_number,
+      installments_count: transaction.installments_count,
+      classification: {
+        status: transaction.classification_status,
+        category: transaction.category&.as_json(only: %i[id name]),
+        suggestion: suggestion_json(suggestion)
+      },
+      category: transaction.category&.as_json(only: %i[id name]),
+      card: transaction.card&.as_json(only: %i[id name])
+    }
+  end
+
+  def suggestion_json(suggestion)
+    return nil if suggestion.nil?
+
+    {
+      id: suggestion.id,
+      confidence: suggestion.confidence,
+      source: suggestion.source,
+      suggested_category: suggestion.suggested_category&.as_json(only: %i[id name])
+    }
   end
 end
