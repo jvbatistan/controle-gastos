@@ -42,7 +42,7 @@ Rails.application.routes.draw do
         post :correct
       end
     end
-    resources :categories, only: [:index]
+    resources :categories, only: [:index, :create, :update, :destroy]
     resources :cards, only: [:index]
   end
 end
