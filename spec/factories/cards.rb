@@ -1,6 +1,8 @@
 FactoryBot.define do
   factory :card do
-    name { "NUBANK" }
+    association :user
+
+    name { 'NUBANK' }
     due_date { 15 }
     closing_date { 7 }
   end

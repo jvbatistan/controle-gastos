@@ -63,7 +63,14 @@ class Api::TransactionsController < ApplicationController
   def create
     transaction = current_user.transactions.new(transaction_params)
 
+    unless valid_card_and_category_owner?(transaction)
+      return render json: { error: transaction.errors.full_messages.to_sentence }, status: :unprocessable_entity
+    end
+
     if transaction.save
+      Transactions::CreateCategorySuggestionService.new(transaction).call if transaction.category_id.blank?
+      transaction.reload
+
       render json: tx_json(transaction), status: :created
     else
       render json: { error: transaction.errors.full_messages.to_sentence }, status: :unprocessable_entity
@@ -71,7 +78,13 @@ class Api::TransactionsController < ApplicationController
   end
 
   def update
-    if @transaction.update(transaction_params)
+    @transaction.assign_attributes(transaction_params)
+
+    unless valid_card_and_category_owner?(@transaction)
+      return render json: { error: @transaction.errors.full_messages.to_sentence }, status: :unprocessable_entity
+    end
+
+    if @transaction.save
       render json: tx_json(@transaction), status: :ok
     else
       render json: { error: @transaction.errors.full_messages.to_sentence }, status: :unprocessable_entity
@@ -94,6 +107,18 @@ class Api::TransactionsController < ApplicationController
       :description, :value, :date, :kind, :source, :paid,
       :note, :responsible, :card_id, :category_id, :billing_statement
     )
+  end
+
+  def valid_card_and_category_owner?(transaction)
+    if transaction.card_id.present? && !current_user.cards.exists?(transaction.card_id)
+      transaction.errors.add(:card, 'inválido')
+    end
+
+    if transaction.category_id.present? && !current_user.categories.exists?(transaction.category_id)
+      transaction.errors.add(:category, 'inválida')
+    end
+
+    transaction.errors.empty?
   end
 
   def tx_json(transaction)
