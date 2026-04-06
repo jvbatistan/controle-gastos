@@ -6,12 +6,22 @@ class CardStatement < ApplicationRecord
 
   validates :billing_statement, uniqueness: { scope: :card_id }
 
+  scope :active_for_payments, -> { where(ignored_at: nil) }
+
   def remaining_amount
     [total_amount.to_d - paid_amount.to_d, 0.to_d].max
   end
 
   def paid?
     remaining_amount <= 0
+  end
+
+  def ignored?
+    ignored_at.present?
+  end
+
+  def ignore_for_payment!(ignored_at_time: Time.zone.now)
+    update!(ignored_at: ignored_at_time)
   end
 
   def apply_payment!(value, paid_at: Time.zone.now)

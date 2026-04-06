@@ -40,8 +40,9 @@ class TotalsController < ApplicationController
 
     @cards.each do |card|
       st = card.sync_statement!(@month, @year)
-      @statements_by_card_id[card.id] = st
+      next if st.ignored?
 
+      @statements_by_card_id[card.id] = st
       @total_sum += st.remaining_amount
     end
     

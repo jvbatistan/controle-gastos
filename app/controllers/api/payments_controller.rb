@@ -2,8 +2,10 @@ class Api::PaymentsController < Api::BaseController
   before_action :authenticate_user!
 
   def index
-    statements = current_user.cards.ordenados.map do |card|
+    statements = current_user.cards.ordenados.filter_map do |card|
       statement = card.sync_statement!(selected_month, selected_year)
+      next if statement.ignored?
+
       payment_statement_json(statement)
     end
 
@@ -27,7 +29,7 @@ class Api::PaymentsController < Api::BaseController
   end
 
   def pay_card_statement
-    statement = current_user_card_statements.find(params[:id])
+    statement = current_user_card_statements.active_for_payments.find(params[:id])
     amount = payment_amount_param(statement.remaining_amount)
 
     statement.apply_payment!(amount)
@@ -55,6 +57,17 @@ class Api::PaymentsController < Api::BaseController
       paid_transactions_count: count,
       total_amount: total
     }, status: :ok
+  end
+
+  def ignore_card_statement
+    statement = current_user_card_statements.active_for_payments.where(billing_statement: period_start..period_end).find(params[:id])
+    statement.ignore_for_payment!
+
+    render json: payment_statement_json(statement.reload), status: :ok
+  rescue ActiveRecord::RecordInvalid => e
+    render json: { error: e.record.errors.full_messages.to_sentence }, status: :unprocessable_entity
+  rescue ActiveRecord::RecordNotFound
+    render json: { error: "Fatura não encontrada para o período selecionado." }, status: :not_found
   end
 
   def pay_loose_expense
@@ -127,6 +140,7 @@ class Api::PaymentsController < Api::BaseController
       remaining_amount: statement.remaining_amount,
       paid: statement.paid?,
       paid_at: statement.paid_at,
+      ignored_at: statement.ignored_at,
       due_day: statement.card.due_day_value,
       closing_day: statement.card.closing_day_value(statement.billing_statement),
       transactions_count: statement.card.transactions

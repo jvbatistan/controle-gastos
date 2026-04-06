@@ -22,6 +22,7 @@ RSpec.describe "Api::Payments", type: :request do
       expect(body["period"]).to eq({ "month" => 3, "year" => 2026 })
       expect(body["statements"].size).to eq(1)
       expect(body["statements"].first.dig("card", "name")).to eq("NUBANK")
+      expect(body["statements"].first["ignored_at"]).to eq(nil)
       expect(body["loose_expenses"]["transactions_count"]).to eq(1)
       expect(body["loose_expenses"]["total_amount"]).to eq("80.0")
     end
@@ -43,6 +44,52 @@ RSpec.describe "Api::Payments", type: :request do
       expect(statement.paid?).to eq(true)
       expect(transaction.paid).to eq(true)
       expect(body["remaining_amount"]).to eq("0.0")
+    end
+  end
+
+  describe "POST /api/payments/card_statements/:id/ignore" do
+    it "marks a statement as ignored for the selected period" do
+      card = create(:card, user: user, name: 'Nubank', due_day: 15, closing_day: 8)
+      create(:transaction, user: user, card: card, source: :card, date: Date.new(2026, 3, 7), value: 120, paid: false)
+      statement = card.sync_statement!(3, 2026)
+
+      post "/api/payments/card_statements/#{statement.id}/ignore", params: { month: 3, year: 2026 }
+
+      expect(response).to have_http_status(:ok)
+
+      statement.reload
+      body = JSON.parse(response.body)
+      expect(statement.ignored_at).to be_present
+      expect(body["ignored_at"]).to be_present
+    end
+
+    it "returns not found when the statement is outside the selected period" do
+      card = create(:card, user: user, name: 'Nubank', due_day: 15, closing_day: 8)
+      create(:transaction, user: user, card: card, source: :card, date: Date.new(2026, 4, 7), value: 120, paid: false)
+      statement = card.sync_statement!(4, 2026)
+
+      post "/api/payments/card_statements/#{statement.id}/ignore", params: { month: 3, year: 2026 }
+
+      expect(response).to have_http_status(:not_found)
+
+      statement.reload
+      body = JSON.parse(response.body)
+      expect(statement.ignored_at).to eq(nil)
+      expect(body["error"]).to eq("Fatura não encontrada para o período selecionado.")
+    end
+
+    it "hides ignored statements from the payments overview" do
+      card = create(:card, user: user, name: 'Nubank', due_day: 15, closing_day: 8)
+      create(:transaction, user: user, card: card, source: :card, date: Date.new(2026, 3, 7), value: 120, paid: false)
+      statement = card.sync_statement!(3, 2026)
+      statement.ignore_for_payment!
+
+      get "/api/payments", params: { month: 3, year: 2026 }
+
+      expect(response).to have_http_status(:ok)
+
+      body = JSON.parse(response.body)
+      expect(body["statements"]).to eq([])
     end
   end
 

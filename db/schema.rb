@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 2026_03_23_112000) do
+ActiveRecord::Schema.define(version: 2026_04_06_120000) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
@@ -23,8 +23,10 @@ ActiveRecord::Schema.define(version: 2026_03_23_112000) do
     t.datetime "paid_at"
     t.datetime "created_at", precision: 6, null: false
     t.datetime "updated_at", precision: 6, null: false
+    t.datetime "ignored_at"
     t.index ["card_id", "billing_statement"], name: "index_card_statements_on_card_id_and_billing_statement", unique: true
     t.index ["card_id"], name: "index_card_statements_on_card_id"
+    t.index ["ignored_at"], name: "index_card_statements_on_ignored_at"
   end
 
   create_table "cards", force: :cascade do |t|
