@@ -16,6 +16,7 @@ class TotalsController < ApplicationController
     end_date   = start_date.end_of_month
 
     @other_transactions = current_user.transactions
+      .active
       .where(card_id: nil)
       .where(source: [:cash, :bank]) # avulsas
       .where(date: start_date..end_date)
@@ -50,6 +51,7 @@ class TotalsController < ApplicationController
     end_date   = @current_date.end_of_month
 
     @other_transactions = current_user.transactions
+      .active
       .where(card_id: nil)
       .where(source: [:cash, :bank])
       .where(date: start_date..end_date)

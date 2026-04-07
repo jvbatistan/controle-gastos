@@ -26,6 +26,24 @@ RSpec.describe "Api::Payments", type: :request do
       expect(body["loose_expenses"]["transactions_count"]).to eq(1)
       expect(body["loose_expenses"]["total_amount"]).to eq("80.0")
     end
+
+    it "ignores archived transactions in statements and loose expenses" do
+      card = create(:card, user: user, name: "Nubank", due_day: 15, closing_day: 8)
+      create(:transaction, user: user, card: card, source: :card, date: Date.new(2026, 3, 7), value: 120, archived_at: Time.current)
+      create(:transaction, user: user, card: nil, source: :cash, date: Date.new(2026, 3, 10), value: 80, archived_at: Time.current)
+
+      get "/api/payments", params: { month: 3, year: 2026 }
+
+      expect(response).to have_http_status(:ok)
+
+      body = JSON.parse(response.body)
+      expect(body["statements"].size).to eq(1)
+      expect(body["statements"].first["total_amount"]).to eq("0.0")
+      expect(body["statements"].first["remaining_amount"]).to eq("0.0")
+      expect(body["statements"].first["transactions_count"]).to eq(0)
+      expect(body["loose_expenses"]["transactions_count"]).to eq(0)
+      expect(body["loose_expenses"]["total_amount"]).to eq("0.0")
+    end
   end
 
   describe "POST /api/payments/card_statements/:id/pay" do

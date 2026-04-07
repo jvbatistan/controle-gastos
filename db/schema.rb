@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 2026_04_06_120000) do
+ActiveRecord::Schema.define(version: 2026_04_06_213000) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
@@ -121,6 +121,8 @@ ActiveRecord::Schema.define(version: 2026_04_06_120000) do
     t.integer "installment_number"
     t.integer "installments_count"
     t.bigint "user_id", null: false
+    t.datetime "archived_at"
+    t.index ["archived_at"], name: "index_transactions_on_archived_at"
     t.index ["card_id"], name: "index_transactions_on_card_id"
     t.index ["category_id"], name: "index_transactions_on_category_id"
     t.index ["date"], name: "index_transactions_on_date"

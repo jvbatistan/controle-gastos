@@ -1,13 +1,13 @@
 require 'rails_helper'
 
 RSpec.describe 'Api::Transactions', type: :request do
+  let(:user) { create(:user) }
+
+  before do
+    sign_in user
+  end
+
   describe 'POST /api/transactions' do
-    let(:user) { create(:user) }
-
-    before do
-      sign_in user
-    end
-
     it 'auto-classifies when an exact alias exists' do
       category = create(:category, user: user, name: 'Transporte')
       MerchantAlias.create!(
@@ -183,6 +183,67 @@ RSpec.describe 'Api::Transactions', type: :request do
       expect(ClassificationSuggestion.pending.where(financial_transaction_id: transactions.pluck(:id)).count).to eq(0)
       expect(body['transactions'].map { |tx| tx.dig('classification', 'status') }.uniq).to eq(['classified'])
       expect(body['transactions'].map { |tx| tx.dig('classification', 'category', 'id') }.uniq).to eq([category.id])
+    end
+  end
+
+  describe 'GET /api/transactions' do
+    it 'does not return archived transactions' do
+      visible = create(:transaction, user: user, card: nil, source: :cash, date: Date.new(2026, 3, 10), value: 80)
+      hidden = create(:transaction, user: user, card: nil, source: :cash, date: Date.new(2026, 3, 11), value: 50, archived_at: Time.current)
+
+      get '/api/transactions', params: { month: 3, year: 2026 }
+
+      expect(response).to have_http_status(:ok)
+
+      body = JSON.parse(response.body)
+      expect(body.map { |transaction| transaction['id'] }).to eq([visible.id])
+      expect(body.map { |transaction| transaction['id'] }).not_to include(hidden.id)
+    end
+  end
+
+  describe 'PATCH /api/transactions/:id' do
+    it 'updates the selected transaction through the API' do
+      card = create(:card, user: user, name: 'Nubank', due_day: 15, closing_day: 8)
+      transaction = create(:transaction, user: user, card: nil, source: :cash, date: Date.new(2026, 3, 10), value: 80, description: 'Uber')
+
+      patch "/api/transactions/#{transaction.id}", params: {
+        transaction: {
+          description: 'Mercado do bairro',
+          value: '125,90',
+          date: '2026-03-15',
+          source: 'card',
+          card_id: card.id,
+          paid: true,
+          note: 'Compra mensal'
+        }
+      }
+
+      expect(response).to have_http_status(:ok)
+
+      transaction.reload
+      body = JSON.parse(response.body)
+      expect(transaction.description).to eq('MERCADO DO BAIRRO')
+      expect(transaction.value.to_d).to eq(BigDecimal('125.9'))
+      expect(transaction.source).to eq('card')
+      expect(transaction.card_id).to eq(card.id)
+      expect(transaction.billing_statement).to eq(Date.new(2026, 4, 1))
+      expect(transaction.paid).to eq(true)
+      expect(transaction.note).to eq('Compra mensal')
+      expect(body['id']).to eq(transaction.id)
+      expect(body['card']['id']).to eq(card.id)
+    end
+  end
+
+  describe 'DELETE /api/transactions/:id' do
+    it 'archives the transaction instead of deleting it' do
+      transaction = create(:transaction, user: user, card: nil, source: :cash, date: Date.new(2026, 3, 10), value: 80)
+
+      delete "/api/transactions/#{transaction.id}"
+
+      expect(response).to have_http_status(:no_content)
+
+      transaction.reload
+      expect(transaction.archived_at).to be_present
     end
   end
 end

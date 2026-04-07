@@ -5,6 +5,8 @@ class Api::ClassificationSuggestionsController < Api::BaseController
   def index
     suggestions = current_user.classification_suggestions
                               .pending
+                              .joins(:financial_transaction)
+                              .merge(Transaction.active)
                               .includes(:financial_transaction, :suggested_category)
                               .order(created_at: :desc)
 
@@ -84,7 +86,10 @@ class Api::ClassificationSuggestionsController < Api::BaseController
   private
 
   def set_suggestion
-    @suggestion = current_user.classification_suggestions.find(params[:id])
+    @suggestion = current_user.classification_suggestions
+                               .joins(:financial_transaction)
+                               .merge(Transaction.active)
+                               .find(params[:id])
   end
 
   def propagate_to_installment_group!(transaction, category_id, mark_as:)

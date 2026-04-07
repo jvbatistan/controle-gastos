@@ -107,6 +107,7 @@ class Api::PaymentsController < Api::BaseController
 
   def loose_expenses_scope
     current_user.transactions
+                .active
                 .expenses
                 .where(card_id: nil, paid: false)
                 .where(date: period_start..period_end)
@@ -144,6 +145,7 @@ class Api::PaymentsController < Api::BaseController
       due_day: statement.card.due_day_value,
       closing_day: statement.card.closing_day_value(statement.billing_statement),
       transactions_count: statement.card.transactions
+                                .active
                                 .where(billing_statement: statement.billing_statement.beginning_of_month..statement.billing_statement.end_of_month)
                                 .count
     }

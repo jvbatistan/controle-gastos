@@ -3,7 +3,7 @@ class Api::TransactionsController < Api::BaseController
   before_action :set_transaction, only: %i[update destroy]
 
   def index
-    scope = current_user.transactions.includes(:category, :card, :classification_suggestions).order(date: :desc, id: :desc)
+    scope = current_user.transactions.active.includes(:category, :card, :classification_suggestions).order(date: :desc, id: :desc)
 
     month   = params[:month].presence
     year    = params[:year].presence
@@ -67,9 +67,12 @@ class Api::TransactionsController < Api::BaseController
       ).call
 
       installments = current_user.transactions
+                                 .active
                                  .includes(:category, :card, :classification_suggestions)
                                  .where(installment_group_id: group_id)
                                  .order(:installment_number)
+
+      sync_statement_targets(installments)
 
       return render json: {
         installment_group_id: group_id,
@@ -81,6 +84,7 @@ class Api::TransactionsController < Api::BaseController
 
     if transaction.save
       Transactions::ClassifyService.new(transaction).call
+      sync_statement_targets(transaction)
       transaction.reload
 
       render json: tx_json(transaction), status: :created
@@ -94,6 +98,7 @@ class Api::TransactionsController < Api::BaseController
   end
 
   def update
+    previous_targets = statement_targets_for(@transaction)
     @transaction.assign_attributes(transaction_params.except(:installment_number, :installments_count))
 
     unless valid_card_and_category_owner?(@transaction)
@@ -106,6 +111,7 @@ class Api::TransactionsController < Api::BaseController
         force_recompute: @transaction.saved_change_to_description?
       ).call
 
+      sync_statement_targets(previous_targets + statement_targets_for(@transaction))
       @transaction.reload
       render json: tx_json(@transaction), status: :ok
     else
@@ -114,14 +120,16 @@ class Api::TransactionsController < Api::BaseController
   end
 
   def destroy
-    @transaction.destroy
+    previous_targets = statement_targets_for(@transaction)
+    @transaction.archive!
+    sync_statement_targets(previous_targets)
     head :no_content
   end
 
   private
 
   def set_transaction
-    @transaction = current_user.transactions.find(params[:id])
+    @transaction = current_user.transactions.active.find(params[:id])
   end
 
   def transaction_params
@@ -198,5 +206,24 @@ class Api::TransactionsController < Api::BaseController
       source: suggestion.source,
       suggested_category: suggestion.suggested_category&.as_json(only: %i[id name])
     }
+  end
+
+  def statement_targets_for(transaction)
+    return [] if transaction.card_id.blank? || transaction.billing_statement.blank?
+
+    [[transaction.card_id, transaction.billing_statement.year, transaction.billing_statement.month]]
+  end
+
+  def sync_statement_targets(targets)
+    normalized_targets = Array(targets).flat_map do |target|
+      target.is_a?(Transaction) ? statement_targets_for(target) : [target]
+    end
+
+    normalized_targets.uniq.each do |card_id, year, month|
+      card = current_user.cards.find_by(id: card_id)
+      next if card.nil?
+
+      card.sync_statement!(month, year)
+    end
   end
 end

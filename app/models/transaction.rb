@@ -19,11 +19,13 @@ class Transaction < ApplicationRecord
   validate :installment_consistency
 
   before_validation :normalize_strings
-  before_validation :set_billing_statement, if: -> { card_id.present? && date.present? }
+  before_validation :set_billing_statement
 
   after_create_commit :create_initial_category_suggestion
   after_update_commit :refresh_category_suggestion, if: -> { saved_change_to_description? }
 
+  scope :active,            -> { where(archived_at: nil) }
+  scope :archived,          -> { where.not(archived_at: nil) }
   scope :by_month,          ->(month, year) { where("EXTRACT(MONTH FROM date) = ? AND EXTRACT(YEAR FROM date) = ?", month, year) }
   scope :by_period,         ->(start_date, end_date) { where(date: start_date..end_date) }
   scope :by_card,           ->(card_id) { where(card_id: card_id) if card_id.present? }
@@ -51,7 +53,15 @@ class Transaction < ApplicationRecord
   def installment_siblings
     return Transaction.none unless installment?
 
-    Transaction.where(installment_group_id: installment_group_id).order(:installment_number)
+    Transaction.active.where(installment_group_id: installment_group_id).order(:installment_number)
+  end
+
+  def active?
+    archived_at.nil?
+  end
+
+  def archived?
+    archived_at.present?
   end
 
   def pending_classification_suggestion
@@ -69,19 +79,23 @@ class Transaction < ApplicationRecord
   end
 
   def self.total_for_month(month = Date.today.month, year = Date.today.year)
-    by_month(month, year).sum(:value)
+    active.by_month(month, year).sum(:value)
   end
 
   def self.expenses_total_for(month = Date.today.month, year = Date.today.year)
-    expenses.by_month(month, year).sum(:value)
+    active.expenses.by_month(month, year).sum(:value)
   end
 
   def self.incomes_total_for(month = Date.today.month, year = Date.today.year)
-    incomes.by_month(month, year).sum(:value)
+    active.incomes.by_month(month, year).sum(:value)
   end
 
   def self.balance_for(month = Date.today.month, year = Date.today.year)
     incomes_total_for(month, year) - expenses_total_for(month, year)
+  end
+
+  def archive!(archived_at_time: Time.current)
+    update!(archived_at: archived_at_time)
   end
 
   def value=(val)
@@ -95,7 +109,11 @@ class Transaction < ApplicationRecord
   end
 
   def set_billing_statement
-    BillingStatementService.new(self).call
+    if card_id.present? && date.present?
+      BillingStatementService.new(self).call
+    else
+      self.billing_statement = nil
+    end
   end
 
   private

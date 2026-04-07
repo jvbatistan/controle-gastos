@@ -4,7 +4,7 @@ class TransactionsController < ApplicationController
 
   # GET /transactions or /transactions.json
   def index
-    @transactions = current_user.transactions.order(date: :desc, id: :desc)
+    @transactions = current_user.transactions.active.order(date: :desc, id: :desc)
 
     @month    = params[:month].presence
     @year     = params[:year].presence
@@ -115,8 +115,8 @@ class TransactionsController < ApplicationController
 
   # DELETE /transactions/1 or /transactions/1.json
   def destroy
-    @transaction.destroy
-    redirect_to transactions_path, notice: "Transação excluída com sucesso."
+    @transaction.archive!
+    redirect_to transactions_path, notice: "Transação arquivada com sucesso."
   end
 
   # def pay_all
@@ -145,7 +145,7 @@ class TransactionsController < ApplicationController
   private
     # Use callbacks to share common setup or constraints between actions.
     def set_transaction
-      @transaction = current_user.transactions.find(params[:id])
+      @transaction = current_user.transactions.active.find(params[:id])
     end
 
     def set_cards
