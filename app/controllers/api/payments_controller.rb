@@ -159,7 +159,10 @@ class Api::PaymentsController < Api::BaseController
       date: transaction.date,
       source: transaction.source,
       category_id: transaction.category_id,
-      paid: transaction.paid
+      paid: transaction.paid,
+      installment_number: transaction.installment_number,
+      installments_count: transaction.installments_count,
+      note: transaction.note,
     }
   end
 end
