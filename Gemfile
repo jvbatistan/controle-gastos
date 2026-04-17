@@ -5,9 +5,6 @@ ruby '3.2.6'
 
 gem 'rails', '~> 6.1.7', '>= 6.1.7.10'
 gem 'puma', '~> 5.6'
-gem 'sass-rails', '>= 6'
-gem 'turbolinks', '~> 5'
-gem 'jbuilder', '~> 2.7'
 gem 'pg'
 gem 'bootsnap', '~> 1.18', '>= 1.18.4', require: false
 
@@ -39,11 +36,7 @@ group :test do
 end
 
 # gem 'tzinfo-data', platforms: [:mingw, :mswin, :x64_mingw, :jruby]
-gem 'bootstrap', '~> 5.2.0'
-gem 'kaminari'
 gem 'paper_trail'
-gem 'jsbundling-rails', '~> 1.3'
-gem 'cssbundling-rails', '~> 1.4'
 gem 'devise', '~> 4.9'
 
 gem 'rack-cors'
