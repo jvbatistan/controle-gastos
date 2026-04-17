@@ -1,7 +1,6 @@
 class Category < ApplicationRecord
   belongs_to :user
 
-  has_many :debts
   has_many :transactions
   has_many :merchant_aliases, dependent: :restrict_with_error
   has_many :classification_suggestions, foreign_key: :suggested_category_id, dependent: :restrict_with_error

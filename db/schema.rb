@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 2026_04_06_213000) do
+ActiveRecord::Schema.define(version: 2026_04_16_120000) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
@@ -65,29 +65,6 @@ ActiveRecord::Schema.define(version: 2026_04_06_213000) do
     t.index ["financial_transaction_id"], name: "index_classification_suggestions_on_financial_transaction_id"
     t.index ["suggested_category_id"], name: "index_classification_suggestions_on_suggested_category_id"
     t.index ["user_id"], name: "index_classification_suggestions_on_user_id"
-  end
-
-  create_table "debts", force: :cascade do |t|
-    t.string "description"
-    t.decimal "value", precision: 12, scale: 2
-    t.date "transaction_date"
-    t.date "billing_statement"
-    t.boolean "paid"
-    t.boolean "has_installment"
-    t.integer "current_installment"
-    t.integer "final_installment"
-    t.string "responsible"
-    t.integer "parent_id"
-    t.bigint "card_id"
-    t.datetime "created_at", precision: 6, null: false
-    t.datetime "updated_at", precision: 6, null: false
-    t.text "note"
-    t.bigint "category_id"
-    t.integer "expense_type"
-    t.bigint "financial_transaction_id", null: false
-    t.index ["card_id"], name: "index_debts_on_card_id"
-    t.index ["category_id"], name: "index_debts_on_category_id"
-    t.index ["financial_transaction_id"], name: "index_debts_on_financial_transaction_id"
   end
 
   create_table "merchant_aliases", force: :cascade do |t|
@@ -165,9 +142,6 @@ ActiveRecord::Schema.define(version: 2026_04_06_213000) do
   add_foreign_key "classification_suggestions", "categories", column: "suggested_category_id"
   add_foreign_key "classification_suggestions", "transactions", column: "financial_transaction_id"
   add_foreign_key "classification_suggestions", "users"
-  add_foreign_key "debts", "cards"
-  add_foreign_key "debts", "categories"
-  add_foreign_key "debts", "transactions", column: "financial_transaction_id"
   add_foreign_key "merchant_aliases", "categories"
   add_foreign_key "merchant_aliases", "users"
   add_foreign_key "transactions", "cards"
