@@ -4,6 +4,7 @@ Rails.application.routes.draw do
   root to: "api/health#show"
 
   namespace :api do
+    get "dashboard", to: "dashboard#show"
     get "health",    to: "health#show"
     get "me",        to: "me#show"
     patch "me",      to: "me#update"
