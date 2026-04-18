@@ -45,6 +45,7 @@ module Transactions
           source: @transaction.source,
           paid: false,
           responsible: @transaction.responsible,
+          note: @transaction.note,
           card_id: @transaction.card_id,
           category_id: @transaction.category_id,
 
