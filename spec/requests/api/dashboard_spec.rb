@@ -72,6 +72,13 @@ RSpec.describe "Api::Dashboard", type: :request do
         "transactions_count" => 3
       )
 
+      expect(body["monthly_trend"].size).to eq(7)
+      april = body["monthly_trend"].find { |entry| entry["month"] == 4 && entry["year"] == 2026 }
+      march = body["monthly_trend"].find { |entry| entry["month"] == 3 && entry["year"] == 2026 }
+      expect(april["total_amount"]).to eq("260.0")
+      expect(april["transactions_count"]).to eq(3)
+      expect(march["total_amount"]).to eq("50.0")
+
       by_card = body["by_card"]
       expect(by_card.map { |entry| entry["name"] }).to eq(["NUBANK", "Sem cartão"])
       expect(by_card.first["total_amount"]).to eq("180.0")

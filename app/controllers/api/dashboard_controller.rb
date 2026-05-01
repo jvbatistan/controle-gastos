@@ -14,6 +14,7 @@ class Api::DashboardController < Api::BaseController
         paid_total: period_expenses.where(paid: true).sum(:value),
         transactions_count: period_expenses.count
       },
+      monthly_trend: monthly_trend,
       by_card: totals_by_card,
       by_category: totals_by_category,
       recent_expenses: recent_expenses,
@@ -72,6 +73,37 @@ class Api::DashboardController < Api::BaseController
         transactions_count: transactions.size
       }
     end.sort_by { |entry| [-entry[:total_amount].to_d, entry[:name].to_s] }
+  end
+
+  def monthly_trend
+    months = (0..6).map { |offset| period_start << (6 - offset) }
+    range_start = months.first
+
+    grouped = base_expenses_scope
+              .where(
+                "(card_id IS NOT NULL AND billing_statement BETWEEN ? AND ?) OR (card_id IS NULL AND date BETWEEN ? AND ?)",
+                range_start,
+                period_end,
+                range_start,
+                period_end
+              )
+              .to_a
+              .group_by do |transaction|
+                trend_date = transaction.card_id.present? ? transaction.billing_statement : transaction.date
+                trend_date.beginning_of_month
+              end
+
+    months.map do |month_start|
+      transactions = grouped.fetch(month_start, [])
+
+      {
+        month: month_start.month,
+        year: month_start.year,
+        label: I18n.l(month_start, format: "%b"),
+        total_amount: transactions.sum { |transaction| transaction.value.to_d },
+        transactions_count: transactions.size
+      }
+    end
   end
 
   def totals_by_category
