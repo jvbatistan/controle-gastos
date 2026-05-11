@@ -10,6 +10,7 @@ module Merchants
 
     def call
       merchant = Merchants::Canonicalize.call(@description)
+      return if merchant.blank?
 
       @user.merchant_aliases.find_or_initialize_by(normalized_merchant: merchant).tap do |alias_record|
         alias_record.category_id = @category_id

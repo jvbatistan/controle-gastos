@@ -81,6 +81,17 @@ class Api::PaymentsController < Api::BaseController
     render json: { error: "Despesa avulsa não encontrada para o período selecionado." }, status: :not_found
   end
 
+  def ignore_loose_expense
+    transaction = loose_expenses_scope.find(params[:id])
+    transaction.ignore_for_payment!
+
+    render json: loose_transaction_json(transaction.reload), status: :ok
+  rescue ActiveRecord::RecordInvalid => e
+    render json: { error: e.record.errors.full_messages.to_sentence }, status: :unprocessable_entity
+  rescue ActiveRecord::RecordNotFound
+    render json: { error: "Despesa avulsa não encontrada para o período selecionado." }, status: :not_found
+  end
+
   private
 
   def selected_month
@@ -108,6 +119,7 @@ class Api::PaymentsController < Api::BaseController
   def loose_expenses_scope
     current_user.transactions
                 .active
+                .active_for_payments
                 .expenses
                 .where(card_id: nil, paid: false)
                 .where(date: period_start..period_end)
@@ -160,6 +172,7 @@ class Api::PaymentsController < Api::BaseController
       source: transaction.source,
       category_id: transaction.category_id,
       paid: transaction.paid,
+      payment_ignored_at: transaction.payment_ignored_at,
       installment_number: transaction.installment_number,
       installments_count: transaction.installments_count,
       note: transaction.note,

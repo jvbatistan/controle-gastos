@@ -44,6 +44,20 @@ RSpec.describe "Api::Payments", type: :request do
       expect(body["loose_expenses"]["transactions_count"]).to eq(0)
       expect(body["loose_expenses"]["total_amount"]).to eq("0.0")
     end
+
+    it "ignores loose expenses removed from the payment flow" do
+      create(:transaction, user: user, card: nil, source: :cash, date: Date.new(2026, 3, 10), value: 80, payment_ignored_at: Time.current)
+      create(:transaction, user: user, card: nil, source: :cash, date: Date.new(2026, 3, 11), value: 50)
+
+      get "/api/payments", params: { month: 3, year: 2026 }
+
+      expect(response).to have_http_status(:ok)
+
+      body = JSON.parse(response.body)
+      expect(body["loose_expenses"]["transactions_count"]).to eq(1)
+      expect(body["loose_expenses"]["total_amount"]).to eq("50.0")
+      expect(body["loose_expenses"]["transactions"].map { |transaction| transaction["value"] }).to eq(["50.0"])
+    end
   end
 
   describe "POST /api/payments/card_statements/:id/pay" do
@@ -155,6 +169,37 @@ RSpec.describe "Api::Payments", type: :request do
       transaction.reload
       body = JSON.parse(response.body)
       expect(transaction.paid).to eq(false)
+      expect(body["error"]).to eq("Despesa avulsa não encontrada para o período selecionado.")
+    end
+  end
+
+  describe "POST /api/payments/loose_expenses/:id/ignore" do
+    it "removes a single loose expense from the payment flow for the selected period" do
+      transaction = create(:transaction, user: user, card: nil, source: :bank, date: Date.new(2026, 3, 10), value: 80, paid: false, description: "Uber")
+      create(:transaction, user: user, card: nil, source: :bank, date: Date.new(2026, 3, 11), value: 50, paid: false)
+
+      post "/api/payments/loose_expenses/#{transaction.id}/ignore", params: { month: 3, year: 2026 }
+
+      expect(response).to have_http_status(:ok)
+
+      transaction.reload
+      body = JSON.parse(response.body)
+      expect(transaction.paid).to eq(false)
+      expect(transaction.payment_ignored_at).to be_present
+      expect(body["id"]).to eq(transaction.id)
+      expect(body["payment_ignored_at"]).to be_present
+    end
+
+    it "returns not found when the expense is outside the selected period" do
+      transaction = create(:transaction, user: user, card: nil, source: :bank, date: Date.new(2026, 4, 10), value: 80, paid: false)
+
+      post "/api/payments/loose_expenses/#{transaction.id}/ignore", params: { month: 3, year: 2026 }
+
+      expect(response).to have_http_status(:not_found)
+
+      transaction.reload
+      body = JSON.parse(response.body)
+      expect(transaction.payment_ignored_at).to eq(nil)
       expect(body["error"]).to eq("Despesa avulsa não encontrada para o período selecionado.")
     end
   end

@@ -26,6 +26,7 @@ class Transaction < ApplicationRecord
 
   scope :active,            -> { where(archived_at: nil) }
   scope :archived,          -> { where.not(archived_at: nil) }
+  scope :active_for_payments, -> { where(payment_ignored_at: nil) }
   scope :by_month,          ->(month, year) { where("EXTRACT(MONTH FROM date) = ? AND EXTRACT(YEAR FROM date) = ?", month, year) }
   scope :by_period,         ->(start_date, end_date) { where(date: start_date..end_date) }
   scope :by_card,           ->(card_id) { where(card_id: card_id) if card_id.present? }
@@ -62,6 +63,14 @@ class Transaction < ApplicationRecord
 
   def archived?
     archived_at.present?
+  end
+
+  def ignored_for_payment?
+    payment_ignored_at.present?
+  end
+
+  def ignore_for_payment!(ignored_at_time: Time.zone.now)
+    update!(payment_ignored_at: ignored_at_time)
   end
 
   def pending_classification_suggestion

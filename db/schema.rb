@@ -10,10 +10,14 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 2026_04_16_120000) do
+ActiveRecord::Schema.define(version: 2026_05_11_203000) do
 
   # These are extensions that must be enabled in order to support this database
+  enable_extension "pg_stat_statements"
+  enable_extension "pgcrypto"
   enable_extension "plpgsql"
+  enable_extension "supabase_vault"
+  enable_extension "uuid-ossp"
 
   create_table "card_statements", force: :cascade do |t|
     t.bigint "card_id", null: false
@@ -99,6 +103,7 @@ ActiveRecord::Schema.define(version: 2026_04_16_120000) do
     t.integer "installments_count"
     t.bigint "user_id", null: false
     t.datetime "archived_at"
+    t.datetime "payment_ignored_at"
     t.index ["archived_at"], name: "index_transactions_on_archived_at"
     t.index ["card_id"], name: "index_transactions_on_card_id"
     t.index ["category_id"], name: "index_transactions_on_category_id"
@@ -107,6 +112,7 @@ ActiveRecord::Schema.define(version: 2026_04_16_120000) do
     t.index ["installment_group_id"], name: "index_transactions_on_installment_group_id"
     t.index ["kind", "date"], name: "index_transactions_on_kind_and_date"
     t.index ["kind"], name: "index_transactions_on_kind"
+    t.index ["payment_ignored_at"], name: "index_transactions_on_payment_ignored_at"
     t.index ["source", "date"], name: "index_transactions_on_source_and_date"
     t.index ["source"], name: "index_transactions_on_source"
     t.index ["user_id"], name: "index_transactions_on_user_id"
@@ -124,6 +130,7 @@ ActiveRecord::Schema.define(version: 2026_04_16_120000) do
     t.boolean "active", default: true, null: false
     t.index ["email"], name: "index_users_on_email", unique: true
     t.index ["reset_password_token"], name: "index_users_on_reset_password_token", unique: true
+    t.check_constraint "(email_change_confirm_status >= 0) AND (email_change_confirm_status <= 2)", name: "users_email_change_confirm_status_check"
   end
 
   create_table "versions", force: :cascade do |t|

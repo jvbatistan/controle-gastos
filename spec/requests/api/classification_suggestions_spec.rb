@@ -136,5 +136,38 @@ RSpec.describe 'Api::ClassificationSuggestions', type: :request do
       expect(user.merchant_aliases.find_by(normalized_merchant: 'UBER EATS').category_id).to eq(corrected_category.id)
       expect(body.dig('financial_transaction', 'category', 'id')).to eq(corrected_category.id)
     end
+
+    it 'corrects the suggestion without learning an alias when merchant normalizes to blank' do
+      corrected_category = create(:category, user: user, name: 'Alimentacao')
+      suggested_category = create(:category, user: user, name: 'Transporte')
+      transaction = user.transactions.create!(
+        description: '1234 - 5678',
+        value: 44.5,
+        date: Date.current,
+        kind: :expense,
+        source: :cash
+      )
+      transaction.classification_suggestions.delete_all
+
+      suggestion = user.classification_suggestions.create!(
+        financial_transaction: transaction,
+        suggested_category: suggested_category,
+        confidence: 0.6,
+        source: :rule
+      )
+
+      post "/api/classification_suggestions/#{suggestion.id}/correct", params: {
+        classification_suggestion: { category_id: corrected_category.id }
+      }
+
+      expect(response).to have_http_status(:ok)
+
+      transaction.reload
+      suggestion.reload
+
+      expect(transaction.category_id).to eq(corrected_category.id)
+      expect(suggestion.rejected_at).to be_present
+      expect(user.merchant_aliases).to be_empty
+    end
   end
 end
