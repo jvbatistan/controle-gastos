@@ -2,15 +2,13 @@ class Api::PaymentsController < Api::BaseController
   before_action :authenticate_user!
 
   def index
-    statements = current_user.cards.ordenados.filter_map do |card|
-      statement = card.sync_statement!(selected_month, selected_year)
-      next if statement.ignored?
-
-      payment_statement_json(statement)
-    end
-
+    period_statements = current_user.cards.ordenados.map { |card| card.sync_statement!(selected_month, selected_year) }
+    statements = period_statements.reject(&:ignored?).map { |statement| payment_statement_json(statement) }
+    ignored_statements = period_statements.select(&:ignored?).map { |statement| payment_statement_json(statement) }
     loose_scope = loose_expenses_scope
     loose_total = loose_scope.sum(:value)
+    ignored_loose_scope = ignored_loose_expenses_scope
+    ignored_loose_total = ignored_loose_scope.sum(:value)
 
     render json: {
       period: {
@@ -24,6 +22,17 @@ class Api::PaymentsController < Api::BaseController
         total_amount: loose_total,
         paid: loose_scope.none?,
         transactions: loose_scope.order(date: :desc, value: :desc).limit(50).map { |transaction| loose_transaction_json(transaction) }
+      },
+      ignored_payments: {
+        period_label: I18n.l(period_start, format: '%m/%Y'),
+        statements_count: ignored_statements.count,
+        statements_total_amount: ignored_statements.sum { |statement| statement[:remaining_amount].to_d },
+        statements: ignored_statements,
+        loose_expenses: {
+          transactions_count: ignored_loose_scope.count,
+          total_amount: ignored_loose_total,
+          transactions: ignored_loose_scope.order(payment_ignored_at: :desc, date: :desc, value: :desc).limit(50).map { |transaction| loose_transaction_json(transaction) }
+        }
       }
     }
   end
@@ -123,6 +132,15 @@ class Api::PaymentsController < Api::BaseController
                 .expenses
                 .where(card_id: nil, paid: false)
                 .where(date: period_start..period_end)
+  end
+
+  def ignored_loose_expenses_scope
+    current_user.transactions
+                .active
+                .expenses
+                .where(card_id: nil, paid: false)
+                .where(date: period_start..period_end)
+                .where.not(payment_ignored_at: nil)
   end
 
   def current_user_card_statements

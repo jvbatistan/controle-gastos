@@ -25,6 +25,8 @@ RSpec.describe "Api::Payments", type: :request do
       expect(body["statements"].first["ignored_at"]).to eq(nil)
       expect(body["loose_expenses"]["transactions_count"]).to eq(1)
       expect(body["loose_expenses"]["total_amount"]).to eq("80.0")
+      expect(body["ignored_payments"]["statements_count"]).to eq(0)
+      expect(body["ignored_payments"]["loose_expenses"]["transactions_count"]).to eq(0)
     end
 
     it "ignores archived transactions in statements and loose expenses" do
@@ -57,6 +59,27 @@ RSpec.describe "Api::Payments", type: :request do
       expect(body["loose_expenses"]["transactions_count"]).to eq(1)
       expect(body["loose_expenses"]["total_amount"]).to eq("50.0")
       expect(body["loose_expenses"]["transactions"].map { |transaction| transaction["value"] }).to eq(["50.0"])
+      expect(body["ignored_payments"]["loose_expenses"]["transactions_count"]).to eq(1)
+      expect(body["ignored_payments"]["loose_expenses"]["total_amount"]).to eq("80.0")
+      expect(body["ignored_payments"]["loose_expenses"]["transactions"].first["payment_ignored_at"]).to be_present
+    end
+
+    it "returns ignored statements for the selected period" do
+      card = create(:card, user: user, name: 'Nubank', due_day: 15, closing_day: 8)
+      create(:transaction, user: user, card: card, source: :card, date: Date.new(2026, 3, 7), value: 120, paid: false)
+      statement = card.sync_statement!(3, 2026)
+      statement.ignore_for_payment!
+
+      get "/api/payments", params: { month: 3, year: 2026 }
+
+      expect(response).to have_http_status(:ok)
+
+      body = JSON.parse(response.body)
+      expect(body["statements"]).to eq([])
+      expect(body["ignored_payments"]["statements_count"]).to eq(1)
+      expect(body["ignored_payments"]["statements_total_amount"]).to eq("120.0")
+      expect(body["ignored_payments"]["statements"].first.dig("card", "name")).to eq("NUBANK")
+      expect(body["ignored_payments"]["statements"].first["ignored_at"]).to be_present
     end
   end
 
