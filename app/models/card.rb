@@ -25,7 +25,7 @@ class Card < ApplicationRecord
         year
       ])
     )
-      .select("cards.*, COALESCE(SUM(active_transactions.value), 0) AS total_value")
+      .select("cards.*, COALESCE(SUM(#{Transaction.signed_value_sql('active_transactions')}), 0) AS total_value")
       .group("cards.id")
       .order("total_value DESC")
   }
@@ -35,7 +35,7 @@ class Card < ApplicationRecord
       .merge(Transaction.active)
       .where("EXTRACT(MONTH FROM transactions.billing_statement) = ? AND EXTRACT(YEAR FROM transactions.billing_statement) = ?", month, year)
       .where(transactions: { paid: false })
-      .sum("transactions.value")
+      .sum(Arel.sql(Transaction.signed_value_sql))
   }
 
   def transactions_by_date(month = Date.today.month, year = Date.today.year)
@@ -43,11 +43,11 @@ class Card < ApplicationRecord
   end
 
   def total_transactions(month = Date.today.month, year = Date.today.year)
-    transactions.active.where("EXTRACT(MONTH FROM billing_statement) = ? AND EXTRACT(YEAR FROM billing_statement) = ?", month, year).where(paid: false).sum(:value)
+    Transaction.signed_sum(transactions.active.where("EXTRACT(MONTH FROM billing_statement) = ? AND EXTRACT(YEAR FROM billing_statement) = ?", month, year).where(paid: false))
   end
 
   def month_total(month, year)
-    transactions.active.where("EXTRACT(MONTH FROM billing_statement) = ? AND EXTRACT(YEAR FROM billing_statement) = ?", month, year).sum(:value)
+    Transaction.signed_sum(transactions.active.where("EXTRACT(MONTH FROM billing_statement) = ? AND EXTRACT(YEAR FROM billing_statement) = ?", month, year))
   end
 
   def statement_for(month, year)
@@ -63,6 +63,8 @@ class Card < ApplicationRecord
     if st.total_amount.to_d != total
       st.update!(total_amount: total)
     end
+
+    st.sync_paid_amount!
 
     st
   end

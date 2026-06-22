@@ -1,8 +1,10 @@
 class CardStatement < ApplicationRecord
   belongs_to :card
+  has_many :card_statement_payments, dependent: :destroy
 
   validates :billing_statement, presence: true
-  validates :total_amount, :paid_amount, presence: true, numericality: { greater_than_or_equal_to: 0 }
+  validates :total_amount, presence: true, numericality: true
+  validates :paid_amount, presence: true, numericality: { greater_than_or_equal_to: 0 }
 
   validates :billing_statement, uniqueness: { scope: :card_id }
 
@@ -28,15 +30,28 @@ class CardStatement < ApplicationRecord
     v = value.to_d
     raise ArgumentError, "Pagamento deve ser > 0" if v <= 0
 
-    self.paid_amount = paid_amount.to_d + v
+    card_statement_payments.create!(
+      amount: v,
+      paid_at: paid_at,
+      description: "Pagamento da fatura",
+      source: "manual"
+    )
 
-    became_paid = !paid_at.present? && (total_amount.to_d - self.paid_amount.to_d) <= 0
-
-    # se quitou agora, marca paid_at (se ainda não tinha)
-    self.paid_at ||= paid_at if paid?
-    save!
+    reload
 
     mark_transactions_as_paid! if paid?
+  end
+
+  def sync_paid_amount!
+    paid_total = card_statement_payments.sum(:amount).to_d
+    latest_paid_at = card_statement_payments.maximum(:paid_at)
+    next_paid_at = paid_total >= total_amount.to_d && total_amount.to_d.positive? ? latest_paid_at : nil
+
+    update_columns(
+      paid_amount: paid_total,
+      paid_at: next_paid_at,
+      updated_at: Time.current
+    )
   end
 
   def mark_transactions_as_paid!

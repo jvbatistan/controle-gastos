@@ -1,4 +1,7 @@
 class Transaction < ApplicationRecord
+  CARD_STATEMENT_PAYMENT_DESCRIPTION_PATTERN = /(\APAGAMENTO\z|PAGAMENTO\s+RECEBIDO|PAGAMENTO\s+(PRA|PARA)\s+LIBERAR\s+LIMITE|LIBERAR\s+LIMITE|PGTO\s+RECEBIDO|PAGTO\s+RECEBIDO)/i
+  CARD_STATEMENT_PAYMENT_MERCHANT_EXCLUSION_PATTERN = /(UBER|99|NUPAY|APPLE|TWITCH|SPOTIFY)/i
+
   belongs_to :card, optional: true
   belongs_to :category, optional: true
   belongs_to :user
@@ -17,6 +20,8 @@ class Transaction < ApplicationRecord
   validates :installments_count, numericality: { only_integer: true, greater_than: 1 }, allow_nil: true
 
   validate :installment_consistency
+  validate :refund_consistency
+  validate :card_statement_payment_must_not_be_transaction
 
   before_validation :normalize_strings
   before_validation :set_billing_statement
@@ -40,6 +45,14 @@ class Transaction < ApplicationRecord
   scope :incomes,           -> { where(kind: kinds[:income]) }
   scope :installments_only, -> { where.not(installment_group_id: nil) }
   scope :non_installments,  -> { where(installment_group_id: nil) }
+
+  def self.signed_value_sql(table_name = 'transactions')
+    "CASE WHEN #{table_name}.refund THEN -#{table_name}.value ELSE #{table_name}.value END"
+  end
+
+  def self.signed_sum(scope = all)
+    scope.sum(Arel.sql(signed_value_sql))
+  end
 
   def installment?
     installment_group_id.present?
@@ -69,6 +82,14 @@ class Transaction < ApplicationRecord
     payment_ignored_at.present?
   end
 
+  def signed_value
+    refund? ? -value.to_d : value.to_d
+  end
+
+  def card_statement_payment_description?
+    self.class.card_statement_payment_description?(description)
+  end
+
   def ignore_for_payment!(ignored_at_time: Time.zone.now)
     update!(payment_ignored_at: ignored_at_time)
   end
@@ -88,19 +109,24 @@ class Transaction < ApplicationRecord
   end
 
   def self.total_for_month(month = Date.today.month, year = Date.today.year)
-    active.by_month(month, year).sum(:value)
+    signed_sum(active.by_month(month, year))
   end
 
   def self.expenses_total_for(month = Date.today.month, year = Date.today.year)
-    active.expenses.by_month(month, year).sum(:value)
+    signed_sum(active.expenses.by_month(month, year))
   end
 
   def self.incomes_total_for(month = Date.today.month, year = Date.today.year)
-    active.incomes.by_month(month, year).sum(:value)
+    signed_sum(active.incomes.by_month(month, year))
   end
 
   def self.balance_for(month = Date.today.month, year = Date.today.year)
     incomes_total_for(month, year) - expenses_total_for(month, year)
+  end
+
+  def self.card_statement_payment_description?(description)
+    text = description.to_s
+    text.match?(CARD_STATEMENT_PAYMENT_DESCRIPTION_PATTERN) && !text.match?(CARD_STATEMENT_PAYMENT_MERCHANT_EXCLUSION_PATTERN)
   end
 
   def archive!(archived_at_time: Time.current)
@@ -114,7 +140,10 @@ class Transaction < ApplicationRecord
       val = s
     end
 
-    super(val)
+    normalized_value = val.presence
+    normalized_value = normalized_value.to_d.abs if normalized_value.present?
+
+    super(normalized_value)
   end
 
   def set_billing_statement
@@ -157,5 +186,21 @@ class Transaction < ApplicationRecord
     elsif installment_number.present? || installments_count.present?
       errors.add(:base, 'campos de parcela não podem existir sem installment_group_id')
     end
+  end
+
+  def refund_consistency
+    return unless refund?
+
+    errors.add(:kind, 'deve ser despesa para estornos') unless expense?
+    errors.add(:source, 'deve ser cartão para estornos') unless card?
+    errors.add(:card, 'é obrigatório para estornos') if card_id.blank?
+    errors.add(:base, 'estorno não pode ser parcelado') if installment_number.present? || installments_count.present? || installment_group_id.present?
+  end
+
+  def card_statement_payment_must_not_be_transaction
+    return if archived?
+    return unless card_id.present? && card_statement_payment_description?
+
+    errors.add(:base, 'pagamento de fatura deve ser registrado na tela de pagamentos, não como transação')
   end
 end

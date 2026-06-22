@@ -78,6 +78,73 @@ RSpec.describe 'Api::Transactions', type: :request do
       expect(JSON.parse(response.body)['error']).to be_present
     end
 
+    it 'accepts a card refund and returns its signed value' do
+      card = create(:card, user: user)
+
+      post '/api/transactions', params: {
+        transaction: {
+          description: 'Uber - Nupay',
+          value: '6,92',
+          date: Date.current,
+          kind: 'expense',
+          source: 'card',
+          card_id: card.id,
+          refund: true
+        }
+      }
+
+      expect(response).to have_http_status(:created)
+
+      body = JSON.parse(response.body)
+      transaction = Transaction.find(body['id'])
+
+      expect(transaction.value.to_d).to eq(BigDecimal('6.92'))
+      expect(transaction.refund).to eq(true)
+      expect(transaction.kind).to eq('expense')
+      expect(transaction.source).to eq('card')
+      expect(body['refund']).to eq(true)
+      expect(body['signed_value']).to eq('-6.92')
+    end
+
+    it 'rejects installment refunds' do
+      card = create(:card, user: user)
+
+      post '/api/transactions', params: {
+        transaction: {
+          description: 'Uber - Nupay',
+          value: '6,92',
+          date: Date.current,
+          kind: 'expense',
+          source: 'card',
+          card_id: card.id,
+          refund: true,
+          installment_number: 1,
+          installments_count: 2
+        }
+      }
+
+      expect(response).to have_http_status(:unprocessable_entity)
+      expect(JSON.parse(response.body)['error']).to eq('Estorno não pode ser parcelado')
+    end
+
+    it 'rejects clear card statement payments as transactions' do
+      card = create(:card, user: user)
+
+      post '/api/transactions', params: {
+        transaction: {
+          description: 'Pagamento recebido para liberar limite',
+          value: '1969,20',
+          date: Date.current,
+          kind: 'expense',
+          source: 'card',
+          card_id: card.id
+        }
+      }
+
+      expect(response).to have_http_status(:unprocessable_entity)
+      expect(JSON.parse(response.body)['error']).to include('pagamento de fatura deve ser registrado na tela de pagamentos')
+    end
+
     it 'reprocesses classification when the description changes' do
       category = create(:category, user: user, name: 'Transporte')
       MerchantAlias.create!(

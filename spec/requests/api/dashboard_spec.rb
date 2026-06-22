@@ -49,6 +49,18 @@ RSpec.describe "Api::Dashboard", type: :request do
       create(
         :transaction,
         user: user,
+        category: travel,
+        card: card,
+        source: :card,
+        date: Date.new(2026, 4, 7),
+        value: 20,
+        refund: true,
+        paid: false,
+        description: "Uber estorno"
+      )
+      create(
+        :transaction,
+        user: user,
         category: food,
         source: :cash,
         card: nil,
@@ -57,6 +69,8 @@ RSpec.describe "Api::Dashboard", type: :request do
         paid: false,
         description: "Mes anterior"
       )
+      statement = card.sync_statement!(4, 2026)
+      create(:card_statement_payment, card_statement: statement, amount: 30, description: "Pagamento recebido")
 
       get "/api/dashboard", params: { month: 4, year: 2026 }
 
@@ -66,23 +80,23 @@ RSpec.describe "Api::Dashboard", type: :request do
 
       expect(body["period"]).to include("month" => 4, "year" => 2026)
       expect(body["summary"]).to eq(
-        "expenses_total" => "260.0",
-        "open_total" => "140.0",
+        "expenses_total" => "240.0",
+        "open_total" => "120.0",
         "paid_total" => "120.0",
-        "transactions_count" => 3
+        "transactions_count" => 4
       )
 
       expect(body["monthly_trend"].size).to eq(7)
       april = body["monthly_trend"].find { |entry| entry["month"] == 4 && entry["year"] == 2026 }
       march = body["monthly_trend"].find { |entry| entry["month"] == 3 && entry["year"] == 2026 }
-      expect(april["total_amount"]).to eq("260.0")
-      expect(april["transactions_count"]).to eq(3)
+      expect(april["total_amount"]).to eq("240.0")
+      expect(april["transactions_count"]).to eq(4)
       expect(march["total_amount"]).to eq("50.0")
 
       by_card = body["by_card"]
       expect(by_card.map { |entry| entry["name"] }).to eq(["NUBANK", "Sem cartão"])
-      expect(by_card.first["total_amount"]).to eq("180.0")
-      expect(by_card.first["open_amount"]).to eq("60.0")
+      expect(by_card.first["total_amount"]).to eq("160.0")
+      expect(by_card.first["open_amount"]).to eq("40.0")
       expect(by_card.first["paid_amount"]).to eq("120.0")
 
       by_category = body["by_category"]
@@ -93,7 +107,9 @@ RSpec.describe "Api::Dashboard", type: :request do
 
       expect(body["statements"].size).to eq(1)
       expect(body["statements"].first.dig("card", "name")).to eq("NUBANK")
-      expect(body["statements"].first["total_amount"]).to eq("180.0")
+      expect(body["statements"].first["total_amount"]).to eq("160.0")
+      expect(body["statements"].first["paid_amount"]).to eq("30.0")
+      expect(body["statements"].first["remaining_amount"]).to eq("130.0")
     end
   end
 end

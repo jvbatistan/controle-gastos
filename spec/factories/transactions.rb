@@ -8,6 +8,7 @@ FactoryBot.define do
     date { Date.today }
     kind { :expense }
     source { :card }
+    refund { false }
     paid { false }
     note { nil }
     responsible { 'JOAO' }

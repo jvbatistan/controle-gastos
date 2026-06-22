@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 2026_05_11_203000) do
+ActiveRecord::Schema.define(version: 2026_06_22_123000) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_stat_statements"
@@ -18,6 +18,22 @@ ActiveRecord::Schema.define(version: 2026_05_11_203000) do
   enable_extension "plpgsql"
   enable_extension "supabase_vault"
   enable_extension "uuid-ossp"
+
+  create_table "card_statement_payments", force: :cascade do |t|
+    t.bigint "card_statement_id", null: false
+    t.bigint "original_transaction_id"
+    t.decimal "amount", precision: 12, scale: 2, null: false
+    t.datetime "paid_at", null: false
+    t.string "description"
+    t.string "source"
+    t.datetime "created_at", precision: 6, null: false
+    t.datetime "updated_at", precision: 6, null: false
+    t.index ["card_statement_id", "amount", "paid_at", "description"], name: "idx_statement_payments_dedup", unique: true
+    t.index ["card_statement_id"], name: "index_card_statement_payments_on_card_statement_id"
+    t.index ["original_transaction_id"], name: "idx_statement_payments_original_transaction", unique: true, where: "(original_transaction_id IS NOT NULL)"
+    t.index ["original_transaction_id"], name: "index_card_statement_payments_on_original_transaction_id"
+    t.index ["paid_at"], name: "index_card_statement_payments_on_paid_at"
+  end
 
   create_table "card_statements", force: :cascade do |t|
     t.bigint "card_id", null: false
@@ -104,6 +120,7 @@ ActiveRecord::Schema.define(version: 2026_05_11_203000) do
     t.bigint "user_id", null: false
     t.datetime "archived_at"
     t.datetime "payment_ignored_at"
+    t.boolean "refund", default: false, null: false
     t.index ["archived_at"], name: "index_transactions_on_archived_at"
     t.index ["card_id"], name: "index_transactions_on_card_id"
     t.index ["category_id"], name: "index_transactions_on_category_id"
@@ -143,6 +160,8 @@ ActiveRecord::Schema.define(version: 2026_05_11_203000) do
     t.index ["item_type", "item_id"], name: "index_versions_on_item_type_and_item_id"
   end
 
+  add_foreign_key "card_statement_payments", "card_statements"
+  add_foreign_key "card_statement_payments", "transactions", column: "original_transaction_id"
   add_foreign_key "card_statements", "cards"
   add_foreign_key "cards", "users"
   add_foreign_key "categories", "users"

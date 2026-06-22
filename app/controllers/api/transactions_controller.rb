@@ -59,6 +59,10 @@ class Api::TransactionsController < Api::BaseController
       return render json: { error: transaction.errors.full_messages.to_sentence }, status: :unprocessable_entity
     end
 
+    if transaction.refund? && installment_request?
+      return render json: { error: 'Estorno não pode ser parcelado' }, status: :unprocessable_entity
+    end
+
     if installment_request?
       group_id = Transactions::InstallmentGeneratorService.new(
         transaction,
@@ -134,7 +138,7 @@ class Api::TransactionsController < Api::BaseController
 
   def transaction_params
     params.require(:transaction).permit(
-      :description, :value, :date, :kind, :source, :paid,
+      :description, :value, :date, :kind, :source, :paid, :refund,
       :note, :responsible, :card_id, :category_id, :billing_statement,
       :installment_number, :installments_count
     )
@@ -177,6 +181,8 @@ class Api::TransactionsController < Api::BaseController
       id: transaction.id,
       description: transaction.description,
       value: transaction.value,
+      signed_value: transaction.signed_value,
+      refund: transaction.refund,
       date: transaction.date,
       kind: transaction.kind,
       source: transaction.source,

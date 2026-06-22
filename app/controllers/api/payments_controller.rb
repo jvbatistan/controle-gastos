@@ -6,9 +6,9 @@ class Api::PaymentsController < Api::BaseController
     statements = period_statements.reject(&:ignored?).map { |statement| payment_statement_json(statement) }
     ignored_statements = period_statements.select(&:ignored?).map { |statement| payment_statement_json(statement) }
     loose_scope = loose_expenses_scope
-    loose_total = loose_scope.sum(:value)
+    loose_total = signed_sum(loose_scope)
     ignored_loose_scope = ignored_loose_expenses_scope
-    ignored_loose_total = ignored_loose_scope.sum(:value)
+    ignored_loose_total = signed_sum(ignored_loose_scope)
 
     render json: {
       period: {
@@ -54,7 +54,7 @@ class Api::PaymentsController < Api::BaseController
   def pay_loose_expenses
     scope = loose_expenses_scope
     count = scope.count
-    total = scope.sum(:value)
+    total = signed_sum(scope)
 
     scope.update_all(paid: true, updated_at: Time.current)
 
@@ -172,6 +172,7 @@ class Api::PaymentsController < Api::BaseController
       paid: statement.paid?,
       paid_at: statement.paid_at,
       ignored_at: statement.ignored_at,
+      payments: statement.card_statement_payments.order(paid_at: :desc, id: :desc).map { |payment| payment_json(payment) },
       due_day: statement.card.due_day_value,
       closing_day: statement.card.closing_day_value(statement.billing_statement),
       transactions_count: statement.card.transactions
@@ -181,11 +182,24 @@ class Api::PaymentsController < Api::BaseController
     }
   end
 
+  def payment_json(payment)
+    {
+      id: payment.id,
+      amount: payment.amount,
+      paid_at: payment.paid_at,
+      description: payment.description,
+      source: payment.source,
+      original_transaction_id: payment.original_transaction_id
+    }
+  end
+
   def loose_transaction_json(transaction)
     {
       id: transaction.id,
       description: transaction.description,
       value: transaction.value,
+      signed_value: transaction.signed_value,
+      refund: transaction.refund,
       date: transaction.date,
       source: transaction.source,
       category_id: transaction.category_id,
@@ -195,5 +209,9 @@ class Api::PaymentsController < Api::BaseController
       installments_count: transaction.installments_count,
       note: transaction.note,
     }
+  end
+
+  def signed_sum(scope)
+    Transaction.signed_sum(scope)
   end
 end

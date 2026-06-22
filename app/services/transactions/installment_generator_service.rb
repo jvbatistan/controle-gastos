@@ -43,6 +43,7 @@ module Transactions
           date: date,
           kind: @transaction.kind,
           source: @transaction.source,
+          refund: @transaction.refund,
           paid: false,
           responsible: @transaction.responsible,
           note: @transaction.note,

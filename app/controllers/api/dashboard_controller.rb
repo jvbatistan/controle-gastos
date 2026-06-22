@@ -9,9 +9,9 @@ class Api::DashboardController < Api::BaseController
         label: I18n.l(period_start, format: "%B/%Y")
       },
       summary: {
-        expenses_total: period_expenses.sum(:value),
-        open_total: period_expenses.where(paid: false).sum(:value),
-        paid_total: period_expenses.where(paid: true).sum(:value),
+        expenses_total: signed_sum(period_expenses),
+        open_total: signed_sum(period_expenses.where(paid: false)),
+        paid_total: signed_sum(period_expenses.where(paid: true)),
         transactions_count: period_expenses.count
       },
       monthly_trend: monthly_trend,
@@ -67,9 +67,9 @@ class Api::DashboardController < Api::BaseController
       {
         id: card&.id,
         name: card&.name || "Sem cartão",
-        total_amount: transactions.sum { |transaction| transaction.value.to_d },
-        open_amount: transactions.reject(&:paid).sum { |transaction| transaction.value.to_d },
-        paid_amount: transactions.select(&:paid).sum { |transaction| transaction.value.to_d },
+        total_amount: transactions.sum(&:signed_value),
+        open_amount: transactions.reject(&:paid).sum(&:signed_value),
+        paid_amount: transactions.select(&:paid).sum(&:signed_value),
         transactions_count: transactions.size
       }
     end.sort_by { |entry| [-entry[:total_amount].to_d, entry[:name].to_s] }
@@ -100,7 +100,7 @@ class Api::DashboardController < Api::BaseController
         month: month_start.month,
         year: month_start.year,
         label: I18n.l(month_start, format: "%b"),
-        total_amount: transactions.sum { |transaction| transaction.value.to_d },
+        total_amount: transactions.sum(&:signed_value),
         transactions_count: transactions.size
       }
     end
@@ -113,7 +113,7 @@ class Api::DashboardController < Api::BaseController
       {
         id: category&.id,
         name: category&.name || "Sem categoria",
-        total_amount: transactions.sum { |transaction| transaction.value.to_d },
+        total_amount: transactions.sum(&:signed_value),
         transactions_count: transactions.size
       }
     end.sort_by { |entry| [-entry[:total_amount].to_d, entry[:name].to_s] }
@@ -125,6 +125,8 @@ class Api::DashboardController < Api::BaseController
         id: transaction.id,
         description: transaction.description,
         value: transaction.value,
+        signed_value: transaction.signed_value,
+        refund: transaction.refund,
         date: transaction.date,
         paid: transaction.paid,
         card: transaction.card&.as_json(only: %i[id name]),
@@ -159,5 +161,9 @@ class Api::DashboardController < Api::BaseController
                                 .count
       }
     end
+  end
+
+  def signed_sum(scope)
+    Transaction.signed_sum(scope)
   end
 end
