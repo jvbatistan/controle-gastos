@@ -13,7 +13,8 @@ module Transactions
       analysis = Merchants::DescriptionAnalysis.call(@transaction.description)
 
       if (alias_record = find_alias(analysis))
-        return result_from_alias(alias_record)
+        alias_result = result_from_alias(alias_record)
+        return alias_result if alias_result
       end
 
       if (fallback_category = fallback_category_for(@transaction.description))
@@ -64,8 +65,11 @@ module Transactions
     end
 
     def result_from_alias(alias_record)
+      category = @user.categories.find_by(id: alias_record.category_id)
+      return nil if category.nil?
+
       Result.new(
-        suggested_category: alias_record.category,
+        suggested_category: category,
         confidence: alias_record.confidence,
         source: :alias
       )

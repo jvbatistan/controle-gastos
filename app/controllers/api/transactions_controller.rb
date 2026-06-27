@@ -168,7 +168,7 @@ class Api::TransactionsController < Api::BaseController
     end
 
     if transaction.category_id.present? && !current_user.categories.exists?(transaction.category_id)
-      transaction.errors.add(:category, 'inválida')
+      raise ActiveRecord::RecordNotFound
     end
 
     transaction.errors.empty?
@@ -176,6 +176,7 @@ class Api::TransactionsController < Api::BaseController
 
   def tx_json(transaction)
     suggestion = transaction.pending_classification_suggestion
+    category = current_user.categories.find_by(id: transaction.category_id)
 
     {
       id: transaction.id,
@@ -195,10 +196,10 @@ class Api::TransactionsController < Api::BaseController
       installments_count: transaction.installments_count,
       classification: {
         status: transaction.classification_status,
-        category: transaction.category&.as_json(only: %i[id name]),
+        category: category&.as_json(only: %i[id name]),
         suggestion: suggestion_json(suggestion)
       },
-      category: transaction.category&.as_json(only: %i[id name]),
+      category: category&.as_json(only: %i[id name]),
       card: transaction.card&.as_json(only: %i[id name])
     }
   end
@@ -206,11 +207,13 @@ class Api::TransactionsController < Api::BaseController
   def suggestion_json(suggestion)
     return nil if suggestion.nil?
 
+    suggested_category = current_user.categories.find_by(id: suggestion.suggested_category_id)
+
     {
       id: suggestion.id,
       confidence: suggestion.confidence,
       source: suggestion.source,
-      suggested_category: suggestion.suggested_category&.as_json(only: %i[id name])
+      suggested_category: suggested_category&.as_json(only: %i[id name])
     }
   end
 

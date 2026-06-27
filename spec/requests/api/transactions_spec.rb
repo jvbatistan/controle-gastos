@@ -78,6 +78,59 @@ RSpec.describe 'Api::Transactions', type: :request do
       expect(JSON.parse(response.body)['error']).to be_present
     end
 
+    it 'does not reveal or accept a category from another user' do
+      other_user = create(:user)
+      other_category = create(:category, user: other_user)
+
+      post '/api/transactions', params: {
+        transaction: {
+          description: 'Compra teste',
+          value: '15,00',
+          date: Date.current,
+          kind: 'expense',
+          source: 'cash',
+          category_id: other_category.id
+        }
+      }
+
+      cross_user_response = [response.status, JSON.parse(response.body)]
+
+      post '/api/transactions', params: {
+        transaction: {
+          description: 'Compra teste',
+          value: '15,00',
+          date: Date.current,
+          kind: 'expense',
+          source: 'cash',
+          category_id: Category.maximum(:id).to_i + 10_000
+        }
+      }
+
+      missing_response = [response.status, JSON.parse(response.body)]
+
+      expect(cross_user_response).to eq([404, { 'error' => 'Not found' }])
+      expect(missing_response).to eq(cross_user_response)
+      expect(user.transactions.where(description: 'COMPRA TESTE')).to be_empty
+    end
+
+    it 'creates a transaction with a category owned by the current user' do
+      category = create(:category, user: user)
+
+      post '/api/transactions', params: {
+        transaction: {
+          description: 'Compra categorizada',
+          value: '15,00',
+          date: Date.current,
+          kind: 'expense',
+          source: 'cash',
+          category_id: category.id
+        }
+      }
+
+      expect(response).to have_http_status(:created)
+      expect(user.transactions.find(JSON.parse(response.body)['id']).category).to eq(category)
+    end
+
     it 'accepts a card refund and returns its signed value' do
       card = create(:card, user: user)
 
@@ -298,6 +351,20 @@ RSpec.describe 'Api::Transactions', type: :request do
       expect(transaction.note).to eq('Compra mensal')
       expect(body['id']).to eq(transaction.id)
       expect(body['card']['id']).to eq(card.id)
+    end
+
+    it 'does not update a transaction with a category from another user' do
+      other_user = create(:user)
+      other_category = create(:category, user: other_user)
+      transaction = create(:transaction, user: user, card: nil, category: nil, source: :cash)
+
+      patch "/api/transactions/#{transaction.id}", params: {
+        transaction: { category_id: other_category.id }
+      }
+
+      expect(response).to have_http_status(:not_found)
+      expect(JSON.parse(response.body)).to eq('error' => 'Not found')
+      expect(transaction.reload.category_id).to be_nil
     end
   end
 

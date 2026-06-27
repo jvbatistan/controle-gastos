@@ -22,6 +22,7 @@ class Transaction < ApplicationRecord
   validate :installment_consistency
   validate :refund_consistency
   validate :card_statement_payment_must_not_be_transaction
+  validate :category_must_belong_to_user
 
   before_validation :normalize_strings
   before_validation :set_billing_statement
@@ -51,7 +52,7 @@ class Transaction < ApplicationRecord
   end
 
   def self.signed_sum(scope = all)
-    scope.sum(Arel.sql(signed_value_sql))
+    scope.sum(Arel.sql(signed_value_sql)).to_d
   end
 
   def installment?
@@ -67,7 +68,7 @@ class Transaction < ApplicationRecord
   def installment_siblings
     return Transaction.none unless installment?
 
-    Transaction.active.where(installment_group_id: installment_group_id).order(:installment_number)
+    user.transactions.active.where(installment_group_id: installment_group_id).order(:installment_number)
   end
 
   def active?
@@ -95,14 +96,15 @@ class Transaction < ApplicationRecord
   end
 
   def pending_classification_suggestion
-    ClassificationSuggestion.pending
-                            .where(financial_transaction_id: classification_suggestion_target_ids)
-                            .order(created_at: :desc)
-                            .first
+    user.classification_suggestions
+        .pending
+        .where(financial_transaction_id: classification_suggestion_target_ids)
+        .order(created_at: :desc)
+        .first
   end
 
   def classification_status
-    return 'classified' if category_id.present?
+    return 'classified' if category_id.present? && category&.user_id == user_id
     return 'suggestion_pending' if pending_classification_suggestion.present?
 
     'unclassified'
@@ -199,8 +201,15 @@ class Transaction < ApplicationRecord
 
   def card_statement_payment_must_not_be_transaction
     return if archived?
-    return unless card_id.present? && card_statement_payment_description?
+    return unless card? && card_statement_payment_description?
 
     errors.add(:base, 'pagamento de fatura deve ser registrado na tela de pagamentos, não como transação')
+  end
+
+  def category_must_belong_to_user
+    return if category.nil? || user.nil?
+    return if category.user_id == user_id
+
+    errors.add(:category, 'deve pertencer ao mesmo usuário')
   end
 end

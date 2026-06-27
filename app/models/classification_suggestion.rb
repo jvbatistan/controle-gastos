@@ -8,7 +8,26 @@ class ClassificationSuggestion < ApplicationRecord
 
   scope :pending, -> { where(accepted_at: nil, rejected_at: nil) }
 
+  validate :transaction_must_belong_to_user
+  validate :suggested_category_must_belong_to_user
+
   def pending?
     accepted_at.nil? && rejected_at.nil?
+  end
+
+  private
+
+  def transaction_must_belong_to_user
+    return if financial_transaction.nil? || user.nil?
+    return if financial_transaction.user_id == user_id
+
+    errors.add(:financial_transaction, 'deve pertencer ao mesmo usuário')
+  end
+
+  def suggested_category_must_belong_to_user
+    return if suggested_category.nil? || user.nil?
+    return if suggested_category.user_id == user_id
+
+    errors.add(:suggested_category, 'deve pertencer ao mesmo usuário')
   end
 end

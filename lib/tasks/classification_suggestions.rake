@@ -184,12 +184,12 @@ namespace :classification do
           if gid.present?
             Transactions::ApplyCategoryToInstallmentGroupService.new(
               transaction: tx,
-              category_id: suggestion.suggested_category_id
+              category: suggestion.suggested_category
             ).call
 
-            tx_ids = Transaction.where(installment_group_id: gid).pluck(:id)
+            tx_ids = tx.user.transactions.where(installment_group_id: gid).pluck(:id)
             now = Time.current
-            ClassificationSuggestion.where(
+            tx.user.classification_suggestions.where(
               financial_transaction_id: tx_ids,
               accepted_at: nil,
               rejected_at: nil

@@ -1,19 +1,20 @@
 module Merchants
   class UpsertAliasService
-    def initialize(user:, description:, category_id:, confidence: 0.95, source: :user_override)
+    def initialize(user:, description:, category:, confidence: 0.95, source: :user_override)
       @user        = user
       @description = description
-      @category_id = category_id
+      @category    = category
       @confidence  = confidence.to_f
       @source      = source
     end
 
     def call
+      category = @user.categories.find(@category.id)
       merchant = Merchants::Canonicalize.call(@description)
       return if merchant.blank?
 
       @user.merchant_aliases.find_or_initialize_by(normalized_merchant: merchant).tap do |alias_record|
-        alias_record.category_id = @category_id
+        alias_record.category = category
         alias_record.confidence  = [@confidence, 0.95].max
         alias_record.source      = @source
         alias_record.save!

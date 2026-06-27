@@ -19,8 +19,10 @@ module Transactions
 
       result = Transactions::SuggestCategoryService.new(@transaction).call
 
-      if result&.suggested_category.present? && result.confidence.to_f >= 0.95
-        apply_category(result.suggested_category)
+      suggested_category = owned_category(result&.suggested_category)
+
+      if suggested_category.present? && result.confidence.to_f >= 0.95
+        apply_category(suggested_category)
         clear_pending_suggestions!
         return nil
       end
@@ -28,7 +30,7 @@ module Transactions
       ClassificationSuggestion.create!(
         user: @user,
         financial_transaction_id: @transaction.id,
-        suggested_category: result&.suggested_category,
+        suggested_category: suggested_category,
         confidence: result&.confidence || 0.0,
         source: ClassificationSuggestion.sources[result&.source || :rule]
       )
@@ -40,15 +42,15 @@ module Transactions
       if @transaction.installment_group_id.present?
         Transactions::ApplyCategoryToInstallmentGroupService.new(
           transaction: @transaction,
-          category_id: category.id
+          category: category
         ).call
       else
-        @transaction.update!(category_id: category.id)
+        @transaction.update!(category: category)
       end
     end
 
     def clear_pending_suggestions!
-      scope = ClassificationSuggestion.pending.where(financial_transaction_id: suggestion_target_ids)
+      scope = @user.classification_suggestions.pending.where(financial_transaction_id: suggestion_target_ids)
       scope.delete_all
     end
 
@@ -56,13 +58,23 @@ module Transactions
       gid = @transaction.installment_group_id
       return nil if gid.blank?
 
-      ClassificationSuggestion.where(financial_transaction_id: suggestion_target_ids).pending.order(created_at: :desc).first
+      @user.classification_suggestions
+           .where(financial_transaction_id: suggestion_target_ids)
+           .pending
+           .order(created_at: :desc)
+           .first
     end
 
     def suggestion_target_ids
       return [@transaction.id] if @transaction.installment_group_id.blank?
 
-      Transaction.where(installment_group_id: @transaction.installment_group_id).pluck(:id)
+      @user.transactions.where(installment_group_id: @transaction.installment_group_id).pluck(:id)
+    end
+
+    def owned_category(category)
+      return nil if category.nil?
+
+      @user.categories.find(category.id)
     end
   end
 end

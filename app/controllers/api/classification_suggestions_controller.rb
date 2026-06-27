@@ -6,7 +6,7 @@ class Api::ClassificationSuggestionsController < Api::BaseController
     suggestions = current_user.classification_suggestions
                               .pending
                               .joins(:financial_transaction)
-                              .merge(Transaction.active)
+                              .merge(current_user.transactions.active)
                               .includes(:financial_transaction, :suggested_category)
                               .order(created_at: :desc)
 
@@ -14,23 +14,24 @@ class Api::ClassificationSuggestionsController < Api::BaseController
   end
 
   def accept
-    category_id = @suggestion.suggested_category_id
     transaction = @suggestion.financial_transaction
 
-    if category_id.blank?
+    if @suggestion.suggested_category_id.blank?
       return render json: { error: 'Suggestion has no suggested category' }, status: :unprocessable_entity
     end
 
+    category = owned_category!(@suggestion.suggested_category_id)
+
     Transaction.transaction do
-      transaction.update!(category_id: category_id)
+      transaction.update!(category: category)
       @suggestion.update!(accepted_at: Time.current)
 
-      propagate_to_installment_group!(transaction, category_id, mark_as: :accepted)
+      propagate_to_installment_group!(transaction, category, mark_as: :accepted)
 
       Merchants::UpsertAliasService.new(
         user: current_user,
         description: transaction.description,
-        category_id: category_id,
+        category: category,
         confidence: @suggestion.confidence,
         source: :user_override
       ).call
@@ -44,10 +45,11 @@ class Api::ClassificationSuggestionsController < Api::BaseController
 
   def reject
     transaction = @suggestion.financial_transaction
+    category = owned_category!(transaction.category_id)
 
     Transaction.transaction do
       @suggestion.update!(rejected_at: Time.current)
-      propagate_to_installment_group!(transaction, transaction.category_id, mark_as: :rejected)
+      propagate_to_installment_group!(transaction, category, mark_as: :rejected)
     end
 
     transaction.reload
@@ -57,21 +59,22 @@ class Api::ClassificationSuggestionsController < Api::BaseController
   end
 
   def correct
-    category_id = params.dig(:classification_suggestion, :category_id)
-    return render json: { error: 'category_id is required' }, status: :unprocessable_entity if category_id.blank?
+    requested_category_id = params.dig(:classification_suggestion, :category_id)
+    return render json: { error: 'category_id is required' }, status: :unprocessable_entity if requested_category_id.blank?
 
     transaction = @suggestion.financial_transaction
+    category = owned_category!(requested_category_id)
 
     Transaction.transaction do
-      transaction.update!(category_id: category_id)
+      transaction.update!(category: category)
       @suggestion.update!(rejected_at: Time.current)
 
-      propagate_to_installment_group!(transaction, category_id, mark_as: :rejected)
+      propagate_to_installment_group!(transaction, category, mark_as: :rejected)
 
       Merchants::UpsertAliasService.new(
         user: current_user,
         description: transaction.description,
-        category_id: category_id,
+        category: category,
         confidence: 1.0,
         source: :user_override
       ).call
@@ -88,21 +91,27 @@ class Api::ClassificationSuggestionsController < Api::BaseController
   def set_suggestion
     @suggestion = current_user.classification_suggestions
                                .joins(:financial_transaction)
-                               .merge(Transaction.active)
+                               .merge(current_user.transactions.active)
                                .find(params[:id])
   end
 
-  def propagate_to_installment_group!(transaction, category_id, mark_as:)
+  def owned_category!(category_id)
+    return nil if category_id.blank?
+
+    current_user.categories.find(category_id)
+  end
+
+  def propagate_to_installment_group!(transaction, category, mark_as:)
     gid = transaction.installment_group_id
     return 0 if gid.blank?
 
     Transactions::ApplyCategoryToInstallmentGroupService.new(
       transaction: transaction,
-      category_id: category_id
+      category: category
     ).call
 
-    tx_ids = Transaction.where(installment_group_id: gid).pluck(:id)
-    scope = ClassificationSuggestion.pending.where(financial_transaction_id: tx_ids)
+    tx_ids = transaction.user.transactions.where(installment_group_id: gid).pluck(:id)
+    scope = current_user.classification_suggestions.pending.where(financial_transaction_id: tx_ids)
     now = Time.current
 
     if mark_as == :accepted
@@ -114,6 +123,8 @@ class Api::ClassificationSuggestionsController < Api::BaseController
 
   def suggestion_json(suggestion)
     transaction = suggestion.financial_transaction
+    suggested_category = current_user.categories.find_by(id: suggestion.suggested_category_id)
+    transaction_category = current_user.categories.find_by(id: transaction.category_id)
 
     {
       id: suggestion.id,
@@ -121,14 +132,14 @@ class Api::ClassificationSuggestionsController < Api::BaseController
       source: suggestion.source,
       accepted_at: suggestion.accepted_at,
       rejected_at: suggestion.rejected_at,
-      suggested_category: suggestion.suggested_category&.as_json(only: %i[id name]),
+      suggested_category: suggested_category&.as_json(only: %i[id name]),
       financial_transaction: {
         id: transaction.id,
         description: transaction.description,
         date: transaction.date,
         value: transaction.value,
         kind: transaction.kind,
-        category: transaction.category&.as_json(only: %i[id name]),
+        category: transaction_category&.as_json(only: %i[id name]),
         installment_group_id: transaction.installment_group_id,
         installment_number: transaction.installment_number,
         installments_count: transaction.installments_count,

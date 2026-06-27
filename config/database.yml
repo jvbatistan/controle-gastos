@@ -10,7 +10,7 @@ development:
 
 test:
   <<: *default
-  url: <%= ENV["DATABASE_URL_TEST"] || ENV["DATABASE_URL"] %>
+  url: <%= ENV["DATABASE_URL_TEST"] %>
 
 production:
   <<: *default

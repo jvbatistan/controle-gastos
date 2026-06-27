@@ -9,7 +9,12 @@ RSpec.describe Transaction, type: :model do
   describe 'validations' do
     it { should validate_presence_of(:description) }
     it { should validate_presence_of(:value) }
-    it { should validate_numericality_of(:value).is_greater_than(0) }
+    it 'requires a value greater than zero after normalizing the sign' do
+      transaction = build(:transaction, value: 0)
+
+      expect(transaction).not_to be_valid
+      expect(transaction.errors[:value]).to include('deve ser maior que 0')
+    end
 
     it { should validate_presence_of(:date) }
     it { should validate_presence_of(:kind) }
@@ -41,6 +46,16 @@ RSpec.describe Transaction, type: :model do
       transaction = build(:transaction, description: 'Pagamento de farmacia sao jose', source: :card, refund: false)
 
       expect(transaction).to be_valid
+    end
+
+    it 'rejects a category owned by another user' do
+      user = create(:user)
+      other_user = create(:user)
+      other_category = create(:category, user: other_user)
+      transaction = build(:transaction, user: user, category: other_category)
+
+      expect(transaction).not_to be_valid
+      expect(transaction.errors[:category]).to include('deve pertencer ao mesmo usuário')
     end
   end
   

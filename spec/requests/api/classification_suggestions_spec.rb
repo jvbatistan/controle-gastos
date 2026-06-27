@@ -70,6 +70,29 @@ RSpec.describe 'Api::ClassificationSuggestions', type: :request do
       expect(user.merchant_aliases.find_by(normalized_merchant: 'UBER').category_id).to eq(category.id)
       expect(body.dig('financial_transaction', 'classification_status')).to eq('classified')
     end
+
+    it 'does not accept a historically inconsistent suggestion pointing to another user category' do
+      other_user = create(:user)
+      other_category = create(:category, user: other_user)
+      own_category = create(:category, user: user)
+      transaction = create(:transaction, user: user, card: nil, category: nil, source: :cash)
+      transaction.classification_suggestions.delete_all
+      suggestion = user.classification_suggestions.create!(
+        financial_transaction: transaction,
+        suggested_category: own_category,
+        confidence: 0.97,
+        source: :alias
+      )
+      suggestion.update_column(:suggested_category_id, other_category.id)
+
+      post "/api/classification_suggestions/#{suggestion.id}/accept"
+
+      expect(response).to have_http_status(:not_found)
+      expect(JSON.parse(response.body)).to eq('error' => 'Not found')
+      expect(transaction.reload.category_id).to be_nil
+      expect(suggestion.reload.accepted_at).to be_nil
+      expect(user.merchant_aliases).to be_empty
+    end
   end
 
   describe 'POST /api/classification_suggestions/:id/reject' do
@@ -167,6 +190,37 @@ RSpec.describe 'Api::ClassificationSuggestions', type: :request do
 
       expect(transaction.category_id).to eq(corrected_category.id)
       expect(suggestion.rejected_at).to be_present
+      expect(user.merchant_aliases).to be_empty
+    end
+
+    it 'does not apply or learn an alias for a category from another user' do
+      other_user = create(:user)
+      other_category = create(:category, user: other_user)
+      suggested_category = create(:category, user: user)
+      transaction = create(
+        :transaction,
+        user: user,
+        card: nil,
+        category: nil,
+        source: :cash,
+        description: 'Uber Eats Pedido'
+      )
+      transaction.classification_suggestions.delete_all
+      suggestion = user.classification_suggestions.create!(
+        financial_transaction: transaction,
+        suggested_category: suggested_category,
+        confidence: 0.6,
+        source: :rule
+      )
+
+      post "/api/classification_suggestions/#{suggestion.id}/correct", params: {
+        classification_suggestion: { category_id: other_category.id }
+      }
+
+      expect(response).to have_http_status(:not_found)
+      expect(JSON.parse(response.body)).to eq('error' => 'Not found')
+      expect(transaction.reload.category_id).to be_nil
+      expect(suggestion.reload.rejected_at).to be_nil
       expect(user.merchant_aliases).to be_empty
     end
   end

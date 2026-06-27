@@ -1,4 +1,7 @@
 class CardStatement < ApplicationRecord
+  class PaymentExceedsRemainingAmount < ArgumentError; end
+  class AlreadyPaid < ArgumentError; end
+
   belongs_to :card
   has_many :card_statement_payments, dependent: :destroy
 
@@ -28,18 +31,28 @@ class CardStatement < ApplicationRecord
 
   def apply_payment!(value, paid_at: Time.zone.now)
     v = value.to_d
-    raise ArgumentError, "Pagamento deve ser > 0" if v <= 0
 
-    card_statement_payments.create!(
-      amount: v,
-      paid_at: paid_at,
-      description: "Pagamento da fatura",
-      source: "manual"
-    )
+    with_lock do
+      sync_paid_amount!
 
-    reload
+      available_amount = remaining_amount
+      raise AlreadyPaid, "Fatura já está quitada." if available_amount <= 0
+      raise ArgumentError, "Pagamento deve ser > 0" if v <= 0
+      if v > available_amount
+        raise PaymentExceedsRemainingAmount, "Pagamento excede o saldo restante da fatura. Saldo atual: #{format_decimal(available_amount)}"
+      end
 
-    mark_transactions_as_paid! if paid?
+      card_statement_payments.create!(
+        amount: v,
+        paid_at: paid_at,
+        description: "Pagamento da fatura",
+        source: "manual"
+      )
+
+      reload
+
+      mark_transactions_as_paid! if paid?
+    end
   end
 
   def sync_paid_amount!
@@ -62,5 +75,9 @@ class CardStatement < ApplicationRecord
     else
       Transaction.active.where("card_id IS NULL AND date >= ? AND date <= ? and paid IS false", start_date, end_date).update_all(paid: true, updated_at: Time.current)
     end
+  end
+
+  def format_decimal(value)
+    value.to_d.to_s("F")
   end
 end

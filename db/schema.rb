@@ -16,7 +16,7 @@ ActiveRecord::Schema.define(version: 2026_06_22_123000) do
   enable_extension "pg_stat_statements"
   enable_extension "pgcrypto"
   enable_extension "plpgsql"
-  enable_extension "supabase_vault"
+  enable_extension "supabase_vault" if ActiveRecord::Base.connection.extension_available?("supabase_vault")
   enable_extension "uuid-ossp"
 
   create_table "card_statement_payments", force: :cascade do |t|
@@ -147,7 +147,6 @@ ActiveRecord::Schema.define(version: 2026_06_22_123000) do
     t.boolean "active", default: true, null: false
     t.index ["email"], name: "index_users_on_email", unique: true
     t.index ["reset_password_token"], name: "index_users_on_reset_password_token", unique: true
-    t.check_constraint "(email_change_confirm_status >= 0) AND (email_change_confirm_status <= 2)", name: "users_email_change_confirm_status_check"
   end
 
   create_table "versions", force: :cascade do |t|
