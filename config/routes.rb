@@ -12,7 +12,11 @@ Rails.application.routes.draw do
     post "login",    to: "sessions#create"
     delete "logout", to: "sessions#destroy"
 
-    resources :transactions, only: [:index, :create, :update, :destroy]
+    resources :transactions, only: [:index, :create, :update, :destroy] do
+      collection do
+        get :export_csv
+      end
+    end
     resources :classification_suggestions, only: [:index] do
       member do
         post :accept

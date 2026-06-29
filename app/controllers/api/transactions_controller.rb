@@ -3,53 +3,18 @@ class Api::TransactionsController < Api::BaseController
   before_action :set_transaction, only: %i[update destroy]
 
   def index
-    scope = current_user.transactions.active.includes(:category, :card, :classification_suggestions).order(date: :desc, id: :desc)
+    render json: filtered_transactions_scope.map { |transaction| tx_json(transaction) }
+  end
 
-    month   = params[:month].presence
-    year    = params[:year].presence
-    card_id = params[:card_id].presence
+  def export_csv
+    csv = Transactions::CsvExportService.call(filtered_transactions_scope)
 
-    if card_id.present?
-      if card_id == 'none'
-        scope = scope.where(card_id: nil)
-      elsif current_user.cards.exists?(card_id)
-        scope = scope.where(card_id: card_id)
-      else
-        scope = scope.none
-      end
-    end
-
-    if month.present? && year.present?
-      month_i = month.to_i
-      year_i  = year.to_i
-
-      begin
-        start_date = Date.new(year_i, month_i, 1)
-        end_date   = start_date.end_of_month
-      rescue Date::Error
-        scope = scope.none
-        start_date = nil
-        end_date = nil
-      end
-
-      if start_date && end_date
-        if card_id.blank?
-          scope = scope.where(
-            '(card_id IS NOT NULL AND billing_statement >= ? AND billing_statement <= ?) OR (card_id IS NULL AND date >= ? AND date <= ?)',
-            start_date, end_date, start_date, end_date
-          )
-        elsif card_id == 'none'
-          scope = scope.where(date: start_date..end_date)
-        else
-          scope = scope.where(billing_statement: start_date..end_date)
-        end
-      end
-    end
-
-    limit = params[:limit].presence&.to_i || 50
-    limit = 200 if limit > 200
-
-    render json: scope.limit(limit).map { |transaction| tx_json(transaction) }
+    send_data(
+      "\uFEFF#{csv}",
+      filename: "finch-transacoes-#{Time.zone.today.iso8601}.csv",
+      type: 'text/csv; charset=utf-8',
+      disposition: 'attachment'
+    )
   end
 
   def create
@@ -134,6 +99,57 @@ class Api::TransactionsController < Api::BaseController
 
   def set_transaction
     @transaction = current_user.transactions.active.find(params[:id])
+  end
+
+  def filtered_transactions_scope
+    scope = current_user.transactions.active.includes(:category, :card, :classification_suggestions).order(date: :desc, id: :desc)
+
+    month   = params[:month].presence
+    year    = params[:year].presence
+    card_id = params[:card_id].presence
+
+    scope = apply_card_filter(scope, card_id)
+    scope = apply_period_filter(scope, month, year, card_id)
+    scope.limit(transactions_limit)
+  end
+
+  def apply_card_filter(scope, card_id)
+    return scope if card_id.blank?
+
+    if card_id == 'none'
+      scope.where(card_id: nil)
+    elsif current_user.cards.exists?(card_id)
+      scope.where(card_id: card_id)
+    else
+      scope.none
+    end
+  end
+
+  def apply_period_filter(scope, month, year, card_id)
+    return scope if month.blank? || year.blank?
+
+    begin
+      start_date = Date.new(year.to_i, month.to_i, 1)
+      end_date   = start_date.end_of_month
+    rescue Date::Error
+      return scope.none
+    end
+
+    if card_id.blank?
+      scope.where(
+        '(card_id IS NOT NULL AND billing_statement >= ? AND billing_statement <= ?) OR (card_id IS NULL AND date >= ? AND date <= ?)',
+        start_date, end_date, start_date, end_date
+      )
+    elsif card_id == 'none'
+      scope.where(date: start_date..end_date)
+    else
+      scope.where(billing_statement: start_date..end_date)
+    end
+  end
+
+  def transactions_limit
+    limit = params[:limit].presence&.to_i || 50
+    [limit, 200].min
   end
 
   def transaction_params
