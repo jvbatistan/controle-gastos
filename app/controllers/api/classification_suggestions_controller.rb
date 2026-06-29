@@ -22,20 +22,13 @@ class Api::ClassificationSuggestionsController < Api::BaseController
 
     category = owned_category!(@suggestion.suggested_category_id)
 
-    Transaction.transaction do
-      transaction.update!(category: category)
-      @suggestion.update!(accepted_at: Time.current)
-
-      propagate_to_installment_group!(transaction, category, mark_as: :accepted)
-
-      Merchants::UpsertAliasService.new(
-        user: current_user,
-        description: transaction.description,
-        category: category,
-        confidence: @suggestion.confidence,
-        source: :user_override
-      ).call
-    end
+    Transactions::ApplyClassificationService.call(
+      suggestion: @suggestion,
+      category: category,
+      learn: true,
+      mark_as: :accepted,
+      alias_confidence: @suggestion.confidence
+    )
 
     transaction.reload
     @suggestion.reload
@@ -65,20 +58,13 @@ class Api::ClassificationSuggestionsController < Api::BaseController
     transaction = @suggestion.financial_transaction
     category = owned_category!(requested_category_id)
 
-    Transaction.transaction do
-      transaction.update!(category: category)
-      @suggestion.update!(rejected_at: Time.current)
-
-      propagate_to_installment_group!(transaction, category, mark_as: :rejected)
-
-      Merchants::UpsertAliasService.new(
-        user: current_user,
-        description: transaction.description,
-        category: category,
-        confidence: 1.0,
-        source: :user_override
-      ).call
-    end
+    Transactions::ApplyClassificationService.call(
+      suggestion: @suggestion,
+      category: category,
+      learn: true,
+      mark_as: :rejected,
+      alias_confidence: 1.0
+    )
 
     transaction.reload
     @suggestion.reload
