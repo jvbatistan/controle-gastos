@@ -9,10 +9,12 @@ class Api::DashboardController < Api::BaseController
         label: I18n.l(period_start, format: "%B/%Y")
       },
       summary: {
-        expenses_total: signed_sum(period_expenses),
+        incomes_total: incomes_total,
+        expenses_total: expenses_total,
+        balance_total: incomes_total - expenses_total,
         open_total: signed_sum(period_expenses.where(paid: false)),
         paid_total: signed_sum(period_expenses.where(paid: true)),
-        transactions_count: period_expenses.count
+        transactions_count: period_expenses.count + period_incomes.count
       },
       monthly_trend: monthly_trend,
       by_card: totals_by_card,
@@ -50,6 +52,10 @@ class Api::DashboardController < Api::BaseController
     current_user.transactions.active.expenses.includes(:category, :card)
   end
 
+  def base_incomes_scope
+    current_user.transactions.active.incomes.includes(:category)
+  end
+
   def period_expenses
     @period_expenses ||= base_expenses_scope.where(
       "(card_id IS NOT NULL AND billing_statement BETWEEN ? AND ?) OR (card_id IS NULL AND date BETWEEN ? AND ?)",
@@ -58,6 +64,18 @@ class Api::DashboardController < Api::BaseController
       period_start,
       period_end
     )
+  end
+
+  def period_incomes
+    @period_incomes ||= base_incomes_scope.where(date: period_start..period_end)
+  end
+
+  def incomes_total
+    @incomes_total ||= signed_sum(period_incomes)
+  end
+
+  def expenses_total
+    @expenses_total ||= signed_sum(period_expenses)
   end
 
   def totals_by_card

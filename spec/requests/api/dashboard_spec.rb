@@ -12,6 +12,7 @@ RSpec.describe "Api::Dashboard", type: :request do
       food = create(:category, user: user, name: "Alimentação")
       travel = create(:category, user: user, name: "Transporte")
       card = create(:card, user: user, name: "Nubank", due_day: 15, closing_day: 8)
+      other_user = create(:user)
 
       create(
         :transaction,
@@ -69,6 +70,42 @@ RSpec.describe "Api::Dashboard", type: :request do
         paid: false,
         description: "Mes anterior"
       )
+      create(
+        :transaction,
+        user: user,
+        category: nil,
+        kind: :income,
+        source: :bank,
+        card: nil,
+        date: Date.new(2026, 4, 5),
+        value: 1_000,
+        paid: true,
+        description: "Salário"
+      )
+      create(
+        :transaction,
+        user: user,
+        category: nil,
+        kind: :income,
+        source: :bank,
+        card: nil,
+        date: Date.new(2026, 3, 31),
+        value: 500,
+        paid: true,
+        description: "Receita fora do mês"
+      )
+      create(
+        :transaction,
+        user: other_user,
+        category: nil,
+        kind: :income,
+        source: :bank,
+        card: nil,
+        date: Date.new(2026, 4, 5),
+        value: 2_000,
+        paid: true,
+        description: "Receita de outro usuário"
+      )
       statement = card.sync_statement!(4, 2026)
       create(:card_statement_payment, card_statement: statement, amount: 30, description: "Pagamento recebido")
 
@@ -80,10 +117,12 @@ RSpec.describe "Api::Dashboard", type: :request do
 
       expect(body["period"]).to include("month" => 4, "year" => 2026)
       expect(body["summary"]).to eq(
+        "incomes_total" => "1000.0",
         "expenses_total" => "240.0",
+        "balance_total" => "760.0",
         "open_total" => "120.0",
         "paid_total" => "120.0",
-        "transactions_count" => 4
+        "transactions_count" => 5
       )
 
       expect(body["monthly_trend"].size).to eq(7)
