@@ -19,6 +19,7 @@ Rails.application.routes.draw do
     end
     resources :classification_suggestions, only: [:index] do
       member do
+        post :apply
         post :accept
         post :reject
         post :correct

@@ -1,6 +1,6 @@
 class Api::ClassificationSuggestionsController < Api::BaseController
   before_action :authenticate_user!
-  before_action :set_suggestion, only: %i[accept reject correct]
+  before_action :set_suggestion, only: %i[apply accept reject correct]
 
   def index
     suggestions = current_user.classification_suggestions
@@ -28,6 +28,31 @@ class Api::ClassificationSuggestionsController < Api::BaseController
       learn: true,
       mark_as: :accepted,
       alias_confidence: @suggestion.confidence
+    )
+
+    transaction.reload
+    @suggestion.reload
+
+    render json: suggestion_json(@suggestion), status: :ok
+  end
+
+  def apply
+    requested_category_id = params[:category_id]
+    return render json: { error: 'category_id is required' }, status: :unprocessable_entity if requested_category_id.blank?
+
+    learn = parsed_learn_param
+    return render json: { error: 'learn is required' }, status: :unprocessable_entity if learn == :missing
+    return render json: { error: 'learn must be a boolean' }, status: :unprocessable_entity if learn == :invalid
+
+    transaction = @suggestion.financial_transaction
+    category = owned_category!(requested_category_id)
+
+    Transactions::ApplyClassificationService.call(
+      suggestion: @suggestion,
+      category: category,
+      learn: learn,
+      mark_as: :accepted,
+      alias_confidence: 1.0
     )
 
     transaction.reload
@@ -85,6 +110,20 @@ class Api::ClassificationSuggestionsController < Api::BaseController
     return nil if category_id.blank?
 
     current_user.categories.find(category_id)
+  end
+
+  def parsed_learn_param
+    return :missing unless params.key?(:learn)
+    return params[:learn] if params[:learn] == true || params[:learn] == false
+
+    case params[:learn].to_s.strip.downcase
+    when 'true', '1'
+      true
+    when 'false', '0'
+      false
+    else
+      :invalid
+    end
   end
 
   def propagate_to_installment_group!(transaction, category, mark_as:)
