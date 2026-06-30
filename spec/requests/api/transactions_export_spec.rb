@@ -134,5 +134,39 @@ RSpec.describe 'Api::Transactions CSV export', type: :request do
       expect(row['Criado em']).to match(/\A\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\z/)
       expect(row['Atualizado em']).to match(/\A\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\z/)
     end
+
+    it 'exports income rows without card, statement, installment or payment ignore fields' do
+      income = create(
+        :transaction,
+        user: user,
+        card: nil,
+        kind: :income,
+        source: :bank,
+        date: Date.new(2026, 6, 30),
+        value: BigDecimal('3500'),
+        paid: false,
+        description: 'Salario mensal'
+      )
+
+      get '/api/transactions/export_csv', params: { card_id: 'none', month: 6, year: 2026 }
+
+      row = parsed_csv.first
+      expect(row.to_h).to include(
+        'ID' => income.id.to_s,
+        'Data' => '2026-06-30',
+        'Competência/Fatura' => '',
+        'Descrição' => 'SALARIO MENSAL',
+        'Tipo' => 'receita',
+        'Origem' => 'banco',
+        'Cartão' => '',
+        'Valor' => '3500.00',
+        'Valor assinado' => '3500.00',
+        'Pago?' => 'sim',
+        'Parcela atual' => '',
+        'Total de parcelas' => '',
+        'Grupo de parcelamento' => '',
+        'Ignorado no pagamento?' => 'não'
+      )
+    end
   end
 end

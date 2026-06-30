@@ -131,6 +131,123 @@ RSpec.describe 'Api::Transactions', type: :request do
       expect(user.transactions.find(JSON.parse(response.body)['id']).category).to eq(category)
     end
 
+    it 'creates a simple income without requiring card, statement or installment fields' do
+      post '/api/transactions', params: {
+        transaction: {
+          description: 'Salario mensal',
+          value: '3500,00',
+          date: Date.new(2026, 6, 30),
+          kind: 'income'
+        }
+      }
+
+      expect(response).to have_http_status(:created)
+
+      body = JSON.parse(response.body)
+      transaction = user.transactions.find(body['id'])
+
+      expect(transaction.kind).to eq('income')
+      expect(transaction.source).to eq('bank')
+      expect(transaction.value.to_d).to eq(BigDecimal('3500'))
+      expect(transaction.paid).to eq(true)
+      expect(transaction.card_id).to be_nil
+      expect(transaction.billing_statement).to be_nil
+      expect(transaction.installment_group_id).to be_nil
+      expect(transaction.installment_number).to be_nil
+      expect(transaction.installments_count).to be_nil
+      expect(transaction.payment_ignored_at).to be_nil
+      expect(transaction.refund).to eq(false)
+      expect(body['kind']).to eq('income')
+      expect(body['source']).to eq('bank')
+      expect(body['paid']).to eq(true)
+      expect(body['card']).to be_nil
+      expect(body['billing_statement']).to be_nil
+    end
+
+    it 'rejects income with source card' do
+      post '/api/transactions', params: {
+        transaction: {
+          description: 'Receita no cartao',
+          value: '100,00',
+          date: Date.current,
+          kind: 'income',
+          source: 'card'
+        }
+      }
+
+      expect(response).to have_http_status(:unprocessable_entity)
+      expect(JSON.parse(response.body)['error']).to include('Source não pode ser cartão para receitas')
+    end
+
+    it 'rejects income with a card' do
+      card = create(:card, user: user)
+
+      post '/api/transactions', params: {
+        transaction: {
+          description: 'Receita com cartao',
+          value: '100,00',
+          date: Date.current,
+          kind: 'income',
+          source: 'bank',
+          card_id: card.id
+        }
+      }
+
+      expect(response).to have_http_status(:unprocessable_entity)
+      expect(JSON.parse(response.body)['error']).to include('Card não deve existir para receitas')
+    end
+
+    it 'rejects income with a billing statement' do
+      post '/api/transactions', params: {
+        transaction: {
+          description: 'Receita com fatura',
+          value: '100,00',
+          date: Date.current,
+          kind: 'income',
+          source: 'bank',
+          billing_statement: '2026-07-01'
+        }
+      }
+
+      expect(response).to have_http_status(:unprocessable_entity)
+      expect(JSON.parse(response.body)['error']).to include('Billing statement não deve existir para receitas')
+    end
+
+    it 'rejects income with installment params before generating installments' do
+      expect do
+        post '/api/transactions', params: {
+          transaction: {
+            description: 'Receita parcelada',
+            value: '100,00',
+            date: Date.current,
+            kind: 'income',
+            source: 'bank',
+            installment_number: 1,
+            installments_count: 2
+          }
+        }
+      end.not_to change(Transaction, :count)
+
+      expect(response).to have_http_status(:unprocessable_entity)
+      expect(JSON.parse(response.body)['error']).to eq('Receita não pode ser parcelada')
+    end
+
+    it 'rejects income with refund flag' do
+      post '/api/transactions', params: {
+        transaction: {
+          description: 'Receita estorno',
+          value: '100,00',
+          date: Date.current,
+          kind: 'income',
+          source: 'bank',
+          refund: true
+        }
+      }
+
+      expect(response).to have_http_status(:unprocessable_entity)
+      expect(JSON.parse(response.body)['error']).to include('Refund não pode ser verdadeiro para receitas')
+    end
+
     it 'accepts a card refund and returns its signed value' do
       card = create(:card, user: user)
 

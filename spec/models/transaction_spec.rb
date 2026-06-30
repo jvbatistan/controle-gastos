@@ -57,8 +57,106 @@ RSpec.describe Transaction, type: :model do
       expect(transaction).not_to be_valid
       expect(transaction.errors[:category]).to include('deve pertencer ao mesmo usuário')
     end
+
+    it 'accepts a simple income without card, statement, installment or payment-flow fields' do
+      transaction = build(:transaction, kind: :income, source: :bank, card: nil, paid: false)
+
+      expect(transaction).to be_valid
+      expect(transaction.paid).to eq(true)
+      expect(transaction.card_id).to be_nil
+      expect(transaction.billing_statement).to be_nil
+      expect(transaction.installment_group_id).to be_nil
+      expect(transaction.installment_number).to be_nil
+      expect(transaction.installments_count).to be_nil
+      expect(transaction.payment_ignored_at).to be_nil
+      expect(transaction.refund).to eq(false)
+    end
+
+    it 'does not require card or billing statement for income' do
+      transaction = build(:transaction, kind: :income, source: :cash, card: nil)
+
+      expect(transaction).to be_valid
+      expect(transaction.billing_statement).to be_nil
+    end
+
+    it 'rejects income with source card' do
+      transaction = build(:transaction, kind: :income, source: :card, card: nil)
+
+      expect(transaction).not_to be_valid
+      expect(transaction.errors[:source]).to include('não pode ser cartão para receitas')
+    end
+
+    it 'rejects income with a card' do
+      card = create(:card)
+      transaction = build(:transaction, kind: :income, source: :bank, card: card)
+
+      expect(transaction).not_to be_valid
+      expect(transaction.errors[:card]).to include('não deve existir para receitas')
+    end
+
+    it 'rejects income with a billing statement' do
+      transaction = build(:transaction, kind: :income, source: :bank, card: nil, billing_statement: Date.new(2026, 7, 1))
+
+      expect(transaction).not_to be_valid
+      expect(transaction.errors[:billing_statement]).to include('não deve existir para receitas')
+    end
+
+    it 'rejects income with installment fields' do
+      transaction = build(
+        :transaction,
+        kind: :income,
+        source: :bank,
+        card: nil,
+        installment_group_id: SecureRandom.uuid,
+        installment_number: 1,
+        installments_count: 3
+      )
+
+      expect(transaction).not_to be_valid
+      expect(transaction.errors[:base]).to include('receita não pode ser parcelada')
+    end
+
+    it 'rejects income with payment ignored timestamp' do
+      transaction = build(:transaction, kind: :income, source: :bank, card: nil, payment_ignored_at: Time.current)
+
+      expect(transaction).not_to be_valid
+      expect(transaction.errors[:payment_ignored_at]).to include('não deve existir para receitas')
+    end
+
+    it 'rejects income with refund flag' do
+      transaction = build(:transaction, kind: :income, source: :bank, card: nil, refund: true)
+
+      expect(transaction).not_to be_valid
+      expect(transaction.errors[:refund]).to include('não pode ser verdadeiro para receitas')
+    end
+
+    it 'keeps card expenses valid' do
+      transaction = build(:transaction, kind: :expense, source: :card)
+
+      expect(transaction).to be_valid
+    end
+
+    it 'keeps installment expenses valid' do
+      transaction = build(
+        :transaction,
+        kind: :expense,
+        source: :card,
+        installment_group_id: SecureRandom.uuid,
+        installment_number: 1,
+        installments_count: 3
+      )
+
+      expect(transaction).to be_valid
+    end
+
+    it 'keeps expense refunds valid when they are card expenses without installments' do
+      card = create(:card)
+      transaction = build(:transaction, kind: :expense, source: :card, card: card, refund: true)
+
+      expect(transaction).to be_valid
+    end
   end
-  
+
   describe 'enums' do
     it do
       expect(described_class.kinds).to eq(
@@ -93,7 +191,7 @@ RSpec.describe Transaction, type: :model do
       it 'retorna receitas - despesas do mês/ano informado' do
         data = Date.new(2025, 11, 1)
 
-        create(:transaction, kind: :income,  value: 1000.0, date: data)
+        create(:transaction, kind: :income, source: :bank, card: nil, value: 1000.0, date: data)
         create(:transaction, kind: :expense, value:  200.0, date: data)
 
         expect(Transaction.balance_for(11, 2025)).to eq(800.0)

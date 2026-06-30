@@ -18,10 +18,14 @@ class Api::TransactionsController < Api::BaseController
   end
 
   def create
-    transaction = current_user.transactions.new(transaction_params)
+    transaction = current_user.transactions.new(create_transaction_params)
 
     unless valid_card_and_category_owner?(transaction)
       return render json: { error: transaction.errors.full_messages.to_sentence }, status: :unprocessable_entity
+    end
+
+    if transaction.income? && income_installment_params_present?
+      return render json: { error: 'Receita não pode ser parcelada' }, status: :unprocessable_entity
     end
 
     if transaction.refund? && installment_request?
@@ -160,6 +164,12 @@ class Api::TransactionsController < Api::BaseController
     )
   end
 
+  def create_transaction_params
+    attrs = transaction_params.to_h
+    attrs['source'] = 'bank' if attrs['kind'] == 'income' && attrs['source'].blank?
+    attrs
+  end
+
   def installment_request?
     requested_installments_count > 1
   end
@@ -170,6 +180,10 @@ class Api::TransactionsController < Api::BaseController
 
   def requested_installments_count
     transaction_params[:installments_count].to_i
+  end
+
+  def income_installment_params_present?
+    transaction_params[:installment_number].present? || transaction_params[:installments_count].present?
   end
 
   def clear_installment_attributes(transaction)

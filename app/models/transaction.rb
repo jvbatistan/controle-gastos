@@ -21,10 +21,12 @@ class Transaction < ApplicationRecord
 
   validate :installment_consistency
   validate :refund_consistency
+  validate :income_consistency
   validate :card_statement_payment_must_not_be_transaction
   validate :category_must_belong_to_user
 
   before_validation :normalize_strings
+  before_validation :normalize_income_defaults
   before_validation :set_billing_statement
 
   after_create_commit :create_initial_category_suggestion
@@ -149,6 +151,8 @@ class Transaction < ApplicationRecord
   end
 
   def set_billing_statement
+    return if income?
+
     if card_id.present? && date.present?
       BillingStatementService.new(self).call
     else
@@ -161,6 +165,12 @@ class Transaction < ApplicationRecord
   def normalize_strings
     self.description = description.to_s.upcase.strip
     self.responsible = responsible.to_s.upcase.strip
+  end
+
+  def normalize_income_defaults
+    return unless income?
+
+    self.paid = true
   end
 
   def create_initial_category_suggestion
@@ -197,6 +207,17 @@ class Transaction < ApplicationRecord
     errors.add(:source, 'deve ser cartão para estornos') unless card?
     errors.add(:card, 'é obrigatório para estornos') if card_id.blank?
     errors.add(:base, 'estorno não pode ser parcelado') if installment_number.present? || installments_count.present? || installment_group_id.present?
+  end
+
+  def income_consistency
+    return unless income?
+
+    errors.add(:source, 'não pode ser cartão para receitas') if card?
+    errors.add(:card, 'não deve existir para receitas') if card_id.present?
+    errors.add(:billing_statement, 'não deve existir para receitas') if billing_statement.present?
+    errors.add(:base, 'receita não pode ser parcelada') if installment_group_id.present? || installment_number.present? || installments_count.present?
+    errors.add(:payment_ignored_at, 'não deve existir para receitas') if payment_ignored_at.present?
+    errors.add(:refund, 'não pode ser verdadeiro para receitas') if refund?
   end
 
   def card_statement_payment_must_not_be_transaction
