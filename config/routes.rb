@@ -25,6 +25,11 @@ Rails.application.routes.draw do
         post :correct
       end
     end
+    resources :accounts, only: [:index, :show, :create, :update, :destroy] do
+      member do
+        patch :restore
+      end
+    end
     resources :categories, only: [:index, :create, :update, :destroy]
     resources :cards, only: [:index, :create, :update, :destroy]
 

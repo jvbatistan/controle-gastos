@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 2026_06_22_123000) do
+ActiveRecord::Schema.define(version: 2026_07_01_090000) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_stat_statements"
@@ -18,6 +18,20 @@ ActiveRecord::Schema.define(version: 2026_06_22_123000) do
   enable_extension "plpgsql"
   enable_extension "supabase_vault" if ActiveRecord::Base.connection.extension_available?("supabase_vault")
   enable_extension "uuid-ossp"
+
+  create_table "accounts", force: :cascade do |t|
+    t.bigint "user_id", null: false
+    t.string "name", null: false
+    t.integer "kind", null: false
+    t.decimal "initial_balance", precision: 12, scale: 2, default: "0.0", null: false
+    t.date "initial_balance_date", null: false
+    t.datetime "archived_at"
+    t.datetime "created_at", precision: 6, null: false
+    t.datetime "updated_at", precision: 6, null: false
+    t.index ["archived_at"], name: "index_accounts_on_archived_at"
+    t.index ["user_id", "name"], name: "index_accounts_on_user_id_and_name", unique: true
+    t.index ["user_id"], name: "index_accounts_on_user_id"
+  end
 
   create_table "card_statement_payments", force: :cascade do |t|
     t.bigint "card_statement_id", null: false
@@ -159,6 +173,7 @@ ActiveRecord::Schema.define(version: 2026_06_22_123000) do
     t.index ["item_type", "item_id"], name: "index_versions_on_item_type_and_item_id"
   end
 
+  add_foreign_key "accounts", "users"
   add_foreign_key "card_statement_payments", "card_statements"
   add_foreign_key "card_statement_payments", "transactions", column: "original_transaction_id"
   add_foreign_key "card_statements", "cards"
