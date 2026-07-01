@@ -119,6 +119,7 @@ RSpec.describe 'Api::Transactions CSV export', type: :request do
         'Observação' => 'Ajuste da compra',
         'Tipo' => 'despesa',
         'Origem' => 'cartão',
+        'Conta' => '',
         'Cartão' => 'NUBANK',
         'Categoria' => 'Mercado',
         'Responsável' => 'MARIA',
@@ -136,9 +137,11 @@ RSpec.describe 'Api::Transactions CSV export', type: :request do
     end
 
     it 'exports income rows without card, statement, installment or payment ignore fields' do
+      account = create(:account, user: user, name: 'Conta Corrente')
       income = create(
         :transaction,
         user: user,
+        account: account,
         card: nil,
         kind: :income,
         source: :bank,
@@ -158,6 +161,7 @@ RSpec.describe 'Api::Transactions CSV export', type: :request do
         'Descrição' => 'SALARIO MENSAL',
         'Tipo' => 'receita',
         'Origem' => 'banco',
+        'Conta' => 'Conta Corrente',
         'Cartão' => '',
         'Valor' => '3500.00',
         'Valor assinado' => '3500.00',

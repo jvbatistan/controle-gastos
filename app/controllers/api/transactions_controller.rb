@@ -41,7 +41,7 @@ class Api::TransactionsController < Api::BaseController
 
       installments = current_user.transactions
                                  .active
-                                 .includes(:category, :card, :classification_suggestions)
+                                 .includes(:category, :card, :account, :classification_suggestions)
                                  .where(installment_group_id: group_id)
                                  .order(:installment_number)
 
@@ -106,7 +106,7 @@ class Api::TransactionsController < Api::BaseController
   end
 
   def filtered_transactions_scope
-    scope = current_user.transactions.active.includes(:category, :card, :classification_suggestions).order(date: :desc, id: :desc)
+    scope = current_user.transactions.active.includes(:category, :card, :account, :classification_suggestions).order(date: :desc, id: :desc)
 
     month   = params[:month].presence
     year    = params[:year].presence
@@ -160,7 +160,7 @@ class Api::TransactionsController < Api::BaseController
     params.require(:transaction).permit(
       :description, :value, :date, :kind, :source, :paid, :refund,
       :note, :responsible, :card_id, :category_id, :billing_statement,
-      :installment_number, :installments_count
+      :account_id, :installment_number, :installments_count
     )
   end
 
@@ -201,12 +201,17 @@ class Api::TransactionsController < Api::BaseController
       raise ActiveRecord::RecordNotFound
     end
 
+    if transaction.account_id.present? && !current_user.accounts.exists?(transaction.account_id)
+      transaction.errors.add(:account, 'inválida')
+    end
+
     transaction.errors.empty?
   end
 
   def tx_json(transaction)
     suggestion = transaction.pending_classification_suggestion
     category = current_user.categories.find_by(id: transaction.category_id)
+    account = current_user.accounts.find_by(id: transaction.account_id)
 
     {
       id: transaction.id,
@@ -230,7 +235,8 @@ class Api::TransactionsController < Api::BaseController
         suggestion: suggestion_json(suggestion)
       },
       category: category&.as_json(only: %i[id name]),
-      card: transaction.card&.as_json(only: %i[id name])
+      card: transaction.card&.as_json(only: %i[id name]),
+      account: account&.as_json(only: %i[id name kind])
     }
   end
 

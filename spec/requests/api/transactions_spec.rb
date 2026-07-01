@@ -132,12 +132,15 @@ RSpec.describe 'Api::Transactions', type: :request do
     end
 
     it 'creates a simple income without requiring card, statement or installment fields' do
+      account = create(:account, user: user, name: 'Conta Corrente')
+
       post '/api/transactions', params: {
         transaction: {
           description: 'Salario mensal',
           value: '3500,00',
           date: Date.new(2026, 6, 30),
-          kind: 'income'
+          kind: 'income',
+          account_id: account.id
         }
       }
 
@@ -148,6 +151,7 @@ RSpec.describe 'Api::Transactions', type: :request do
 
       expect(transaction.kind).to eq('income')
       expect(transaction.source).to eq('bank')
+      expect(transaction.account).to eq(account)
       expect(transaction.value.to_d).to eq(BigDecimal('3500'))
       expect(transaction.paid).to eq(true)
       expect(transaction.card_id).to be_nil
@@ -161,17 +165,90 @@ RSpec.describe 'Api::Transactions', type: :request do
       expect(body['source']).to eq('bank')
       expect(body['paid']).to eq(true)
       expect(body['card']).to be_nil
+      expect(body.dig('account', 'id')).to eq(account.id)
+      expect(body.dig('account', 'name')).to eq('Conta Corrente')
       expect(body['billing_statement']).to be_nil
     end
 
+    it 'rejects income without account' do
+      post '/api/transactions', params: {
+        transaction: {
+          description: 'Receita sem conta',
+          value: '100,00',
+          date: Date.current,
+          kind: 'income',
+          source: 'bank'
+        }
+      }
+
+      expect(response).to have_http_status(:unprocessable_entity)
+      expect(JSON.parse(response.body)['error']).to include('Account é obrigatória para receitas')
+    end
+
+    it 'rejects income with an account from another user' do
+      other_account = create(:account, user: create(:user))
+
+      post '/api/transactions', params: {
+        transaction: {
+          description: 'Receita cross user',
+          value: '100,00',
+          date: Date.current,
+          kind: 'income',
+          source: 'bank',
+          account_id: other_account.id
+        }
+      }
+
+      expect(response).to have_http_status(:unprocessable_entity)
+      expect(JSON.parse(response.body)['error']).to include('Account inválida')
+      expect(user.transactions.where(description: 'RECEITA CROSS USER')).to be_empty
+    end
+
+    it 'rejects income with an archived account' do
+      account = create(:account, user: user, archived_at: Time.current)
+
+      post '/api/transactions', params: {
+        transaction: {
+          description: 'Receita conta arquivada',
+          value: '100,00',
+          date: Date.current,
+          kind: 'income',
+          source: 'bank',
+          account_id: account.id
+        }
+      }
+
+      expect(response).to have_http_status(:unprocessable_entity)
+      expect(JSON.parse(response.body)['error']).to include('Account não pode estar arquivada')
+    end
+
+    it 'rejects income with a missing account' do
+      post '/api/transactions', params: {
+        transaction: {
+          description: 'Receita conta inexistente',
+          value: '100,00',
+          date: Date.current,
+          kind: 'income',
+          source: 'bank',
+          account_id: Account.maximum(:id).to_i + 10_000
+        }
+      }
+
+      expect(response).to have_http_status(:unprocessable_entity)
+      expect(JSON.parse(response.body)['error']).to include('Account inválida')
+    end
+
     it 'rejects income with source card' do
+      account = create(:account, user: user)
+
       post '/api/transactions', params: {
         transaction: {
           description: 'Receita no cartao',
           value: '100,00',
           date: Date.current,
           kind: 'income',
-          source: 'card'
+          source: 'card',
+          account_id: account.id
         }
       }
 
@@ -181,6 +258,7 @@ RSpec.describe 'Api::Transactions', type: :request do
 
     it 'rejects income with a card' do
       card = create(:card, user: user)
+      account = create(:account, user: user)
 
       post '/api/transactions', params: {
         transaction: {
@@ -189,6 +267,7 @@ RSpec.describe 'Api::Transactions', type: :request do
           date: Date.current,
           kind: 'income',
           source: 'bank',
+          account_id: account.id,
           card_id: card.id
         }
       }
@@ -198,6 +277,8 @@ RSpec.describe 'Api::Transactions', type: :request do
     end
 
     it 'rejects income with a billing statement' do
+      account = create(:account, user: user)
+
       post '/api/transactions', params: {
         transaction: {
           description: 'Receita com fatura',
@@ -205,6 +286,7 @@ RSpec.describe 'Api::Transactions', type: :request do
           date: Date.current,
           kind: 'income',
           source: 'bank',
+          account_id: account.id,
           billing_statement: '2026-07-01'
         }
       }
@@ -214,6 +296,8 @@ RSpec.describe 'Api::Transactions', type: :request do
     end
 
     it 'rejects income with installment params before generating installments' do
+      account = create(:account, user: user)
+
       expect do
         post '/api/transactions', params: {
           transaction: {
@@ -222,6 +306,7 @@ RSpec.describe 'Api::Transactions', type: :request do
             date: Date.current,
             kind: 'income',
             source: 'bank',
+            account_id: account.id,
             installment_number: 1,
             installments_count: 2
           }
@@ -233,6 +318,8 @@ RSpec.describe 'Api::Transactions', type: :request do
     end
 
     it 'rejects income with refund flag' do
+      account = create(:account, user: user)
+
       post '/api/transactions', params: {
         transaction: {
           description: 'Receita estorno',
@@ -240,6 +327,7 @@ RSpec.describe 'Api::Transactions', type: :request do
           date: Date.current,
           kind: 'income',
           source: 'bank',
+          account_id: account.id,
           refund: true
         }
       }
@@ -274,6 +362,24 @@ RSpec.describe 'Api::Transactions', type: :request do
       expect(transaction.source).to eq('card')
       expect(body['refund']).to eq(true)
       expect(body['signed_value']).to eq('-6.92')
+    end
+
+    it 'rejects account_id on expenses in this phase' do
+      account = create(:account, user: user)
+
+      post '/api/transactions', params: {
+        transaction: {
+          description: 'Despesa com conta',
+          value: '10,00',
+          date: Date.current,
+          kind: 'expense',
+          source: 'cash',
+          account_id: account.id
+        }
+      }
+
+      expect(response).to have_http_status(:unprocessable_entity)
+      expect(JSON.parse(response.body)['error']).to include('Account só pode ser usada em receitas nesta fase')
     end
 
     it 'rejects installment refunds' do

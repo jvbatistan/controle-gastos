@@ -4,6 +4,7 @@ RSpec.describe Transaction, type: :model do
   describe 'associations' do
     it { should belong_to(:card).optional }
     it { should belong_to(:category).optional }
+    it { should belong_to(:account).optional }
   end
 
   describe 'validations' do
@@ -59,7 +60,9 @@ RSpec.describe Transaction, type: :model do
     end
 
     it 'accepts a simple income without card, statement, installment or payment-flow fields' do
-      transaction = build(:transaction, kind: :income, source: :bank, card: nil, paid: false)
+      user = create(:user)
+      account = create(:account, user: user)
+      transaction = build(:transaction, user: user, account: account, kind: :income, source: :bank, card: nil, paid: false)
 
       expect(transaction).to be_valid
       expect(transaction.paid).to eq(true)
@@ -73,37 +76,81 @@ RSpec.describe Transaction, type: :model do
     end
 
     it 'does not require card or billing statement for income' do
-      transaction = build(:transaction, kind: :income, source: :cash, card: nil)
+      user = create(:user)
+      account = create(:account, user: user)
+      transaction = build(:transaction, user: user, account: account, kind: :income, source: :cash, card: nil)
 
       expect(transaction).to be_valid
       expect(transaction.billing_statement).to be_nil
     end
 
+    it 'requires an account for income' do
+      transaction = build(:transaction, kind: :income, source: :bank, card: nil, account: nil)
+
+      expect(transaction).not_to be_valid
+      expect(transaction.errors[:account]).to include('é obrigatória para receitas')
+    end
+
+    it 'rejects income with an account from another user' do
+      user = create(:user)
+      other_account = create(:account, user: create(:user))
+      transaction = build(:transaction, user: user, account: other_account, kind: :income, source: :bank, card: nil)
+
+      expect(transaction).not_to be_valid
+      expect(transaction.errors[:account]).to include('deve pertencer ao mesmo usuário')
+    end
+
+    it 'rejects income with an archived account' do
+      user = create(:user)
+      account = create(:account, user: user, archived_at: Time.current)
+      transaction = build(:transaction, user: user, account: account, kind: :income, source: :bank, card: nil)
+
+      expect(transaction).not_to be_valid
+      expect(transaction.errors[:account]).to include('não pode estar arquivada')
+    end
+
+    it 'rejects income with a missing account id before hitting the database foreign key' do
+      transaction = build(:transaction, kind: :income, source: :bank, card: nil, account_id: Account.maximum(:id).to_i + 10_000)
+
+      expect(transaction).not_to be_valid
+      expect(transaction.errors[:account]).to include('inválida')
+    end
+
     it 'rejects income with source card' do
-      transaction = build(:transaction, kind: :income, source: :card, card: nil)
+      user = create(:user)
+      account = create(:account, user: user)
+      transaction = build(:transaction, user: user, account: account, kind: :income, source: :card, card: nil)
 
       expect(transaction).not_to be_valid
       expect(transaction.errors[:source]).to include('não pode ser cartão para receitas')
     end
 
     it 'rejects income with a card' do
-      card = create(:card)
-      transaction = build(:transaction, kind: :income, source: :bank, card: card)
+      user = create(:user)
+      account = create(:account, user: user)
+      card = create(:card, user: user)
+      transaction = build(:transaction, user: user, account: account, kind: :income, source: :bank, card: card)
 
       expect(transaction).not_to be_valid
       expect(transaction.errors[:card]).to include('não deve existir para receitas')
     end
 
     it 'rejects income with a billing statement' do
-      transaction = build(:transaction, kind: :income, source: :bank, card: nil, billing_statement: Date.new(2026, 7, 1))
+      user = create(:user)
+      account = create(:account, user: user)
+      transaction = build(:transaction, user: user, account: account, kind: :income, source: :bank, card: nil, billing_statement: Date.new(2026, 7, 1))
 
       expect(transaction).not_to be_valid
       expect(transaction.errors[:billing_statement]).to include('não deve existir para receitas')
     end
 
     it 'rejects income with installment fields' do
+      user = create(:user)
+      account = create(:account, user: user)
       transaction = build(
         :transaction,
+        user: user,
+        account: account,
         kind: :income,
         source: :bank,
         card: nil,
@@ -117,14 +164,18 @@ RSpec.describe Transaction, type: :model do
     end
 
     it 'rejects income with payment ignored timestamp' do
-      transaction = build(:transaction, kind: :income, source: :bank, card: nil, payment_ignored_at: Time.current)
+      user = create(:user)
+      account = create(:account, user: user)
+      transaction = build(:transaction, user: user, account: account, kind: :income, source: :bank, card: nil, payment_ignored_at: Time.current)
 
       expect(transaction).not_to be_valid
       expect(transaction.errors[:payment_ignored_at]).to include('não deve existir para receitas')
     end
 
     it 'rejects income with refund flag' do
-      transaction = build(:transaction, kind: :income, source: :bank, card: nil, refund: true)
+      user = create(:user)
+      account = create(:account, user: user)
+      transaction = build(:transaction, user: user, account: account, kind: :income, source: :bank, card: nil, refund: true)
 
       expect(transaction).not_to be_valid
       expect(transaction.errors[:refund]).to include('não pode ser verdadeiro para receitas')
@@ -154,6 +205,15 @@ RSpec.describe Transaction, type: :model do
       transaction = build(:transaction, kind: :expense, source: :card, card: card, refund: true)
 
       expect(transaction).to be_valid
+    end
+
+    it 'rejects account on expenses in this phase' do
+      user = create(:user)
+      account = create(:account, user: user)
+      transaction = build(:transaction, user: user, account: account, kind: :expense, source: :cash, card: nil)
+
+      expect(transaction).not_to be_valid
+      expect(transaction.errors[:account]).to include('só pode ser usada em receitas nesta fase')
     end
   end
 
@@ -191,7 +251,10 @@ RSpec.describe Transaction, type: :model do
       it 'retorna receitas - despesas do mês/ano informado' do
         data = Date.new(2025, 11, 1)
 
-        create(:transaction, kind: :income, source: :bank, card: nil, value: 1000.0, date: data)
+        user = create(:user)
+        account = create(:account, user: user)
+
+        create(:transaction, user: user, account: account, kind: :income, source: :bank, card: nil, value: 1000.0, date: data)
         create(:transaction, kind: :expense, value:  200.0, date: data)
 
         expect(Transaction.balance_for(11, 2025)).to eq(800.0)

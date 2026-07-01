@@ -12,7 +12,9 @@ RSpec.describe "Api::Dashboard", type: :request do
       food = create(:category, user: user, name: "Alimentação")
       travel = create(:category, user: user, name: "Transporte")
       card = create(:card, user: user, name: "Nubank", due_day: 15, closing_day: 8)
+      account = create(:account, user: user, name: "Conta Corrente")
       other_user = create(:user)
+      other_account = create(:account, user: other_user)
 
       create(
         :transaction,
@@ -75,6 +77,7 @@ RSpec.describe "Api::Dashboard", type: :request do
         user: user,
         category: nil,
         kind: :income,
+        account: account,
         source: :bank,
         card: nil,
         date: Date.new(2026, 4, 5),
@@ -87,6 +90,7 @@ RSpec.describe "Api::Dashboard", type: :request do
         user: user,
         category: nil,
         kind: :income,
+        account: account,
         source: :bank,
         card: nil,
         date: Date.new(2026, 3, 31),
@@ -99,6 +103,7 @@ RSpec.describe "Api::Dashboard", type: :request do
         user: other_user,
         category: nil,
         kind: :income,
+        account: other_account,
         source: :bank,
         card: nil,
         date: Date.new(2026, 4, 5),

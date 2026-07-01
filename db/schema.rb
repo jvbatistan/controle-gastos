@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 2026_07_01_090000) do
+ActiveRecord::Schema.define(version: 2026_07_01_110000) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_stat_statements"
@@ -135,6 +135,8 @@ ActiveRecord::Schema.define(version: 2026_07_01_090000) do
     t.datetime "archived_at"
     t.datetime "payment_ignored_at"
     t.boolean "refund", default: false, null: false
+    t.bigint "account_id"
+    t.index ["account_id"], name: "index_transactions_on_account_id"
     t.index ["archived_at"], name: "index_transactions_on_archived_at"
     t.index ["card_id"], name: "index_transactions_on_card_id"
     t.index ["category_id"], name: "index_transactions_on_category_id"
@@ -184,6 +186,7 @@ ActiveRecord::Schema.define(version: 2026_07_01_090000) do
   add_foreign_key "classification_suggestions", "users"
   add_foreign_key "merchant_aliases", "categories"
   add_foreign_key "merchant_aliases", "users"
+  add_foreign_key "transactions", "accounts"
   add_foreign_key "transactions", "cards"
   add_foreign_key "transactions", "categories"
   add_foreign_key "transactions", "users"

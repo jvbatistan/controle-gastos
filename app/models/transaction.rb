@@ -4,6 +4,7 @@ class Transaction < ApplicationRecord
 
   belongs_to :card, optional: true
   belongs_to :category, optional: true
+  belongs_to :account, optional: true
   belongs_to :user
 
   has_many :classification_suggestions, foreign_key: :financial_transaction_id, dependent: :destroy
@@ -22,6 +23,7 @@ class Transaction < ApplicationRecord
   validate :installment_consistency
   validate :refund_consistency
   validate :income_consistency
+  validate :account_consistency
   validate :card_statement_payment_must_not_be_transaction
   validate :category_must_belong_to_user
 
@@ -212,12 +214,25 @@ class Transaction < ApplicationRecord
   def income_consistency
     return unless income?
 
+    errors.add(:account, 'é obrigatória para receitas') if account_id.blank?
     errors.add(:source, 'não pode ser cartão para receitas') if card?
     errors.add(:card, 'não deve existir para receitas') if card_id.present?
     errors.add(:billing_statement, 'não deve existir para receitas') if billing_statement.present?
     errors.add(:base, 'receita não pode ser parcelada') if installment_group_id.present? || installment_number.present? || installments_count.present?
     errors.add(:payment_ignored_at, 'não deve existir para receitas') if payment_ignored_at.present?
     errors.add(:refund, 'não pode ser verdadeiro para receitas') if refund?
+  end
+
+  def account_consistency
+    if account_id.present? && account.nil?
+      errors.add(:account, 'inválida')
+      return
+    end
+    return if account.nil?
+
+    errors.add(:account, 'deve pertencer ao mesmo usuário') if user_id.present? && account.user_id != user_id
+    errors.add(:account, 'não pode estar arquivada') if income? && account.archived?
+    errors.add(:account, 'só pode ser usada em receitas nesta fase') if expense?
   end
 
   def card_statement_payment_must_not_be_transaction
