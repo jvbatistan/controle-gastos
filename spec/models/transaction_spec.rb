@@ -2,7 +2,10 @@ require 'rails_helper'
 
 RSpec.describe Transaction, type: :model do
   describe 'associations' do
-    it { should belong_to(:card).optional }
+    it 'keeps card optional at the association level' do
+      expect(described_class.reflect_on_association(:card).options[:optional]).to eq(true)
+    end
+
     it { should belong_to(:category).optional }
     it { should belong_to(:account).optional }
   end
@@ -207,13 +210,84 @@ RSpec.describe Transaction, type: :model do
       expect(transaction).to be_valid
     end
 
-    it 'rejects account on expenses in this phase' do
+    it 'accepts cash expenses with an active account from the same user' do
       user = create(:user)
       account = create(:account, user: user)
       transaction = build(:transaction, user: user, account: account, kind: :expense, source: :cash, card: nil)
 
+      expect(transaction).to be_valid
+    end
+
+    it 'accepts bank expenses with an active account from the same user' do
+      user = create(:user)
+      account = create(:account, user: user)
+      transaction = build(:transaction, user: user, account: account, kind: :expense, source: :bank, card: nil)
+
+      expect(transaction).to be_valid
+    end
+
+    it 'requires an account for new cash or bank expenses' do
+      cash = build(:transaction, kind: :expense, source: :cash, card: nil, account: nil)
+      bank = build(:transaction, kind: :expense, source: :bank, card: nil, account: nil)
+
+      expect(cash).not_to be_valid
+      expect(cash.errors[:account]).to include('é obrigatória para despesas sem cartão')
+      expect(bank).not_to be_valid
+      expect(bank.errors[:account]).to include('é obrigatória para despesas sem cartão')
+    end
+
+    it 'rejects cash or bank expenses with an account from another user' do
+      user = create(:user)
+      other_account = create(:account, user: create(:user))
+      transaction = build(:transaction, user: user, account: other_account, kind: :expense, source: :cash, card: nil)
+
       expect(transaction).not_to be_valid
-      expect(transaction.errors[:account]).to include('só pode ser usada em receitas nesta fase')
+      expect(transaction.errors[:account]).to include('deve pertencer ao mesmo usuário')
+    end
+
+    it 'rejects cash or bank expenses with an archived account' do
+      user = create(:user)
+      account = create(:account, user: user, archived_at: Time.current)
+      transaction = build(:transaction, user: user, account: account, kind: :expense, source: :bank, card: nil)
+
+      expect(transaction).not_to be_valid
+      expect(transaction.errors[:account]).to include('não pode estar arquivada')
+    end
+
+    it 'rejects cash or bank expenses with a missing account id before hitting the database foreign key' do
+      transaction = build(:transaction, kind: :expense, source: :bank, card: nil, account_id: Account.maximum(:id).to_i + 10_000)
+
+      expect(transaction).not_to be_valid
+      expect(transaction.errors[:account]).to include('inválida')
+    end
+
+    it 'rejects account on card expenses' do
+      user = create(:user)
+      account = create(:account, user: user)
+      card = create(:card, user: user)
+      transaction = build(:transaction, user: user, account: account, card: card, kind: :expense, source: :card)
+
+      expect(transaction).not_to be_valid
+      expect(transaction.errors[:account]).to include('não deve existir para despesas no cartão')
+    end
+
+    it 'keeps legacy cash expenses without account editable when account-relevant fields do not change' do
+      transaction = build(:transaction, kind: :expense, source: :cash, card: nil, account: nil, description: 'Legado')
+      transaction.save!(validate: false)
+
+      transaction.description = 'Legado atualizado'
+
+      expect(transaction).to be_valid
+    end
+
+    it 'requires an account when a legacy expense changes account-relevant fields' do
+      transaction = build(:transaction, kind: :expense, source: :cash, card: nil, account: nil)
+      transaction.save!(validate: false)
+
+      transaction.source = :bank
+
+      expect(transaction).not_to be_valid
+      expect(transaction.errors[:account]).to include('é obrigatória para despesas sem cartão')
     end
   end
 

@@ -48,6 +48,7 @@ module Transactions
           responsible: @transaction.responsible,
           note: @transaction.note,
           card_id: @transaction.card_id,
+          account_id: @transaction.account_id,
           category_id: @transaction.category_id,
 
           installment_group_id: group_id,

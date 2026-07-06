@@ -8,6 +8,7 @@ FactoryBot.define do
     date { Date.today }
     kind { :expense }
     source { :card }
+    account { source.to_s == 'card' ? nil : association(:account, user: user) }
     refund { false }
     paid { false }
     note { nil }

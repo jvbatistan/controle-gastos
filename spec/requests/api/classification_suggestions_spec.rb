@@ -2,6 +2,7 @@ require 'rails_helper'
 
 RSpec.describe 'Api::ClassificationSuggestions', type: :request do
   let(:user) { create(:user) }
+  let(:account) { create(:account, user: user) }
 
   before do
     sign_in user
@@ -15,7 +16,8 @@ RSpec.describe 'Api::ClassificationSuggestions', type: :request do
         value: 32.9,
         date: Date.current,
         kind: :expense,
-        source: :cash
+        source: :cash,
+        account: account
       )
       transaction.classification_suggestions.delete_all
 
@@ -46,7 +48,8 @@ RSpec.describe 'Api::ClassificationSuggestions', type: :request do
         value: 32.9,
         date: Date.current,
         kind: :expense,
-        source: :cash
+        source: :cash,
+        account: account
       )
       transaction.classification_suggestions.delete_all
 
@@ -303,7 +306,8 @@ RSpec.describe 'Api::ClassificationSuggestions', type: :request do
         value: 50,
         date: Date.current,
         kind: :expense,
-        source: :cash
+        source: :cash,
+        account: account
       )
       transaction.classification_suggestions.delete_all
 
@@ -334,7 +338,8 @@ RSpec.describe 'Api::ClassificationSuggestions', type: :request do
         value: 44.5,
         date: Date.current,
         kind: :expense,
-        source: :cash
+        source: :cash,
+        account: account
       )
       transaction.classification_suggestions.delete_all
 
@@ -369,7 +374,8 @@ RSpec.describe 'Api::ClassificationSuggestions', type: :request do
         value: 44.5,
         date: Date.current,
         kind: :expense,
-        source: :cash
+        source: :cash,
+        account: account
       )
       transaction.classification_suggestions.delete_all
 

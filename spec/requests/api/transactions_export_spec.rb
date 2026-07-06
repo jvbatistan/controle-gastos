@@ -77,6 +77,19 @@ RSpec.describe 'Api::Transactions CSV export', type: :request do
       expect(rows.first['Cartão']).to eq('')
     end
 
+    it 'exports account for cash or bank expenses and keeps it blank for legacy expenses without account' do
+      account = create(:account, user: user, name: 'Carteira')
+      expense = create(:transaction, user: user, account: account, card: nil, source: :cash, description: 'Mercado')
+      legacy = build(:transaction, user: user, account: nil, card: nil, source: :bank, description: 'Legado')
+      legacy.save!(validate: false)
+
+      get '/api/transactions/export_csv', params: { card_id: 'none' }
+
+      rows_by_id = parsed_csv.index_by { |row| row['ID'].to_i }
+      expect(rows_by_id[expense.id]['Conta']).to eq('Carteira')
+      expect(rows_by_id[legacy.id]['Conta']).to eq('')
+    end
+
     it 'respects the visible limit used by the listing' do
       newest = create(:transaction, user: user, card: nil, source: :cash, date: Date.new(2026, 3, 3), description: 'Mais recente')
       create(:transaction, user: user, card: nil, source: :cash, date: Date.new(2026, 3, 2), description: 'Mais antiga')

@@ -228,11 +228,44 @@ class Transaction < ApplicationRecord
       errors.add(:account, 'inválida')
       return
     end
-    return if account.nil?
 
-    errors.add(:account, 'deve pertencer ao mesmo usuário') if user_id.present? && account.user_id != user_id
-    errors.add(:account, 'não pode estar arquivada') if income? && account.archived?
-    errors.add(:account, 'só pode ser usada em receitas nesta fase') if expense?
+    if account.present?
+      errors.add(:account, 'deve pertencer ao mesmo usuário') if user_id.present? && account.user_id != user_id
+      errors.add(:account, 'não pode estar arquivada') if account_must_be_active? && account.archived?
+    end
+
+    if income?
+      errors.add(:account, 'é obrigatória para receitas') if account_id.blank?
+      return
+    end
+
+    return unless expense?
+
+    if card?
+      errors.add(:card, 'é obrigatório para despesas no cartão') if card.blank? && card_id.blank?
+      errors.add(:account, 'não deve existir para despesas no cartão') if account_id.present?
+    elsif account_required_for_cash_or_bank_expense?
+      errors.add(:account, 'é obrigatória para despesas sem cartão') if account_id.blank?
+    end
+  end
+
+  def account_must_be_active?
+    return true if new_record?
+
+    will_save_change_to_account_id? ||
+      will_save_change_to_kind? ||
+      will_save_change_to_source? ||
+      will_save_change_to_card_id?
+  end
+
+  def account_required_for_cash_or_bank_expense?
+    return false if card?
+    return true if new_record?
+
+    will_save_change_to_kind? ||
+      will_save_change_to_source? ||
+      will_save_change_to_card_id? ||
+      will_save_change_to_account_id?
   end
 
   def card_statement_payment_must_not_be_transaction
