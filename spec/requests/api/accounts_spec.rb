@@ -9,10 +9,11 @@ RSpec.describe 'Api::Accounts', type: :request do
 
   describe 'GET /api/accounts' do
     it 'returns only active accounts from the current user ordered by name' do
-      create(:account, user: user, name: 'Nubank')
+      nubank = create(:account, user: user, name: 'Nubank', initial_balance: 1000)
       create(:account, user: user, name: 'Carteira', kind: :wallet, archived_at: Time.current)
       create(:account, user: user, name: 'Inter')
       create(:account, user: create(:user), name: 'Outra')
+      create(:transaction, user: user, kind: :income, source: :bank, account: nubank, card: nil, value: 250)
 
       get '/api/accounts'
 
@@ -21,11 +22,14 @@ RSpec.describe 'Api::Accounts', type: :request do
       body = JSON.parse(response.body)
       expect(body.map { |item| item['name'] }).to eq(%w[Inter Nubank])
       expect(body.first.keys).to include('initial_balance', 'initial_balance_date', 'current_balance', 'archived_at')
+      expect(body.find { |item| item['name'] == 'Nubank' }['current_balance']).to eq('1250.0')
     end
 
     it 'returns archived accounts from the current user when requested' do
       create(:account, user: user, name: 'Ativa')
-      create(:account, user: user, name: 'Arquivada', archived_at: Time.current)
+      archived_account = create(:account, user: user, name: 'Arquivada', initial_balance: 100)
+      create(:transaction, user: user, kind: :income, source: :cash, account: archived_account, card: nil, value: 40)
+      archived_account.archive!
       create(:account, user: create(:user), name: 'Outra arquivada', archived_at: Time.current)
 
       get '/api/accounts', params: { archived: true }
@@ -35,12 +39,27 @@ RSpec.describe 'Api::Accounts', type: :request do
       body = JSON.parse(response.body)
       expect(body.map { |item| item['name'] }).to eq(['Arquivada'])
       expect(body.first['archived_at']).to be_present
+      expect(body.first['current_balance']).to eq('140.0')
+    end
+
+    it 'does not count card purchases directly but counts statement payments from the account' do
+      account = create(:account, user: user, name: 'Nubank', initial_balance: 1000)
+      card = create(:card, user: user)
+      statement = create(:card_statement, card: card, total_amount: 300, paid_amount: 0)
+      create(:transaction, user: user, kind: :expense, source: :card, account: nil, card: card, value: 300)
+      create(:card_statement_payment, card_statement: statement, account: account, amount: 100)
+
+      get '/api/accounts'
+
+      body = JSON.parse(response.body)
+      expect(body.first['current_balance']).to eq('900.0')
     end
   end
 
   describe 'GET /api/accounts/:id' do
     it 'returns an account from the current user' do
       account = create(:account, user: user, name: 'Nubank', initial_balance: 2000, initial_balance_date: Date.new(2026, 7, 1))
+      create(:transaction, user: user, kind: :expense, source: :bank, account: account, card: nil, value: 150)
 
       get "/api/accounts/#{account.id}"
 
@@ -53,7 +72,7 @@ RSpec.describe 'Api::Accounts', type: :request do
         'kind' => 'checking',
         'initial_balance' => '2000.0',
         'initial_balance_date' => '2026-07-01',
-        'current_balance' => '2000.0'
+        'current_balance' => '1850.0'
       )
     end
 

@@ -55,8 +55,16 @@ RSpec.describe Account, type: :model do
   end
 
   describe '#current_balance' do
-    it 'returns the initial balance while transactions are not linked to accounts' do
+    it 'delegates to the balance calculator' do
       account = build(:account, initial_balance: 123.45)
+
+      allow(Accounts::BalanceCalculator).to receive(:call).with(account).and_return(456.78.to_d)
+
+      expect(account.current_balance).to eq(456.78.to_d)
+    end
+
+    it 'returns the initial balance when there are no linked movements' do
+      account = create(:account, initial_balance: 123.45)
 
       expect(account.current_balance).to eq(123.45.to_d)
     end

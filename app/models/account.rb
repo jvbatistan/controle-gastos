@@ -23,7 +23,7 @@ class Account < ApplicationRecord
   scope :ordered, -> { order(:name) }
 
   def current_balance
-    initial_balance.to_d
+    Accounts::BalanceCalculator.call(self)
   end
 
   def archive!(archived_at_time: Time.current)

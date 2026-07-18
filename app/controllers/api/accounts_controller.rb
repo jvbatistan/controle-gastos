@@ -8,8 +8,9 @@ class Api::AccountsController < Api::BaseController
                else
                  current_user.accounts.active.ordered
                end
+    balances = Accounts::BalanceCalculator.for(accounts)
 
-    render json: accounts.map { |account| account_json(account) }
+    render json: accounts.map { |account| account_json(account, current_balance: balances[account.id]) }
   end
 
   def show
@@ -60,14 +61,14 @@ class Api::AccountsController < Api::BaseController
     params.require(:account).permit(:name, :kind, :initial_balance, :initial_balance_date)
   end
 
-  def account_json(account)
+  def account_json(account, current_balance: nil)
     {
       id: account.id,
       name: account.name,
       kind: account.kind,
       initial_balance: account.initial_balance,
       initial_balance_date: account.initial_balance_date,
-      current_balance: account.current_balance,
+      current_balance: current_balance || account.current_balance,
       archived_at: account.archived_at,
       created_at: account.created_at,
       updated_at: account.updated_at
