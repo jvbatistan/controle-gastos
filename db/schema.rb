@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 2026_07_06_190000) do
+ActiveRecord::Schema.define(version: 2026_07_18_100000) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_stat_statements"
@@ -18,6 +18,26 @@ ActiveRecord::Schema.define(version: 2026_07_06_190000) do
   enable_extension "plpgsql"
   enable_extension "supabase_vault" if ActiveRecord::Base.connection.extension_available?("supabase_vault")
   enable_extension "uuid-ossp"
+
+  create_table "account_transfers", force: :cascade do |t|
+    t.bigint "user_id", null: false
+    t.bigint "from_account_id", null: false
+    t.bigint "to_account_id", null: false
+    t.decimal "amount", precision: 12, scale: 2, null: false
+    t.date "transferred_on", null: false
+    t.string "description"
+    t.text "note"
+    t.integer "status", default: 0, null: false
+    t.datetime "created_at", precision: 6, null: false
+    t.datetime "updated_at", precision: 6, null: false
+    t.index ["from_account_id"], name: "index_account_transfers_on_from_account_id"
+    t.index ["to_account_id"], name: "index_account_transfers_on_to_account_id"
+    t.index ["transferred_on"], name: "index_account_transfers_on_transferred_on"
+    t.index ["user_id", "transferred_on"], name: "index_account_transfers_on_user_id_and_transferred_on"
+    t.index ["user_id"], name: "index_account_transfers_on_user_id"
+    t.check_constraint "amount > (0)::numeric", name: "account_transfers_amount_positive"
+    t.check_constraint "from_account_id <> to_account_id", name: "account_transfers_accounts_distinct"
+  end
 
   create_table "accounts", force: :cascade do |t|
     t.bigint "user_id", null: false
@@ -177,6 +197,9 @@ ActiveRecord::Schema.define(version: 2026_07_06_190000) do
     t.index ["item_type", "item_id"], name: "index_versions_on_item_type_and_item_id"
   end
 
+  add_foreign_key "account_transfers", "accounts", column: "from_account_id"
+  add_foreign_key "account_transfers", "accounts", column: "to_account_id"
+  add_foreign_key "account_transfers", "users"
   add_foreign_key "accounts", "users"
   add_foreign_key "card_statement_payments", "accounts"
   add_foreign_key "card_statement_payments", "card_statements"

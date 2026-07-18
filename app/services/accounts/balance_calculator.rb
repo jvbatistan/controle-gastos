@@ -33,6 +33,8 @@ module Accounts
       add_grouped_amounts(balances, income_totals)
       subtract_grouped_amounts(balances, cash_expense_totals)
       subtract_grouped_amounts(balances, card_statement_payment_totals)
+      subtract_grouped_amounts(balances, outgoing_transfer_totals)
+      add_grouped_amounts(balances, incoming_transfer_totals)
 
       balances
     end
@@ -61,6 +63,20 @@ module Accounts
       CardStatementPayment.where(account_id: account_ids)
                           .group(:account_id)
                           .sum(:amount)
+    end
+
+    def outgoing_transfer_totals
+      AccountTransfer.completed
+                     .where(from_account_id: account_ids)
+                     .group(:from_account_id)
+                     .sum(:amount)
+    end
+
+    def incoming_transfer_totals
+      AccountTransfer.completed
+                     .where(to_account_id: account_ids)
+                     .group(:to_account_id)
+                     .sum(:amount)
     end
 
     def add_grouped_amounts(balances, grouped_amounts)

@@ -4,6 +4,8 @@ RSpec.describe Account, type: :model do
   describe 'associations' do
     it { should belong_to(:user) }
     it { should have_many(:card_statement_payments).dependent(:nullify) }
+    it { should have_many(:outgoing_transfers).class_name('AccountTransfer') }
+    it { should have_many(:incoming_transfers).class_name('AccountTransfer') }
   end
 
   describe 'validations' do
