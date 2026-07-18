@@ -131,6 +131,7 @@ RSpec.describe "Api::Payments", type: :request do
       expect(statement_json["paid_amount"]).to eq("30.0")
       expect(statement_json["remaining_amount"]).to eq("70.0")
       expect(statement_json["payments"].first["amount"]).to eq("30.0")
+      expect(statement_json["payments"].first["account"]).to be_nil
     end
 
     it "ignores archived transactions in statements and loose expenses" do
@@ -190,10 +191,13 @@ RSpec.describe "Api::Payments", type: :request do
   describe "POST /api/payments/card_statements/:id/pay" do
     it "creates a statement payment for the remaining amount and marks its transactions as paid" do
       card = create(:card, user: user, name: 'Nubank', due_day: 15, closing_day: 8)
+      account = create(:account, user: user, name: 'Conta Corrente')
       transaction = create(:transaction, user: user, card: card, source: :card, date: Date.new(2026, 3, 7), value: 120, paid: false)
       statement = card.sync_statement!(3, 2026)
 
-      post "/api/payments/card_statements/#{statement.id}/pay"
+      expect do
+        post "/api/payments/card_statements/#{statement.id}/pay", params: { account_id: account.id }
+      end.not_to change(Transaction, :count)
 
       expect(response).to have_http_status(:ok)
 
@@ -202,18 +206,21 @@ RSpec.describe "Api::Payments", type: :request do
       body = JSON.parse(response.body)
       expect(statement.card_statement_payments.count).to eq(1)
       expect(statement.card_statement_payments.first.amount.to_d).to eq(BigDecimal('120'))
+      expect(statement.card_statement_payments.first.account).to eq(account)
       expect(statement.paid?).to eq(true)
       expect(transaction.paid).to eq(true)
       expect(body["paid_amount"]).to eq("120.0")
       expect(body["remaining_amount"]).to eq("0.0")
+      expect(body["payments"].first["account"]).to eq("id" => account.id, "name" => "Conta Corrente")
     end
 
     it "accepts a partial statement payment below the remaining amount" do
       card = create(:card, user: user, name: 'Nubank', due_day: 15, closing_day: 8)
+      account = create(:account, user: user)
       create(:transaction, user: user, card: card, source: :card, date: Date.new(2026, 3, 7), value: 120, paid: false)
       statement = card.sync_statement!(3, 2026)
 
-      post "/api/payments/card_statements/#{statement.id}/pay", params: { amount: "40.50" }
+      post "/api/payments/card_statements/#{statement.id}/pay", params: { amount: "40.50", account_id: account.id }
 
       expect(response).to have_http_status(:ok)
 
@@ -221,6 +228,7 @@ RSpec.describe "Api::Payments", type: :request do
       body = JSON.parse(response.body)
       expect(statement.card_statement_payments.count).to eq(1)
       expect(statement.card_statement_payments.first.amount.to_d).to eq(BigDecimal('40.50'))
+      expect(statement.card_statement_payments.first.account).to eq(account)
       expect(statement.paid_amount.to_d).to eq(BigDecimal('40.50'))
       expect(statement.remaining_amount).to eq(BigDecimal('79.5'))
       expect(statement.paid?).to eq(false)
@@ -230,11 +238,12 @@ RSpec.describe "Api::Payments", type: :request do
 
     it "accepts a payment equal to the remaining amount" do
       card = create(:card, user: user, name: 'Nubank', due_day: 15, closing_day: 8)
+      account = create(:account, user: user)
       transaction = create(:transaction, user: user, card: card, source: :card, date: Date.new(2026, 3, 7), value: 120, paid: false)
       statement = card.sync_statement!(3, 2026)
       create(:card_statement_payment, card_statement: statement, amount: 30, paid_at: Time.zone.local(2026, 3, 10, 12))
 
-      post "/api/payments/card_statements/#{statement.id}/pay", params: { amount: "90" }
+      post "/api/payments/card_statements/#{statement.id}/pay", params: { amount: "90", account_id: account.id }
 
       expect(response).to have_http_status(:ok)
 
@@ -252,12 +261,13 @@ RSpec.describe "Api::Payments", type: :request do
 
     it "rejects a payment greater than the remaining amount without creating a payment" do
       card = create(:card, user: user, name: 'Nubank', due_day: 15, closing_day: 8)
+      account = create(:account, user: user)
       create(:transaction, user: user, card: card, source: :card, date: Date.new(2026, 3, 7), value: 120, paid: false)
       statement = card.sync_statement!(3, 2026)
       create(:card_statement_payment, card_statement: statement, amount: 30, paid_at: Time.zone.local(2026, 3, 10, 12))
 
       expect do
-        post "/api/payments/card_statements/#{statement.id}/pay", params: { amount: "91" }
+        post "/api/payments/card_statements/#{statement.id}/pay", params: { amount: "91", account_id: account.id }
       end.not_to change(CardStatementPayment, :count)
 
       statement.reload
@@ -270,12 +280,13 @@ RSpec.describe "Api::Payments", type: :request do
 
     it "does not accept another payment for a fully paid statement" do
       card = create(:card, user: user, name: 'Nubank', due_day: 15, closing_day: 8)
+      account = create(:account, user: user)
       create(:transaction, user: user, card: card, source: :card, date: Date.new(2026, 3, 7), value: 120, paid: false)
       statement = card.sync_statement!(3, 2026)
       create(:card_statement_payment, card_statement: statement, amount: 120, paid_at: Time.zone.local(2026, 3, 10, 12))
 
       expect do
-        post "/api/payments/card_statements/#{statement.id}/pay"
+        post "/api/payments/card_statements/#{statement.id}/pay", params: { account_id: account.id }
       end.not_to change(CardStatementPayment, :count)
 
       statement.reload
@@ -286,14 +297,69 @@ RSpec.describe "Api::Payments", type: :request do
       expect(statement.remaining_amount).to eq(BigDecimal('0'))
     end
 
+    it "requires account for a statement payment" do
+      card = create(:card, user: user, name: 'Nubank', due_day: 15, closing_day: 8)
+      create(:transaction, user: user, card: card, source: :card, date: Date.new(2026, 3, 7), value: 120, paid: false)
+      statement = card.sync_statement!(3, 2026)
+
+      expect do
+        post "/api/payments/card_statements/#{statement.id}/pay"
+      end.not_to change(CardStatementPayment, :count)
+
+      expect(response).to have_http_status(:unprocessable_entity)
+      expect(JSON.parse(response.body)["error"]).to eq("Conta é obrigatória para pagar fatura.")
+    end
+
+    it "rejects an account from another user without creating a payment" do
+      card = create(:card, user: user, name: 'Nubank', due_day: 15, closing_day: 8)
+      other_account = create(:account, user: create(:user))
+      create(:transaction, user: user, card: card, source: :card, date: Date.new(2026, 3, 7), value: 120, paid: false)
+      statement = card.sync_statement!(3, 2026)
+
+      expect do
+        post "/api/payments/card_statements/#{statement.id}/pay", params: { account_id: other_account.id }
+      end.not_to change(CardStatementPayment, :count)
+
+      expect(response).to have_http_status(:unprocessable_entity)
+      expect(JSON.parse(response.body)["error"]).to eq("Conta não encontrada.")
+    end
+
+    it "rejects an archived account without creating a payment" do
+      card = create(:card, user: user, name: 'Nubank', due_day: 15, closing_day: 8)
+      account = create(:account, user: user, archived_at: Time.current)
+      create(:transaction, user: user, card: card, source: :card, date: Date.new(2026, 3, 7), value: 120, paid: false)
+      statement = card.sync_statement!(3, 2026)
+
+      expect do
+        post "/api/payments/card_statements/#{statement.id}/pay", params: { account_id: account.id }
+      end.not_to change(CardStatementPayment, :count)
+
+      expect(response).to have_http_status(:unprocessable_entity)
+      expect(JSON.parse(response.body)["error"]).to eq("Conta não encontrada.")
+    end
+
+    it "rejects a missing account without creating a payment" do
+      card = create(:card, user: user, name: 'Nubank', due_day: 15, closing_day: 8)
+      create(:transaction, user: user, card: card, source: :card, date: Date.new(2026, 3, 7), value: 120, paid: false)
+      statement = card.sync_statement!(3, 2026)
+
+      expect do
+        post "/api/payments/card_statements/#{statement.id}/pay", params: { account_id: Account.maximum(:id).to_i + 10_000 }
+      end.not_to change(CardStatementPayment, :count)
+
+      expect(response).to have_http_status(:unprocessable_entity)
+      expect(JSON.parse(response.body)["error"]).to eq("Conta não encontrada.")
+    end
+
     it "does not allow paying a statement from another user" do
       other_user = create(:user)
       other_card = create(:card, user: other_user, name: 'Inter', due_day: 15, closing_day: 8)
       create(:transaction, user: other_user, card: other_card, source: :card, date: Date.new(2026, 3, 7), value: 120, paid: false)
       statement = other_card.sync_statement!(3, 2026)
+      account = create(:account, user: user)
 
       expect do
-        post "/api/payments/card_statements/#{statement.id}/pay"
+        post "/api/payments/card_statements/#{statement.id}/pay", params: { account_id: account.id }
       end.not_to change(CardStatementPayment, :count)
 
       expect(response).to have_http_status(:not_found)

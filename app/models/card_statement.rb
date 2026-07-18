@@ -29,7 +29,9 @@ class CardStatement < ApplicationRecord
     update!(ignored_at: ignored_at_time)
   end
 
-  def apply_payment!(value, paid_at: Time.zone.now)
+  def apply_payment!(value, account:, paid_at: Time.zone.now)
+    raise ArgumentError, "Conta é obrigatória para pagar fatura." if account.blank?
+
     v = value.to_d
 
     with_lock do
@@ -46,7 +48,8 @@ class CardStatement < ApplicationRecord
         amount: v,
         paid_at: paid_at,
         description: "Pagamento da fatura",
-        source: "manual"
+        source: "manual",
+        account: account
       )
 
       reload

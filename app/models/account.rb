@@ -1,6 +1,7 @@
 class Account < ApplicationRecord
   belongs_to :user
   has_many :transactions, dependent: :nullify
+  has_many :card_statement_payments, dependent: :nullify
 
   enum kind: {
     checking: 0,

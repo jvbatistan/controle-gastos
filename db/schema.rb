@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 2026_07_01_110000) do
+ActiveRecord::Schema.define(version: 2026_07_06_190000) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_stat_statements"
@@ -42,6 +42,8 @@ ActiveRecord::Schema.define(version: 2026_07_01_110000) do
     t.string "source"
     t.datetime "created_at", precision: 6, null: false
     t.datetime "updated_at", precision: 6, null: false
+    t.bigint "account_id"
+    t.index ["account_id"], name: "index_card_statement_payments_on_account_id"
     t.index ["card_statement_id", "amount", "paid_at", "description"], name: "idx_statement_payments_dedup", unique: true
     t.index ["card_statement_id"], name: "index_card_statement_payments_on_card_statement_id"
     t.index ["original_transaction_id"], name: "idx_statement_payments_original_transaction", unique: true, where: "(original_transaction_id IS NOT NULL)"
@@ -176,6 +178,7 @@ ActiveRecord::Schema.define(version: 2026_07_01_110000) do
   end
 
   add_foreign_key "accounts", "users"
+  add_foreign_key "card_statement_payments", "accounts"
   add_foreign_key "card_statement_payments", "card_statements"
   add_foreign_key "card_statement_payments", "transactions", column: "original_transaction_id"
   add_foreign_key "card_statements", "cards"

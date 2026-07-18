@@ -3,6 +3,7 @@ require 'rails_helper'
 RSpec.describe CardStatementPayment, type: :model do
   describe 'associations' do
     it { should belong_to(:card_statement) }
+    it { should belong_to(:account).optional }
     it { should belong_to(:original_transaction).optional }
   end
 
@@ -19,5 +20,11 @@ RSpec.describe CardStatementPayment, type: :model do
 
     expect(statement.reload.paid_amount.to_d).to eq(BigDecimal('30'))
     expect(statement.remaining_amount).to eq(BigDecimal('70'))
+  end
+
+  it 'keeps legacy payments without account valid' do
+    payment = build(:card_statement_payment, account: nil)
+
+    expect(payment).to be_valid
   end
 end

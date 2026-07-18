@@ -40,8 +40,9 @@ class Api::PaymentsController < Api::BaseController
   def pay_card_statement
     statement = current_user_card_statements.active_for_payments.find(params[:id])
     amount = payment_amount_param(statement.remaining_amount)
+    account = payment_account_param
 
-    statement.apply_payment!(amount)
+    statement.apply_payment!(amount, account: account)
     statement.card.sync_statement!(statement.billing_statement.month, statement.billing_statement.year)
 
     render json: payment_statement_json(statement.reload), status: :ok
@@ -158,6 +159,13 @@ class Api::PaymentsController < Api::BaseController
     parsed
   end
 
+  def payment_account_param
+    account_id = params[:account_id].presence || params.dig(:payment, :account_id).presence
+    raise ArgumentError, "Conta é obrigatória para pagar fatura." if account_id.blank?
+
+    current_user.accounts.active.find_by(id: account_id) || raise(ArgumentError, "Conta não encontrada.")
+  end
+
   def payment_statement_json(statement)
     {
       id: statement.id,
@@ -189,7 +197,8 @@ class Api::PaymentsController < Api::BaseController
       paid_at: payment.paid_at,
       description: payment.description,
       source: payment.source,
-      original_transaction_id: payment.original_transaction_id
+      original_transaction_id: payment.original_transaction_id,
+      account: payment.account&.as_json(only: %i[id name])
     }
   end
 

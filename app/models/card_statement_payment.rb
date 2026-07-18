@@ -1,5 +1,6 @@
 class CardStatementPayment < ApplicationRecord
   belongs_to :card_statement
+  belongs_to :account, optional: true
   belongs_to :original_transaction, class_name: "Transaction", optional: true
 
   validates :amount, presence: true, numericality: { greater_than: 0 }
