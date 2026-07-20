@@ -1,6 +1,6 @@
 class Api::AccountsController < Api::BaseController
   before_action :authenticate_user!
-  before_action :set_account, only: %i[show update destroy restore]
+  before_action :set_account, only: %i[show update destroy restore statement]
 
   def index
     accounts = if ActiveRecord::Type::Boolean.new.cast(params[:archived])
@@ -51,6 +51,21 @@ class Api::AccountsController < Api::BaseController
     render json: account_json(@account.reload), status: :ok
   end
 
+  def statement
+    result = Accounts::StatementBuilder.call(account: @account, params: statement_params)
+
+    render json: {
+      account: account_json(@account),
+      period: result.period,
+      filters: result.filters,
+      summary: result.summary,
+      pagination: result.pagination,
+      items: result.items.map(&:as_json)
+    }, status: :ok
+  rescue ArgumentError => e
+    render json: { error: e.message }, status: :unprocessable_entity
+  end
+
   private
 
   def set_account
@@ -59,6 +74,10 @@ class Api::AccountsController < Api::BaseController
 
   def account_params
     params.require(:account).permit(:name, :kind, :initial_balance, :initial_balance_date)
+  end
+
+  def statement_params
+    params.permit(:start_date, :end_date, :movement_type, :direction, :page, :per_page)
   end
 
   def account_json(account, current_balance: nil)

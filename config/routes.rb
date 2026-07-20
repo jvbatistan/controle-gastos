@@ -28,6 +28,7 @@ Rails.application.routes.draw do
     resources :accounts, only: [:index, :show, :create, :update, :destroy] do
       member do
         patch :restore
+        get :statement
       end
     end
     resources :account_transfers, only: [:index, :show, :create] do
