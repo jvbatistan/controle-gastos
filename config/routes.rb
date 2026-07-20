@@ -30,6 +30,11 @@ Rails.application.routes.draw do
         patch :restore
       end
     end
+    resources :account_transfers, only: [:index, :show, :create] do
+      member do
+        patch :reverse
+      end
+    end
     resources :categories, only: [:index, :create, :update, :destroy]
     resources :cards, only: [:index, :create, :update, :destroy]
 

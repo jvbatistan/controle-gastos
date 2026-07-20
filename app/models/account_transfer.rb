@@ -17,7 +17,7 @@ class AccountTransfer < ApplicationRecord
 
   before_validation :normalize_text_fields
 
-  scope :ordered, -> { order(transferred_on: :desc, id: :desc) }
+  scope :ordered, -> { order(transferred_on: :desc, created_at: :desc, id: :desc) }
 
   private
 
