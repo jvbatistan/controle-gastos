@@ -18,11 +18,15 @@ RSpec.describe 'Api::AccountStatements', type: :request do
       expect(response).to have_http_status(:ok)
 
       body = JSON.parse(response.body)
-      expect(body.keys).to contain_exactly('account', 'period', 'filters', 'summary', 'pagination', 'items')
+      expect(body.keys).to contain_exactly('account', 'period', 'filters', 'balances', 'summary', 'pagination', 'items')
       expect(body['account']).to include(
         'id' => account.id,
         'name' => 'Nubank',
         'current_balance' => '1150.0'
+      )
+      expect(body['balances']).to include(
+        'opening_balance' => '0.0',
+        'closing_balance' => '1150.0'
       )
       expect(body['summary']).to include(
         'credits_total' => '1250.0',
@@ -58,10 +62,86 @@ RSpec.describe 'Api::AccountStatements', type: :request do
       body = JSON.parse(response.body)
       expect(body['period']).to include('start_date' => '2026-07-05', 'end_date' => '2026-07-06')
       expect(body['filters']).to include('movement_type' => 'income', 'direction' => 'credit')
+      expect(body['balances']).to include(
+        'opening_balance' => '100.0',
+        'closing_balance' => '125.0'
+      )
       expect(body['summary']).to include('credits_total' => '30.0', 'debits_total' => '0.0', 'net_total' => '30.0')
       expect(body['pagination']).to include('page' => 2, 'per_page' => 1, 'total_count' => 2, 'total_pages' => 2)
       expect(body['items'].size).to eq(1)
       expect(body['items'].first['amount']).to eq('10.0')
+    end
+
+    it 'returns balances for a period without movements' do
+      account = create(:account, user: user, initial_balance: 1_000, initial_balance_date: Date.new(2026, 1, 1))
+      create(:transaction, user: user, kind: :income, source: :bank, account: account, card: nil, value: 300, date: Date.new(2026, 1, 10))
+      create(:transaction, user: user, kind: :expense, source: :bank, account: account, card: nil, value: 100, date: Date.new(2026, 1, 15))
+
+      get "/api/accounts/#{account.id}/statement", params: {
+        start_date: '2026-02-01',
+        end_date: '2026-02-28'
+      }
+
+      expect(response).to have_http_status(:ok)
+
+      body = JSON.parse(response.body)
+      expect(body['items']).to eq([])
+      expect(body['balances']).to include(
+        'opening_balance' => '1200.0',
+        'closing_balance' => '1200.0'
+      )
+      expect(body['summary']).to include(
+        'credits_total' => '0.0',
+        'debits_total' => '0.0',
+        'net_total' => '0.0'
+      )
+    end
+
+    it 'keeps balances independent from movement type and direction filters' do
+      account = create(:account, user: user, initial_balance: 100, initial_balance_date: Date.new(2026, 7, 1))
+      create(:transaction, user: user, kind: :income, source: :bank, account: account, card: nil, value: 50, date: Date.new(2026, 7, 5))
+      create(:transaction, user: user, kind: :expense, source: :bank, account: account, card: nil, value: 20, date: Date.new(2026, 7, 6))
+
+      get "/api/accounts/#{account.id}/statement", params: {
+        start_date: '2026-07-01',
+        end_date: '2026-07-31',
+        movement_type: 'expense',
+        direction: 'debit'
+      }
+
+      expect(response).to have_http_status(:ok)
+
+      body = JSON.parse(response.body)
+      expect(body['balances']).to include(
+        'opening_balance' => '0.0',
+        'closing_balance' => '130.0'
+      )
+      expect(body['summary']).to include(
+        'credits_total' => '0.0',
+        'debits_total' => '20.0',
+        'net_total' => '-20.0'
+      )
+      expect(body['items'].map { |item| item['movement_type'] }).to eq(['expense'])
+    end
+
+    it 'returns balances for archived accounts' do
+      account = create(:account, user: user, initial_balance: 100, initial_balance_date: Date.new(2026, 7, 1))
+      create(:transaction, user: user, kind: :income, source: :cash, account: account, card: nil, value: 25, date: Date.new(2026, 7, 2))
+      account.archive!
+
+      get "/api/accounts/#{account.id}/statement", params: {
+        start_date: '2026-07-01',
+        end_date: '2026-07-31'
+      }
+
+      expect(response).to have_http_status(:ok)
+
+      body = JSON.parse(response.body)
+      expect(body['account']['archived_at']).to be_present
+      expect(body['balances']).to include(
+        'opening_balance' => '0.0',
+        'closing_balance' => '125.0'
+      )
     end
 
     it 'does not reveal another user account' do

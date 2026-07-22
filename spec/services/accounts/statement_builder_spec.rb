@@ -113,6 +113,10 @@ RSpec.describe Accounts::StatementBuilder do
         debits_total: 700.to_d,
         net_total: 850.to_d
       )
+      expect(result.balances).to include(
+        opening_balance: 0.to_d,
+        closing_balance: 850.to_d
+      )
       expect(result.items.first.movement_type).to eq('transfer_in')
       expect(result.items.find { |item| item.id == "transaction-#{income.id}" }.metadata[:category]).to include(id: category.id, name: 'Salário')
       expect(result.items.find { |item| item.id == "card-statement-payment-#{payment.id}" }.metadata[:card]).to include(id: card.id, name: 'NUBANK')
@@ -180,6 +184,10 @@ RSpec.describe Accounts::StatementBuilder do
         debits_total: 0.to_d,
         net_total: 500.to_d
       )
+      expect(result.balances).to include(
+        opening_balance: 0.to_d,
+        closing_balance: 500.to_d
+      )
     end
 
     it 'applies period, movement type and direction filters before summary and pagination' do
@@ -206,6 +214,10 @@ RSpec.describe Accounts::StatementBuilder do
         debits_total: 0.to_d,
         net_total: 200.to_d
       )
+      expect(result.balances).to include(
+        opening_balance: 600.to_d,
+        closing_balance: 750.to_d
+      )
       expect(result.pagination).to include(
         page: 1,
         per_page: 1,
@@ -220,6 +232,121 @@ RSpec.describe Accounts::StatementBuilder do
         movement_type: 'income',
         direction: 'credit'
       )
+    end
+
+    it 'keeps balances independent from movement type, direction and pagination filters' do
+      create(:transaction, user: user, kind: :income, source: :bank, account: account, card: nil, value: 100, date: Date.new(2026, 7, 5))
+      create(:transaction, user: user, kind: :expense, source: :bank, account: account, card: nil, value: 50, date: Date.new(2026, 7, 6))
+      create(:transaction, user: user, kind: :income, source: :cash, account: account, card: nil, value: 25, date: Date.new(2026, 7, 7))
+
+      result = described_class.call(
+        account: account,
+        params: {
+          start_date: '2026-07-05',
+          end_date: '2026-07-07',
+          movement_type: 'expense',
+          direction: 'debit',
+          page: 2,
+          per_page: 1
+        }
+      )
+
+      expect(result.items).to eq([])
+      expect(result.summary).to include(
+        credits_total: 0.to_d,
+        debits_total: 50.to_d,
+        net_total: -50.to_d
+      )
+      expect(result.balances).to include(
+        opening_balance: 500.to_d,
+        closing_balance: 575.to_d
+      )
+      expect(result.pagination).to include(
+        page: 2,
+        per_page: 1,
+        total_count: 1,
+        total_pages: 1
+      )
+    end
+
+    it 'treats movements on start_date as period movements and movements on end_date as closing movements' do
+      create(:transaction, user: user, kind: :income, source: :bank, account: account, card: nil, value: 100, date: Date.new(2026, 7, 4))
+      create(:transaction, user: user, kind: :income, source: :bank, account: account, card: nil, value: 200, date: Date.new(2026, 7, 5))
+      create(:transaction, user: user, kind: :expense, source: :bank, account: account, card: nil, value: 50, date: Date.new(2026, 7, 6))
+      create(:transaction, user: user, kind: :income, source: :bank, account: account, card: nil, value: 999, date: Date.new(2026, 7, 7))
+
+      result = described_class.call(
+        account: account,
+        params: {
+          start_date: '2026-07-05',
+          end_date: '2026-07-06'
+        }
+      )
+
+      expect(result.balances).to include(
+        opening_balance: 600.to_d,
+        closing_balance: 750.to_d
+      )
+      expect(result.summary).to include(
+        credits_total: 200.to_d,
+        debits_total: 50.to_d,
+        net_total: 150.to_d
+      )
+    end
+
+    it 'returns balances for a period without movements' do
+      create(:transaction, user: user, kind: :income, source: :bank, account: account, card: nil, value: 100, date: Date.new(2026, 7, 5))
+
+      result = described_class.call(
+        account: account,
+        params: {
+          start_date: '2026-08-01',
+          end_date: '2026-08-31'
+        }
+      )
+
+      expect(result.items).to eq([])
+      expect(result.summary).to include(
+        credits_total: 0.to_d,
+        debits_total: 0.to_d,
+        net_total: 0.to_d
+      )
+      expect(result.balances).to include(
+        opening_balance: 600.to_d,
+        closing_balance: 600.to_d
+      )
+    end
+
+    it 'does not include initial balance in opening when account starts inside the period' do
+      result = described_class.call(
+        account: account,
+        params: {
+          start_date: '2026-07-01',
+          end_date: '2026-07-31'
+        }
+      )
+
+      expect(result.items.map(&:movement_type)).to include('initial_balance')
+      expect(result.balances).to include(
+        opening_balance: 0.to_d,
+        closing_balance: 500.to_d
+      )
+    end
+
+    it 'can return closing balance different from current balance' do
+      create(:transaction, user: user, kind: :income, source: :bank, account: account, card: nil, value: 100, date: Date.new(2026, 7, 5))
+      create(:transaction, user: user, kind: :income, source: :bank, account: account, card: nil, value: 300, date: Date.new(2026, 8, 5))
+
+      result = described_class.call(
+        account: account,
+        params: {
+          start_date: '2026-07-01',
+          end_date: '2026-07-31'
+        }
+      )
+
+      expect(result.balances[:closing_balance]).to eq(600.to_d)
+      expect(Accounts::BalanceCalculator.call(account)).to eq(900.to_d)
     end
 
     it 'paginates with a safe default and maximum page size' do

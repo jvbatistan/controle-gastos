@@ -13,7 +13,7 @@ module Accounts
     DEFAULT_PER_PAGE = 25
     MAX_PER_PAGE = 100
 
-    Result = Struct.new(:items, :all_items, :summary, :pagination, :period, :filters, keyword_init: true)
+    Result = Struct.new(:items, :all_items, :balances, :summary, :pagination, :period, :filters, keyword_init: true)
 
     def self.call(account:, params: {})
       new(account: account, params: params).call
@@ -32,6 +32,7 @@ module Accounts
       Result.new(
         items: paginated_entries,
         all_items: sorted_entries,
+        balances: balances,
         summary: summary_for(sorted_entries),
         pagination: pagination_for(sorted_entries),
         period: period,
@@ -264,6 +265,26 @@ module Accounts
         total_count: total_count,
         total_pages: total_pages
       }
+    end
+
+    def balances
+      {
+        opening_balance: opening_balance,
+        closing_balance: closing_balance
+      }
+    end
+
+    def opening_balance
+      return 0.to_d if start_date.blank?
+
+      Accounts::BalanceAtDateCalculator.call(account: account, as_of: start_date - 1.day)
+    end
+
+    def closing_balance
+      Accounts::BalanceAtDateCalculator.call(
+        account: account,
+        as_of: end_date || Accounts::BalanceAtDateCalculator::ALL_KNOWN_EVENTS_CUTOFF
+      )
     end
 
     def period

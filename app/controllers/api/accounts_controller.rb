@@ -58,6 +58,7 @@ class Api::AccountsController < Api::BaseController
       account: account_json(@account),
       period: result.period,
       filters: result.filters,
+      balances: result.balances,
       summary: result.summary,
       pagination: result.pagination,
       items: result.items.map(&:as_json)
