@@ -29,6 +29,7 @@ Rails.application.routes.draw do
       member do
         patch :restore
         get :statement
+        get "statement/print", action: :print_statement
         get "statement/export_csv", action: :export_csv
       end
     end

@@ -1,6 +1,6 @@
 class Api::AccountsController < Api::BaseController
   before_action :authenticate_user!
-  before_action :set_account, only: %i[show update destroy restore statement export_csv]
+  before_action :set_account, only: %i[show update destroy restore statement print_statement export_csv]
 
   def index
     accounts = if ActiveRecord::Type::Boolean.new.cast(params[:archived])
@@ -54,15 +54,19 @@ class Api::AccountsController < Api::BaseController
   def statement
     result = Accounts::StatementBuilder.call(account: @account, params: statement_params)
 
-    render json: {
-      account: account_json(@account),
-      period: result.period,
-      filters: result.filters,
-      balances: result.balances,
-      summary: result.summary,
-      pagination: result.pagination,
-      items: result.items.map(&:as_json)
-    }, status: :ok
+    render json: statement_json(result), status: :ok
+  rescue ArgumentError => e
+    render json: { error: e.message }, status: :unprocessable_entity
+  end
+
+  def print_statement
+    result = Accounts::StatementBuilder.call(
+      account: @account,
+      params: statement_export_params,
+      paginate: false
+    )
+
+    render json: statement_json(result), status: :ok
   rescue ArgumentError => e
     render json: { error: e.message }, status: :unprocessable_entity
   end
@@ -114,6 +118,18 @@ class Api::AccountsController < Api::BaseController
       archived_at: account.archived_at,
       created_at: account.created_at,
       updated_at: account.updated_at
+    }
+  end
+
+  def statement_json(result)
+    {
+      account: account_json(@account),
+      period: result.period,
+      filters: result.filters,
+      balances: result.balances,
+      summary: result.summary,
+      pagination: result.pagination,
+      items: result.items.map(&:as_json)
     }
   end
 end

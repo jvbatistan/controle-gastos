@@ -172,4 +172,56 @@ RSpec.describe 'Api::AccountStatements', type: :request do
       expect(JSON.parse(response.body)['account']['archived_at']).to be_present
     end
   end
+
+  describe 'GET /api/accounts/:id/statement/print' do
+    it 'returns every filtered statement item without pagination while preserving summary and balances' do
+      account = create(:account, user: user, initial_balance: 100, initial_balance_date: Date.new(2026, 7, 1))
+      create_list(:transaction, 3, user: user, kind: :income, source: :bank, account: account, card: nil, value: 10, date: Date.new(2026, 7, 5))
+
+      get "/api/accounts/#{account.id}/statement", params: { start_date: '2026-07-01', end_date: '2026-07-31', page: 2, per_page: 1 }
+      paginated = JSON.parse(response.body)
+
+      get "/api/accounts/#{account.id}/statement/print", params: {
+        start_date: '2026-07-01',
+        end_date: '2026-07-31',
+        page: 2,
+        per_page: 1
+      }
+
+      expect(response).to have_http_status(:ok)
+      printed = JSON.parse(response.body)
+      expect(printed['items'].size).to eq(4)
+      expect(printed['pagination']).to include('page' => 1, 'per_page' => 25, 'total_count' => 4, 'total_pages' => 1)
+      expect(printed['summary']).to eq(paginated['summary'])
+      expect(printed['balances']).to eq(paginated['balances'])
+    end
+
+    it 'supports filters, archived accounts and periods without movements' do
+      account = create(:account, user: user, initial_balance: 100, initial_balance_date: Date.new(2026, 7, 1))
+      create(:transaction, user: user, kind: :income, source: :bank, account: account, card: nil, value: 20, date: Date.new(2026, 7, 5))
+      account.archive!
+
+      get "/api/accounts/#{account.id}/statement/print", params: {
+        start_date: '2026-08-01',
+        end_date: '2026-08-31',
+        movement_type: 'income',
+        direction: 'credit'
+      }
+
+      expect(response).to have_http_status(:ok)
+      body = JSON.parse(response.body)
+      expect(body['account']['archived_at']).to be_present
+      expect(body['items']).to eq([])
+      expect(body['summary']).to include('credits_total' => '0.0', 'debits_total' => '0.0')
+      expect(body['balances']).to include('opening_balance' => '120.0', 'closing_balance' => '120.0')
+    end
+
+    it 'does not reveal another user account' do
+      account = create(:account, user: create(:user))
+
+      get "/api/accounts/#{account.id}/statement/print"
+
+      expect(response).to have_http_status(:not_found)
+    end
+  end
 end
