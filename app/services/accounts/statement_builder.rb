@@ -13,15 +13,16 @@ module Accounts
     DEFAULT_PER_PAGE = 25
     MAX_PER_PAGE = 100
 
-    Result = Struct.new(:items, :all_items, :balances, :summary, :pagination, :period, :filters, keyword_init: true)
+    Result = Struct.new(:account, :items, :all_items, :balances, :summary, :pagination, :period, :filters, keyword_init: true)
 
-    def self.call(account:, params: {})
-      new(account: account, params: params).call
+    def self.call(account:, params: {}, paginate: true)
+      new(account: account, params: params, paginate: paginate).call
     end
 
-    def initialize(account:, params: {})
+    def initialize(account:, params: {}, paginate: true)
       @account = account
       @params = params
+      @pagination_enabled = paginate
     end
 
     def call
@@ -30,6 +31,7 @@ module Accounts
       paginated_entries = paginate(sorted_entries)
 
       Result.new(
+        account: account,
         items: paginated_entries,
         all_items: sorted_entries,
         balances: balances,
@@ -42,7 +44,7 @@ module Accounts
 
     private
 
-    attr_reader :account, :params
+    attr_reader :account, :params, :pagination_enabled
 
     def entries
       [
@@ -241,6 +243,8 @@ module Accounts
     end
 
     def paginate(entries)
+      return entries unless pagination_enabled
+
       entries.slice((page - 1) * per_page, per_page) || []
     end
 

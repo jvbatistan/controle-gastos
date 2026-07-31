@@ -360,6 +360,29 @@ RSpec.describe Accounts::StatementBuilder do
       expect(capped_result.pagination[:per_page]).to eq(100)
     end
 
+    it 'keeps summary and balances equal when pagination is disabled and changes only the returned items' do
+      create_list(:transaction, 3, user: user, kind: :income, source: :bank, account: account, card: nil, value: 10, date: Date.new(2026, 7, 5))
+
+      params = {
+        start_date: '2026-07-01',
+        end_date: '2026-07-31',
+        direction: 'credit',
+        page: 2,
+        per_page: 1
+      }
+      paginated = described_class.call(account: account, params: params)
+      unpaginated = described_class.call(account: account, params: params, paginate: false)
+
+      expect(unpaginated.summary).to eq(paginated.summary)
+      expect(unpaginated.balances).to eq(paginated.balances)
+      expect(unpaginated.period).to eq(paginated.period)
+      expect(unpaginated.filters).to eq(paginated.filters)
+      expect(unpaginated.pagination).to eq(paginated.pagination)
+      expect(paginated.items.size).to eq(1)
+      expect(unpaginated.items.size).to eq(4)
+      expect(unpaginated.items.map(&:as_json)).to eq(paginated.all_items.map(&:as_json))
+    end
+
     it 'raises clear errors for invalid filters' do
       expect do
         described_class.call(account: account, params: { movement_type: 'unknown' })

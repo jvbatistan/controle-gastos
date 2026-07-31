@@ -1,6 +1,6 @@
 class Api::AccountsController < Api::BaseController
   before_action :authenticate_user!
-  before_action :set_account, only: %i[show update destroy restore statement]
+  before_action :set_account, only: %i[show update destroy restore statement export_csv]
 
   def index
     accounts = if ActiveRecord::Type::Boolean.new.cast(params[:archived])
@@ -67,6 +67,24 @@ class Api::AccountsController < Api::BaseController
     render json: { error: e.message }, status: :unprocessable_entity
   end
 
+  def export_csv
+    result = Accounts::StatementBuilder.call(
+      account: @account,
+      params: statement_export_params,
+      paginate: false
+    )
+    csv = Accounts::StatementCsvExporter.call(result)
+
+    send_data(
+      csv,
+      filename: Accounts::StatementCsvExporter.filename(result),
+      type: "text/csv; charset=utf-8",
+      disposition: "attachment"
+    )
+  rescue ArgumentError => e
+    render json: { error: e.message }, status: :unprocessable_entity
+  end
+
   private
 
   def set_account
@@ -79,6 +97,10 @@ class Api::AccountsController < Api::BaseController
 
   def statement_params
     params.permit(:start_date, :end_date, :movement_type, :direction, :page, :per_page)
+  end
+
+  def statement_export_params
+    params.permit(:start_date, :end_date, :movement_type, :direction)
   end
 
   def account_json(account, current_balance: nil)
