@@ -8,6 +8,32 @@ RSpec.describe "Api::Dashboard", type: :request do
   end
 
   describe "GET /api/dashboard" do
+    it "uses the current month when competence params are absent or invalid" do
+      allow(Date).to receive(:current).and_return(Date.new(2026, 8, 15))
+
+      get "/api/dashboard"
+      expect(response).to have_http_status(:ok)
+      expect(JSON.parse(response.body)["period"]).to include("month" => 8, "year" => 2026)
+
+      get "/api/dashboard", params: { month: 13, year: "invalid" }
+      expect(response).to have_http_status(:ok)
+      expect(JSON.parse(response.body)["period"]).to include("month" => 8, "year" => 2026)
+    end
+
+    it "uses a future competence without changing financial rules" do
+      account = create(:account, user: user)
+      create(:transaction, user: user, kind: :income, source: :bank, account: account, card: nil, date: Date.new(2026, 9, 5), value: 500)
+      create(:transaction, user: user, kind: :expense, source: :cash, account: account, card: nil, date: Date.new(2026, 9, 8), value: 120, description: "Futuro")
+
+      get "/api/dashboard", params: { month: 9, year: 2026 }
+
+      expect(response).to have_http_status(:ok)
+      body = JSON.parse(response.body)
+      expect(body["period"]).to include("month" => 9, "year" => 2026)
+      expect(body["summary"]).to include("incomes_total" => "500.0", "expenses_total" => "120.0", "balance_total" => "380.0")
+      expect(body["recent_expenses"].map { |expense| expense["description"] }).to eq(["FUTURO"])
+    end
+
     it "returns real expense metrics for the selected period" do
       food = create(:category, user: user, name: "Alimentação")
       travel = create(:category, user: user, name: "Transporte")
@@ -148,6 +174,7 @@ RSpec.describe "Api::Dashboard", type: :request do
 
       expect(body["recent_expenses"].size).to be <= 8
       expect(body["recent_expenses"].first.keys).to include("description", "value", "category", "card")
+      expect(body["recent_expenses"].map { |expense| expense["description"] }).not_to include("Mes anterior")
 
       expect(body["statements"].size).to eq(1)
       expect(body["statements"].first.dig("card", "name")).to eq("NUBANK")
