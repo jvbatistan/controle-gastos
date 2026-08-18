@@ -3,14 +3,16 @@ class Api::ClassificationSuggestionsController < Api::BaseController
   before_action :set_suggestion, only: %i[apply accept reject correct]
 
   def index
-    suggestions = current_user.classification_suggestions
+    scope = current_user.classification_suggestions
                               .pending
                               .joins(:financial_transaction)
                               .merge(current_user.transactions.active)
-                              .includes(:financial_transaction, :suggested_category)
+                              .includes(:suggested_category, financial_transaction: :category)
                               .order(created_at: :desc)
+    total_count = scope.count
+    suggestions = scope.offset((pagination_page - 1) * pagination_per_page).limit(pagination_per_page)
 
-    render json: suggestions.map { |suggestion| suggestion_json(suggestion) }
+    render json: { suggestions: suggestions.map { |suggestion| suggestion_json(suggestion) }, pagination: pagination_json(total_count) }
   end
 
   def accept
@@ -148,8 +150,8 @@ class Api::ClassificationSuggestionsController < Api::BaseController
 
   def suggestion_json(suggestion)
     transaction = suggestion.financial_transaction
-    suggested_category = current_user.categories.find_by(id: suggestion.suggested_category_id)
-    transaction_category = current_user.categories.find_by(id: transaction.category_id)
+    suggested_category = suggestion.suggested_category
+    transaction_category = transaction.category
 
     {
       id: suggestion.id,
@@ -171,5 +173,19 @@ class Api::ClassificationSuggestionsController < Api::BaseController
         classification_status: transaction.classification_status
       }
     }
+  end
+
+  def pagination_page
+    value = params[:page].to_i
+    value.positive? ? value : 1
+  end
+
+  def pagination_per_page
+    value = params[:per_page].presence&.to_i || 25
+    value.positive? ? [value, 100].min : 25
+  end
+
+  def pagination_json(total_count)
+    { page: pagination_page, per_page: pagination_per_page, total_count: total_count, total_pages: (total_count.to_f / pagination_per_page).ceil }
   end
 end

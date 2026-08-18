@@ -8,7 +8,34 @@ RSpec.describe 'Api::ClassificationSuggestions', type: :request do
     sign_in user
   end
 
+  def request_metrics
+    selects = 0
+    callback = ->(_name, _start, _finish, _id, payload) { selects += 1 if !payload[:cached] && payload[:sql].to_s.match?(/\A\s*SELECT/i) }
+    started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+    ActiveSupport::Notifications.subscribed(callback, 'sql.active_record') { yield }
+    { selects: selects, duration_ms: ((Process.clock_gettime(Process::CLOCK_MONOTONIC) - started) * 1_000).round(1), payload_bytes: response.body.bytesize }
+  end
+
   describe 'GET /api/classification_suggestions' do
+    it 'paginates pending suggestions with safe defaults and a maximum' do
+      category = create(:category, user: user)
+      suggestions = 30.times.map do |index|
+        transaction = create(:transaction, user: user, card: nil, source: :cash, account: account, description: "Suggestion #{index}")
+        transaction.classification_suggestions.delete_all
+        user.classification_suggestions.create!(financial_transaction: transaction, suggested_category: category, confidence: 0.8, source: :rule)
+      end
+
+      get '/api/classification_suggestions', params: { page: 2, per_page: 25 }
+      body = JSON.parse(response.body)
+      expect(body['pagination']).to eq('page' => 2, 'per_page' => 25, 'total_count' => 30, 'total_pages' => 2)
+      expect(body['suggestions'].map { |item| item['id'] }).to eq(suggestions.first(5).reverse.map(&:id))
+
+      get '/api/classification_suggestions', params: { page: 0, per_page: 999 }
+      expect(JSON.parse(response.body)['pagination']).to include('page' => 1, 'per_page' => 100)
+
+      metrics = request_metrics { get '/api/classification_suggestions', params: { page: 1, per_page: 25 } }
+      warn("PERFORMANCE_1D_SUGGESTIONS #{metrics.inspect}") if ENV['PERFORMANCE_1D_METRICS'] == '1'
+    end
     it 'lists pending suggestions with transaction data' do
       category = create(:category, user: user, name: 'Transporte')
       transaction = user.transactions.create!(
@@ -33,10 +60,11 @@ RSpec.describe 'Api::ClassificationSuggestions', type: :request do
       expect(response).to have_http_status(:ok)
 
       body = JSON.parse(response.body)
-      expect(body.size).to eq(1)
-      expect(body.first['id']).to eq(suggestion.id)
-      expect(body.first.dig('financial_transaction', 'id')).to eq(transaction.id)
-      expect(body.first.dig('suggested_category', 'id')).to eq(category.id)
+      expect(body['pagination']).to include('page' => 1, 'per_page' => 25, 'total_count' => 1, 'total_pages' => 1)
+      expect(body['suggestions'].size).to eq(1)
+      expect(body['suggestions'].first['id']).to eq(suggestion.id)
+      expect(body['suggestions'].first.dig('financial_transaction', 'id')).to eq(transaction.id)
+      expect(body['suggestions'].first.dig('suggested_category', 'id')).to eq(category.id)
     end
   end
 

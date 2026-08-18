@@ -3,13 +3,15 @@ class Api::AccountTransfersController < Api::BaseController
   before_action :set_account_transfer, only: %i[show reverse]
 
   def index
-    transfers = current_user.account_transfers
+    scope = current_user.account_transfers
                             .includes(:from_account, :to_account)
                             .ordered
-    transfers = transfers.where(status: status_filter) if status_filter.present?
-    transfers = filter_by_account(transfers)
+    scope = scope.where(status: status_filter) if status_filter.present?
+    scope = filter_by_account(scope)
+    total_count = scope.count
+    transfers = scope.offset((pagination_page - 1) * pagination_per_page).limit(pagination_per_page)
 
-    render json: transfers.map { |transfer| account_transfer_json(transfer) }, status: :ok
+    render json: { transfers: transfers.map { |transfer| account_transfer_json(transfer) }, pagination: pagination_json(total_count) }, status: :ok
   rescue ArgumentError => e
     render json: { error: e.message }, status: :unprocessable_entity
   end
@@ -100,5 +102,19 @@ class Api::AccountTransfersController < Api::BaseController
       id: account.id,
       name: account.name
     }
+  end
+
+  def pagination_page
+    value = params[:page].to_i
+    value.positive? ? value : 1
+  end
+
+  def pagination_per_page
+    value = params[:per_page].presence&.to_i || 10
+    value.positive? ? [value, 100].min : 10
+  end
+
+  def pagination_json(total_count)
+    { page: pagination_page, per_page: pagination_per_page, total_count: total_count, total_pages: (total_count.to_f / pagination_per_page).ceil }
   end
 end

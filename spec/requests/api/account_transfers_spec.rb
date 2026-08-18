@@ -7,7 +7,31 @@ RSpec.describe "Api::AccountTransfers", type: :request do
     sign_in user
   end
 
+  def request_metrics
+    selects = 0
+    callback = ->(_name, _start, _finish, _id, payload) { selects += 1 if !payload[:cached] && payload[:sql].to_s.match?(/\A\s*SELECT/i) }
+    started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+    ActiveSupport::Notifications.subscribed(callback, 'sql.active_record') { yield }
+    { selects: selects, duration_ms: ((Process.clock_gettime(Process::CLOCK_MONOTONIC) - started) * 1_000).round(1), payload_bytes: response.body.bytesize }
+  end
+
   describe "GET /api/account_transfers" do
+    it "paginates with ten records by default and caps per_page" do
+      from_account = create(:account, user: user)
+      to_account = create(:account, user: user)
+      transfers = 12.times.map { |index| create(:account_transfer, user: user, from_account: from_account, to_account: to_account, transferred_on: Date.new(2026, 7, 18), description: "Transfer #{index}") }
+
+      get "/api/account_transfers", params: { page: 2 }
+      body = JSON.parse(response.body)
+      expect(body['pagination']).to eq('page' => 2, 'per_page' => 10, 'total_count' => 12, 'total_pages' => 2)
+      expect(body['transfers'].map { |item| item['id'] }).to eq(transfers.first(2).reverse.map(&:id))
+
+      get "/api/account_transfers", params: { page: 0, per_page: 999 }
+      expect(JSON.parse(response.body)['pagination']).to include('page' => 1, 'per_page' => 100)
+
+      metrics = request_metrics { get "/api/account_transfers", params: { page: 1, per_page: 10 } }
+      warn("PERFORMANCE_1D_TRANSFERS #{metrics.inspect}") if ENV['PERFORMANCE_1D_METRICS'] == '1'
+    end
     it "returns only transfers from the current user ordered by transferred_on and created_at" do
       from_account = create(:account, user: user, name: "Nubank")
       to_account = create(:account, user: user, name: "Poupança")
@@ -25,8 +49,8 @@ RSpec.describe "Api::AccountTransfers", type: :request do
       expect(response).to have_http_status(:ok)
 
       body = JSON.parse(response.body)
-      expect(body.map { |item| item["id"] }).to eq([newer.id, older.id, previous_day.id])
-      expect(body.first).to include(
+      expect(body['transfers'].map { |item| item["id"] }).to eq([newer.id, older.id, previous_day.id])
+      expect(body['transfers'].first).to include(
         "from_account" => { "id" => from_account.id, "name" => "Nubank" },
         "to_account" => { "id" => to_account.id, "name" => "Poupança" },
         "status" => "completed"
@@ -40,7 +64,7 @@ RSpec.describe "Api::AccountTransfers", type: :request do
       get "/api/account_transfers"
 
       body = JSON.parse(response.body)
-      expect(body.map { |item| item["id"] }).to contain_exactly(completed.id, reversed.id)
+      expect(body['transfers'].map { |item| item["id"] }).to contain_exactly(completed.id, reversed.id)
     end
 
     it "filters transfers by status" do
@@ -50,7 +74,7 @@ RSpec.describe "Api::AccountTransfers", type: :request do
       get "/api/account_transfers", params: { status: "completed" }
 
       body = JSON.parse(response.body)
-      expect(body.map { |item| item["id"] }).to eq([completed.id])
+      expect(body['transfers'].map { |item| item["id"] }).to eq([completed.id])
     end
 
     it "rejects invalid status filter" do
@@ -71,7 +95,7 @@ RSpec.describe "Api::AccountTransfers", type: :request do
       get "/api/account_transfers", params: { account_id: account.id }
 
       body = JSON.parse(response.body)
-      expect(body.map { |item| item["id"] }).to contain_exactly(outgoing.id, incoming.id)
+      expect(body['transfers'].map { |item| item["id"] }).to contain_exactly(outgoing.id, incoming.id)
     end
 
     it "returns an empty list for account filter from another user without leaking it" do
@@ -81,7 +105,7 @@ RSpec.describe "Api::AccountTransfers", type: :request do
       get "/api/account_transfers", params: { account_id: other_account.id }
 
       expect(response).to have_http_status(:ok)
-      expect(JSON.parse(response.body)).to eq([])
+      expect(JSON.parse(response.body)).to eq('transfers' => [], 'pagination' => { 'page' => 1, 'per_page' => 10, 'total_count' => 0, 'total_pages' => 0 })
     end
   end
 
