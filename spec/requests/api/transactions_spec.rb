@@ -7,6 +7,17 @@ RSpec.describe 'Api::Transactions', type: :request do
     sign_in user
   end
 
+  def select_query_count
+    count = 0
+    callback = lambda do |_name, _started, _finished, _unique_id, payload|
+      sql = payload[:sql].to_s
+      count += 1 if sql.match?(/\ASELECT/i) && !payload[:cached]
+    end
+
+    ActiveSupport::Notifications.subscribed(callback, 'sql.active_record') { yield }
+    count
+  end
+
   describe 'POST /api/transactions' do
     it 'auto-classifies when an exact alias exists' do
       category = create(:category, user: user, name: 'Transporte')
@@ -678,6 +689,57 @@ RSpec.describe 'Api::Transactions', type: :request do
       body = JSON.parse(response.body)
       expect(body.map { |transaction| transaction['id'] }).to eq([visible.id])
       expect(body.map { |transaction| transaction['id'] }).not_to include(hidden.id)
+    end
+
+    it 'keeps association queries bounded as the response grows' do
+      category = create(:category, user: user)
+      card = create(:card, user: user)
+      account = create(:account, user: user)
+
+      6.times do |index|
+        create(:transaction, user: user, card: card, category: category, description: "Card #{index}")
+        create(:transaction, user: user, card: nil, account: account, category: category, source: :cash, paid: true, description: "Cash #{index}")
+      end
+
+      queries = select_query_count { get '/api/transactions', params: { limit: 50 } }
+
+      expect(response).to have_http_status(:ok)
+      expect(JSON.parse(response.body).size).to eq(12)
+      expect(queries).to be <= 12
+    end
+
+    it 'keeps the newest pending suggestion from an installment group outside the response page' do
+      card = create(:card, user: user)
+      group_id = SecureRandom.uuid
+      older_installment = create(
+        :transaction,
+        user: user,
+        card: card,
+        installment_group_id: group_id,
+        installment_number: 1,
+        installments_count: 2,
+        date: Date.current - 1.month
+      )
+      visible_installment = create(
+        :transaction,
+        user: user,
+        card: card,
+        installment_group_id: group_id,
+        installment_number: 2,
+        installments_count: 2,
+        date: Date.current
+      )
+      older_installment.classification_suggestions.delete_all
+      visible_installment.classification_suggestions.delete_all
+      suggestion = create(:classification_suggestion, user: user, financial_transaction: older_installment)
+
+      get '/api/transactions', params: { limit: 1 }
+
+      expect(response).to have_http_status(:ok)
+      body = JSON.parse(response.body).first
+      expect(body['id']).to eq(visible_installment.id)
+      expect(body.dig('classification', 'status')).to eq('suggestion_pending')
+      expect(body.dig('classification', 'suggestion', 'id')).to eq(suggestion.id)
     end
   end
 

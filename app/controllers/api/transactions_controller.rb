@@ -1,9 +1,21 @@
 class Api::TransactionsController < Api::BaseController
+  UNSET = Object.new.freeze
   before_action :authenticate_user!
   before_action :set_transaction, only: %i[update destroy]
 
   def index
-    render json: filtered_transactions_scope.map { |transaction| tx_json(transaction) }
+    transactions = filtered_transactions_scope.to_a
+    pending_suggestions = pending_suggestions_for(transactions)
+
+    payload = transactions.map do |transaction|
+      tx_json(
+        transaction,
+        pending_suggestion: pending_suggestions.fetch(transaction.id),
+        category: transaction.category,
+        account: transaction.account
+      )
+    end
+    render json: payload
   end
 
   def export_csv
@@ -106,7 +118,7 @@ class Api::TransactionsController < Api::BaseController
   end
 
   def filtered_transactions_scope
-    scope = current_user.transactions.active.includes(:category, :card, :account, :classification_suggestions).order(date: :desc, id: :desc)
+    scope = current_user.transactions.active.includes(:category, :card, :account).order(date: :desc, id: :desc)
 
     month   = params[:month].presence
     year    = params[:year].presence
@@ -208,10 +220,10 @@ class Api::TransactionsController < Api::BaseController
     transaction.errors.empty?
   end
 
-  def tx_json(transaction)
-    suggestion = transaction.pending_classification_suggestion
-    category = current_user.categories.find_by(id: transaction.category_id)
-    account = current_user.accounts.find_by(id: transaction.account_id)
+  def tx_json(transaction, pending_suggestion: UNSET, category: UNSET, account: UNSET)
+    suggestion = pending_suggestion.equal?(UNSET) ? transaction.pending_classification_suggestion : pending_suggestion
+    category = transaction.association(:category).loaded? ? transaction.category : current_user.categories.find_by(id: transaction.category_id) if category.equal?(UNSET)
+    account = transaction.association(:account).loaded? ? transaction.account : current_user.accounts.find_by(id: transaction.account_id) if account.equal?(UNSET)
 
     {
       id: transaction.id,
@@ -230,7 +242,7 @@ class Api::TransactionsController < Api::BaseController
       installment_number: transaction.installment_number,
       installments_count: transaction.installments_count,
       classification: {
-        status: transaction.classification_status,
+        status: classification_status(transaction, category, suggestion),
         category: category&.as_json(only: %i[id name]),
         suggestion: suggestion_json(suggestion)
       },
@@ -240,10 +252,50 @@ class Api::TransactionsController < Api::BaseController
     }
   end
 
+  def pending_suggestions_for(transactions)
+    transaction_ids = transactions.map(&:id)
+    return {} if transaction_ids.empty?
+
+    installment_group_ids = transactions.filter_map(&:installment_group_id).uniq
+    sibling_groups = if installment_group_ids.empty?
+                       {}
+                     else
+                       current_user.transactions.active
+                                   .where(installment_group_id: installment_group_ids)
+                                   .pluck(:id, :installment_group_id)
+                                   .group_by(&:last)
+                                   .transform_values { |pairs| pairs.map(&:first) }
+                     end
+
+    suggestion_target_ids = transaction_ids + sibling_groups.values.flatten
+    suggestions_by_transaction_id = current_user.classification_suggestions
+                                            .pending
+                                            .includes(:suggested_category)
+                                            .where(financial_transaction_id: suggestion_target_ids.uniq)
+                                            .order(created_at: :desc)
+                                            .group_by(&:financial_transaction_id)
+
+    transactions.to_h do |transaction|
+      ids = transaction.installment_group_id.present? ? sibling_groups.fetch(transaction.installment_group_id, [transaction.id]) : [transaction.id]
+      [transaction.id, ids.flat_map { |id| suggestions_by_transaction_id[id] || [] }.max_by(&:created_at)]
+    end
+  end
+
+  def classification_status(transaction, category, suggestion)
+    return 'classified' if transaction.category_id.present? && category&.user_id == transaction.user_id
+    return 'suggestion_pending' if suggestion.present?
+
+    'unclassified'
+  end
+
   def suggestion_json(suggestion)
     return nil if suggestion.nil?
 
-    suggested_category = current_user.categories.find_by(id: suggestion.suggested_category_id)
+    suggested_category = if suggestion.association(:suggested_category).loaded?
+                           suggestion.suggested_category
+                         else
+                           current_user.categories.find_by(id: suggestion.suggested_category_id)
+                         end
 
     {
       id: suggestion.id,
