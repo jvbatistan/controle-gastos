@@ -31,10 +31,10 @@ RSpec.describe Accounts::BalanceAtDateCalculator do
       user = create(:user)
       account = create(:account, user: user, initial_balance: 500, initial_balance_date: Date.new(2026, 7, 1))
       card = create(:card, user: user)
-      create(:transaction, user: user, kind: :expense, source: :cash, account: account, card: nil, value: 40, date: Date.new(2026, 7, 5))
-      create(:transaction, user: user, kind: :expense, source: :bank, account: account, card: nil, value: 60, date: Date.new(2026, 7, 5))
+      create(:transaction, user: user, kind: :expense, source: :cash, account: account, card: nil, value: 40, date: Date.new(2026, 7, 5), paid: true)
+      create(:transaction, user: user, kind: :expense, source: :bank, account: account, card: nil, value: 60, date: Date.new(2026, 7, 5), paid: true)
       create(:transaction, user: user, kind: :expense, source: :card, account: nil, card: card, value: 100, date: Date.new(2026, 7, 5))
-      create(:transaction, user: user, kind: :expense, source: :bank, account: account, card: nil, value: 20, date: Date.new(2026, 7, 6))
+      create(:transaction, user: user, kind: :expense, source: :bank, account: account, card: nil, value: 20, date: Date.new(2026, 7, 6), paid: true)
 
       expect(described_class.call(account: account, as_of: Date.new(2026, 7, 5))).to eq(400.to_d)
     end
@@ -77,7 +77,7 @@ RSpec.describe Accounts::BalanceAtDateCalculator do
     it 'allows negative balances' do
       user = create(:user)
       account = create(:account, user: user, initial_balance: 10, initial_balance_date: Date.new(2026, 7, 1))
-      create(:transaction, user: user, kind: :expense, source: :bank, account: account, card: nil, value: 40, date: Date.new(2026, 7, 2))
+      create(:transaction, user: user, kind: :expense, source: :bank, account: account, card: nil, value: 40, date: Date.new(2026, 7, 2), paid: true)
 
       expect(described_class.call(account: account, as_of: Date.new(2026, 7, 2))).to eq(-30.to_d)
     end
@@ -127,7 +127,7 @@ RSpec.describe Accounts::BalanceAtDateCalculator do
       savings = create(:account, user: user)
 
       create(:transaction, user: user, kind: :income, source: :bank, account: account, card: nil, value: 300, date: Date.new(2026, 7, 5))
-      create(:transaction, user: user, kind: :expense, source: :cash, account: account, card: nil, value: 120, date: Date.new(2026, 7, 6))
+      create(:transaction, user: user, kind: :expense, source: :cash, account: account, card: nil, value: 120, date: Date.new(2026, 7, 6), paid: true)
       create(:card_statement_payment, card_statement: statement, account: account, amount: 80, paid_at: Time.zone.local(2026, 7, 7), description: 'Pagamento final')
       create(:account_transfer, user: user, from_account: account, to_account: savings, amount: 50, transferred_on: Date.new(2026, 7, 8))
       create(:account_transfer, user: user, from_account: savings, to_account: account, amount: 10, transferred_on: Date.new(2026, 7, 9))

@@ -54,7 +54,7 @@ module Accounts
     def cash_expense_totals
       Transaction.active
                  .expenses
-                 .where(account_id: account_ids, source: CASH_EXPENSE_SOURCES)
+                 .where(account_id: account_ids, source: CASH_EXPENSE_SOURCES, paid: true)
                  .group(:account_id)
                  .sum(Arel.sql(Transaction.signed_value_sql))
     end

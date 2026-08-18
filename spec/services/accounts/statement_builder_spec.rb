@@ -40,6 +40,7 @@ RSpec.describe Accounts::StatementBuilder do
         value: 80,
         date: Date.new(2026, 7, 6),
         description: 'Mercado',
+        paid: true,
         created_at: Time.zone.local(2026, 7, 6, 9)
       )
       bank_expense = create(
@@ -52,6 +53,7 @@ RSpec.describe Accounts::StatementBuilder do
         value: 120,
         date: Date.new(2026, 7, 7),
         description: 'Internet',
+        paid: true,
         created_at: Time.zone.local(2026, 7, 7, 9)
       )
       card = create(:card, user: user, name: 'NUBANK')
@@ -146,6 +148,7 @@ RSpec.describe Accounts::StatementBuilder do
         value: 40,
         date: Date.new(2026, 7, 6),
         description: 'Arquivada',
+        paid: true,
         archived_at: Time.current
       )
       legacy_without_account = create(
@@ -190,10 +193,30 @@ RSpec.describe Accounts::StatementBuilder do
       )
     end
 
+    it 'only includes a cash expense after it is paid' do
+      expense = create(
+        :transaction,
+        user: user,
+        kind: :expense,
+        source: :cash,
+        account: account,
+        card: nil,
+        value: 405,
+        paid: false,
+        date: Date.new(2026, 7, 5)
+      )
+
+      expect(described_class.call(account: account).items.map(&:id)).not_to include("transaction-#{expense.id}")
+
+      expense.update!(paid: true)
+
+      expect(described_class.call(account: account).items.map(&:id)).to include("transaction-#{expense.id}")
+    end
+
     it 'applies period, movement type and direction filters before summary and pagination' do
       create(:transaction, user: user, kind: :income, source: :bank, account: account, card: nil, value: 100, date: Date.new(2026, 7, 5))
       create(:transaction, user: user, kind: :income, source: :bank, account: account, card: nil, value: 200, date: Date.new(2026, 7, 6))
-      create(:transaction, user: user, kind: :expense, source: :bank, account: account, card: nil, value: 50, date: Date.new(2026, 7, 6))
+      create(:transaction, user: user, kind: :expense, source: :bank, account: account, card: nil, value: 50, date: Date.new(2026, 7, 6), paid: true)
 
       result = described_class.call(
         account: account,
@@ -236,7 +259,7 @@ RSpec.describe Accounts::StatementBuilder do
 
     it 'keeps balances independent from movement type, direction and pagination filters' do
       create(:transaction, user: user, kind: :income, source: :bank, account: account, card: nil, value: 100, date: Date.new(2026, 7, 5))
-      create(:transaction, user: user, kind: :expense, source: :bank, account: account, card: nil, value: 50, date: Date.new(2026, 7, 6))
+      create(:transaction, user: user, kind: :expense, source: :bank, account: account, card: nil, value: 50, date: Date.new(2026, 7, 6), paid: true)
       create(:transaction, user: user, kind: :income, source: :cash, account: account, card: nil, value: 25, date: Date.new(2026, 7, 7))
 
       result = described_class.call(
@@ -272,7 +295,7 @@ RSpec.describe Accounts::StatementBuilder do
     it 'treats movements on start_date as period movements and movements on end_date as closing movements' do
       create(:transaction, user: user, kind: :income, source: :bank, account: account, card: nil, value: 100, date: Date.new(2026, 7, 4))
       create(:transaction, user: user, kind: :income, source: :bank, account: account, card: nil, value: 200, date: Date.new(2026, 7, 5))
-      create(:transaction, user: user, kind: :expense, source: :bank, account: account, card: nil, value: 50, date: Date.new(2026, 7, 6))
+      create(:transaction, user: user, kind: :expense, source: :bank, account: account, card: nil, value: 50, date: Date.new(2026, 7, 6), paid: true)
       create(:transaction, user: user, kind: :income, source: :bank, account: account, card: nil, value: 999, date: Date.new(2026, 7, 7))
 
       result = described_class.call(

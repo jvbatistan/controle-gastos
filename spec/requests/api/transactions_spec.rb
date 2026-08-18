@@ -418,7 +418,7 @@ RSpec.describe 'Api::Transactions', type: :request do
       expect(body.dig('account', 'name')).to eq('Conta Corrente')
     end
 
-    it 'rejects a new cash or bank expense without account' do
+    it 'creates a new unpaid cash or bank expense without account' do
       post '/api/transactions', params: {
         transaction: {
           description: 'Despesa sem conta',
@@ -426,6 +426,18 @@ RSpec.describe 'Api::Transactions', type: :request do
           date: Date.current,
           kind: 'expense',
           source: 'cash'
+        }
+      }
+
+      expect(response).to have_http_status(:created)
+      expect(JSON.parse(response.body)['account']).to be_nil
+    end
+
+    it 'rejects a paid cash or bank expense without account' do
+      post '/api/transactions', params: {
+        transaction: {
+          description: 'Despesa paga sem conta', value: '10,00', date: Date.current,
+          kind: 'expense', source: 'bank', paid: true
         }
       }
 
@@ -724,7 +736,7 @@ RSpec.describe 'Api::Transactions', type: :request do
       expect(body['account']).to be_nil
     end
 
-    it 'requires account when converting a legacy card expense to cash or bank' do
+    it 'allows converting an unpaid card expense to cash or bank without account' do
       card = create(:card, user: user)
       transaction = create(:transaction, user: user, card: card, source: :card)
 
@@ -735,8 +747,9 @@ RSpec.describe 'Api::Transactions', type: :request do
         }
       }
 
-      expect(response).to have_http_status(:unprocessable_entity)
-      expect(JSON.parse(response.body)['error']).to include('Account é obrigatória para despesas sem cartão')
+      expect(response).to have_http_status(:ok)
+      expect(transaction.reload).to be_cash
+      expect(transaction.account_id).to be_nil
     end
 
     it 'does not update a transaction with a category from another user' do

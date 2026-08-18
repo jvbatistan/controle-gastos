@@ -11,7 +11,7 @@ RSpec.describe 'Api::AccountStatements', type: :request do
     it 'returns the account statement contract for the current user' do
       account = create(:account, user: user, name: 'Nubank', initial_balance: 250, initial_balance_date: Date.new(2026, 7, 1))
       create(:transaction, user: user, kind: :income, source: :bank, account: account, card: nil, value: 1_000, date: Date.new(2026, 7, 5), description: 'Salário')
-      create(:transaction, user: user, kind: :expense, source: :cash, account: account, card: nil, value: 100, date: Date.new(2026, 7, 6), description: 'Mercado')
+      create(:transaction, user: user, kind: :expense, source: :cash, account: account, card: nil, value: 100, date: Date.new(2026, 7, 6), description: 'Mercado', paid: true)
 
       get "/api/accounts/#{account.id}/statement"
 
@@ -46,7 +46,7 @@ RSpec.describe 'Api::AccountStatements', type: :request do
       account = create(:account, user: user, initial_balance: 100, initial_balance_date: Date.new(2026, 7, 1))
       create(:transaction, user: user, kind: :income, source: :bank, account: account, card: nil, value: 10, date: Date.new(2026, 7, 5))
       create(:transaction, user: user, kind: :income, source: :cash, account: account, card: nil, value: 20, date: Date.new(2026, 7, 6))
-      create(:transaction, user: user, kind: :expense, source: :bank, account: account, card: nil, value: 5, date: Date.new(2026, 7, 6))
+      create(:transaction, user: user, kind: :expense, source: :bank, account: account, card: nil, value: 5, date: Date.new(2026, 7, 6), paid: true)
 
       get "/api/accounts/#{account.id}/statement", params: {
         start_date: '2026-07-05',
@@ -75,7 +75,7 @@ RSpec.describe 'Api::AccountStatements', type: :request do
     it 'returns balances for a period without movements' do
       account = create(:account, user: user, initial_balance: 1_000, initial_balance_date: Date.new(2026, 1, 1))
       create(:transaction, user: user, kind: :income, source: :bank, account: account, card: nil, value: 300, date: Date.new(2026, 1, 10))
-      create(:transaction, user: user, kind: :expense, source: :bank, account: account, card: nil, value: 100, date: Date.new(2026, 1, 15))
+      create(:transaction, user: user, kind: :expense, source: :bank, account: account, card: nil, value: 100, date: Date.new(2026, 1, 15), paid: true)
 
       get "/api/accounts/#{account.id}/statement", params: {
         start_date: '2026-02-01',
@@ -100,7 +100,7 @@ RSpec.describe 'Api::AccountStatements', type: :request do
     it 'keeps balances independent from movement type and direction filters' do
       account = create(:account, user: user, initial_balance: 100, initial_balance_date: Date.new(2026, 7, 1))
       create(:transaction, user: user, kind: :income, source: :bank, account: account, card: nil, value: 50, date: Date.new(2026, 7, 5))
-      create(:transaction, user: user, kind: :expense, source: :bank, account: account, card: nil, value: 20, date: Date.new(2026, 7, 6))
+      create(:transaction, user: user, kind: :expense, source: :bank, account: account, card: nil, value: 20, date: Date.new(2026, 7, 6), paid: true)
 
       get "/api/accounts/#{account.id}/statement", params: {
         start_date: '2026-07-01',

@@ -414,42 +414,81 @@ RSpec.describe "Api::Payments", type: :request do
 
   describe "POST /api/payments/loose_expenses/pay" do
     it "marks the loose expenses of the period as paid" do
+      account = create(:account, user: user)
       transaction = create(:transaction, user: user, card: nil, source: :bank, date: Date.new(2026, 3, 10), value: 80, paid: false)
       create(:transaction, user: user, card: nil, source: :bank, date: Date.new(2026, 4, 10), value: 50, paid: false)
 
-      post "/api/payments/loose_expenses/pay", params: { month: 3, year: 2026 }
+      post "/api/payments/loose_expenses/pay", params: { month: 3, year: 2026, account_id: account.id }
 
       expect(response).to have_http_status(:ok)
 
       transaction.reload
       body = JSON.parse(response.body)
       expect(transaction.paid).to eq(true)
+      expect(transaction.account).to eq(account)
       expect(body["paid_transactions_count"]).to eq(1)
       expect(body["total_amount"]).to eq("80.0")
+    end
+
+    it "requires an active account from the current user" do
+      create(:transaction, user: user, card: nil, source: :cash, date: Date.new(2026, 3, 10), paid: false)
+
+      post "/api/payments/loose_expenses/pay", params: { month: 3, year: 2026 }
+
+      expect(response).to have_http_status(:unprocessable_entity)
+      expect(JSON.parse(response.body)["error"]).to eq("Conta é obrigatória para pagar despesas.")
     end
   end
 
   describe "POST /api/payments/loose_expenses/:id/pay" do
     it "marks a single loose expense as paid for the selected period" do
+      account = create(:account, user: user, name: "Conta Corrente")
       transaction = create(:transaction, user: user, card: nil, source: :bank, date: Date.new(2026, 3, 10), value: 80, paid: false, description: "Uber")
       create(:transaction, user: user, card: nil, source: :bank, date: Date.new(2026, 3, 11), value: 50, paid: false)
 
-      post "/api/payments/loose_expenses/#{transaction.id}/pay", params: { month: 3, year: 2026 }
+      post "/api/payments/loose_expenses/#{transaction.id}/pay", params: { month: 3, year: 2026, account_id: account.id }
 
       expect(response).to have_http_status(:ok)
 
       transaction.reload
       body = JSON.parse(response.body)
       expect(transaction.paid).to eq(true)
+      expect(transaction.account).to eq(account)
       expect(body["id"]).to eq(transaction.id)
       expect(body["description"]).to eq("UBER")
       expect(body["paid"]).to eq(true)
+      expect(body.dig("account", "name")).to eq("Conta Corrente")
+    end
+
+    it "rejects an account from another user without changing the expense" do
+      transaction = create(:transaction, user: user, card: nil, source: :bank, date: Date.new(2026, 3, 10), paid: false)
+      original_account_id = transaction.account_id
+      other_account = create(:account, user: create(:user))
+
+      post "/api/payments/loose_expenses/#{transaction.id}/pay", params: { month: 3, year: 2026, account_id: other_account.id }
+
+      expect(response).to have_http_status(:unprocessable_entity)
+      expect(transaction.reload.paid).to eq(false)
+      expect(transaction.account_id).to eq(original_account_id)
+    end
+
+    it "does not treat a legacy card-sourced transaction without card_id as a loose expense" do
+      account = create(:account, user: user)
+      transaction = create(:transaction, user: user, card: nil, source: :bank, date: Date.new(2026, 3, 10), paid: false)
+      transaction.update_column(:source, Transaction.sources[:card])
+
+      post "/api/payments/loose_expenses/#{transaction.id}/pay", params: { month: 3, year: 2026, account_id: account.id }
+
+      expect(response).to have_http_status(:not_found)
+      expect(transaction.reload.paid).to eq(false)
+      expect(transaction.account_id).not_to eq(account.id)
     end
 
     it "returns not found when the expense is outside the selected period" do
       transaction = create(:transaction, user: user, card: nil, source: :bank, date: Date.new(2026, 4, 10), value: 80, paid: false)
 
-      post "/api/payments/loose_expenses/#{transaction.id}/pay", params: { month: 3, year: 2026 }
+      account = create(:account, user: user)
+      post "/api/payments/loose_expenses/#{transaction.id}/pay", params: { month: 3, year: 2026, account_id: account.id }
 
       expect(response).to have_http_status(:not_found)
 

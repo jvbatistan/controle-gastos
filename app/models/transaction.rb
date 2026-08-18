@@ -48,6 +48,7 @@ class Transaction < ApplicationRecord
   end
   scope :expenses,          -> { where(kind: kinds[:expense]) }
   scope :incomes,           -> { where(kind: kinds[:income]) }
+  scope :loose_expenses,    -> { expenses.where(source: [sources[:cash], sources[:bank]], card_id: nil) }
   scope :installments_only, -> { where.not(installment_group_id: nil) }
   scope :non_installments,  -> { where(installment_group_id: nil) }
 
@@ -255,17 +256,20 @@ class Transaction < ApplicationRecord
     will_save_change_to_account_id? ||
       will_save_change_to_kind? ||
       will_save_change_to_source? ||
-      will_save_change_to_card_id?
+      will_save_change_to_card_id? ||
+      (will_save_change_to_paid? && paid?)
   end
 
   def account_required_for_cash_or_bank_expense?
     return false if card?
+    return false unless paid?
     return true if new_record?
 
     will_save_change_to_kind? ||
       will_save_change_to_source? ||
       will_save_change_to_card_id? ||
-      will_save_change_to_account_id?
+      will_save_change_to_account_id? ||
+      will_save_change_to_paid?
   end
 
   def card_statement_payment_must_not_be_transaction

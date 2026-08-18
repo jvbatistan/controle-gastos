@@ -56,8 +56,9 @@ class Api::PaymentsController < Api::BaseController
     scope = loose_expenses_scope
     count = scope.count
     total = signed_sum(scope)
+    account = payment_account_param(message: "Conta é obrigatória para pagar despesas.")
 
-    scope.update_all(paid: true, updated_at: Time.current)
+    scope.update_all(account_id: account.id, paid: true, updated_at: Time.current)
 
     render json: {
       period: {
@@ -67,6 +68,8 @@ class Api::PaymentsController < Api::BaseController
       paid_transactions_count: count,
       total_amount: total
     }, status: :ok
+  rescue ArgumentError => e
+    render json: { error: e.message }, status: :unprocessable_entity
   end
 
   def ignore_card_statement
@@ -82,9 +85,12 @@ class Api::PaymentsController < Api::BaseController
 
   def pay_loose_expense
     transaction = loose_expenses_scope.find(params[:id])
-    transaction.update!(paid: true)
+    account = payment_account_param(message: "Conta é obrigatória para pagar a despesa.")
+    transaction.update!(account: account, paid: true)
 
     render json: loose_transaction_json(transaction.reload), status: :ok
+  rescue ArgumentError => e
+    render json: { error: e.message }, status: :unprocessable_entity
   rescue ActiveRecord::RecordInvalid => e
     render json: { error: e.record.errors.full_messages.to_sentence }, status: :unprocessable_entity
   rescue ActiveRecord::RecordNotFound
@@ -130,16 +136,16 @@ class Api::PaymentsController < Api::BaseController
     current_user.transactions
                 .active
                 .active_for_payments
-                .expenses
-                .where(card_id: nil, paid: false)
+                .loose_expenses
+                .where(paid: false)
                 .where(date: period_start..period_end)
   end
 
   def ignored_loose_expenses_scope
     current_user.transactions
                 .active
-                .expenses
-                .where(card_id: nil, paid: false)
+                .loose_expenses
+                .where(paid: false)
                 .where(date: period_start..period_end)
                 .where.not(payment_ignored_at: nil)
   end
@@ -159,9 +165,9 @@ class Api::PaymentsController < Api::BaseController
     parsed
   end
 
-  def payment_account_param
+  def payment_account_param(message: "Conta é obrigatória para pagar fatura.")
     account_id = params[:account_id].presence || params.dig(:payment, :account_id).presence
-    raise ArgumentError, "Conta é obrigatória para pagar fatura." if account_id.blank?
+    raise ArgumentError, message if account_id.blank?
 
     current_user.accounts.active.find_by(id: account_id) || raise(ArgumentError, "Conta não encontrada.")
   end
@@ -212,6 +218,7 @@ class Api::PaymentsController < Api::BaseController
       date: transaction.date,
       source: transaction.source,
       category_id: transaction.category_id,
+      account: transaction.account&.as_json(only: %i[id name]),
       paid: transaction.paid,
       payment_ignored_at: transaction.payment_ignored_at,
       installment_number: transaction.installment_number,

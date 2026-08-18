@@ -94,7 +94,7 @@ module Accounts
              .active
              .expenses
              .where(user_id: account.user_id)
-             .where(source: CASH_EXPENSE_SOURCES)
+             .where(source: CASH_EXPENSE_SOURCES, paid: true)
              .includes(:category)
              .map do |transaction|
         transaction_entry(

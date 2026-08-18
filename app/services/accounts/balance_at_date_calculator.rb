@@ -42,7 +42,7 @@ module Accounts
     def cash_expense_total
       base_transactions
         .expenses
-        .where(source: CASH_EXPENSE_SOURCES, date: ..as_of)
+        .where(source: CASH_EXPENSE_SOURCES, paid: true, date: ..as_of)
         .sum(Arel.sql(Transaction.signed_value_sql))
         .to_d
     end

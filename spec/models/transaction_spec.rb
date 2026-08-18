@@ -226,9 +226,17 @@ RSpec.describe Transaction, type: :model do
       expect(transaction).to be_valid
     end
 
-    it 'requires an account for new cash or bank expenses' do
+    it 'allows new unpaid cash or bank expenses without an account' do
       cash = build(:transaction, kind: :expense, source: :cash, card: nil, account: nil)
       bank = build(:transaction, kind: :expense, source: :bank, card: nil, account: nil)
+
+      expect(cash).to be_valid
+      expect(bank).to be_valid
+    end
+
+    it 'requires an active account for paid cash or bank expenses' do
+      cash = build(:transaction, kind: :expense, source: :cash, card: nil, account: nil, paid: true)
+      bank = build(:transaction, kind: :expense, source: :bank, card: nil, account: nil, paid: true)
 
       expect(cash).not_to be_valid
       expect(cash.errors[:account]).to include('é obrigatória para despesas sem cartão')
@@ -280,11 +288,19 @@ RSpec.describe Transaction, type: :model do
       expect(transaction).to be_valid
     end
 
-    it 'requires an account when a legacy expense changes account-relevant fields' do
+    it 'keeps an unpaid legacy expense valid when its source changes without an account' do
       transaction = build(:transaction, kind: :expense, source: :cash, card: nil, account: nil)
       transaction.save!(validate: false)
 
       transaction.source = :bank
+
+      expect(transaction).to be_valid
+    end
+
+    it 'requires an account when an unpaid expense is marked as paid' do
+      transaction = create(:transaction, kind: :expense, source: :cash, card: nil, account: nil, paid: false)
+
+      transaction.paid = true
 
       expect(transaction).not_to be_valid
       expect(transaction.errors[:account]).to include('é obrigatória para despesas sem cartão')
@@ -309,6 +325,21 @@ RSpec.describe Transaction, type: :model do
   end
 
   describe 'scopes and totals' do
+    describe '.loose_expenses' do
+      it 'includes only cash or bank expenses without a card' do
+        user = create(:user)
+        user_card = create(:card, user: user)
+        cash = create(:transaction, user: user, kind: :expense, source: :cash, card: nil)
+        bank = create(:transaction, user: user, kind: :expense, source: :bank, card: nil)
+        card = create(:transaction, user: user, kind: :expense, source: :card, card: user_card)
+        inconsistent = create(:transaction, user: user, kind: :expense, source: :cash, card: nil)
+        inconsistent.update_column(:source, Transaction.sources[:card])
+
+        expect(described_class.loose_expenses).to include(cash, bank)
+        expect(described_class.loose_expenses).not_to include(card, inconsistent)
+      end
+    end
+
     describe '.by_month' do
       it 'retorna apenas transações do mês/ano informados' do
         nov_2025 = create(:transaction, date: Date.new(2025, 11, 10))

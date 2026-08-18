@@ -59,7 +59,7 @@ RSpec.describe 'Api::Accounts', type: :request do
   describe 'GET /api/accounts/:id' do
     it 'returns an account from the current user' do
       account = create(:account, user: user, name: 'Nubank', initial_balance: 2000, initial_balance_date: Date.new(2026, 7, 1))
-      create(:transaction, user: user, kind: :expense, source: :bank, account: account, card: nil, value: 150)
+      create(:transaction, user: user, kind: :expense, source: :bank, account: account, card: nil, value: 150, paid: true)
 
       get "/api/accounts/#{account.id}"
 

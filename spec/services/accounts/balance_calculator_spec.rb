@@ -9,8 +9,8 @@ RSpec.describe Accounts::BalanceCalculator do
       statement = create(:card_statement, card: card, total_amount: 300, paid_amount: 0)
 
       create(:transaction, user: user, kind: :income, source: :bank, account: account, card: nil, value: 250)
-      create(:transaction, user: user, kind: :expense, source: :cash, account: account, card: nil, value: 80)
-      create(:transaction, user: user, kind: :expense, source: :bank, account: account, card: nil, value: 70)
+      create(:transaction, user: user, kind: :expense, source: :cash, account: account, card: nil, value: 80, paid: true)
+      create(:transaction, user: user, kind: :expense, source: :bank, account: account, card: nil, value: 70, paid: true)
       create(:card_statement_payment, card_statement: statement, account: account, amount: 120)
 
       expect(described_class.call(account)).to eq(980.to_d)
@@ -82,12 +82,16 @@ RSpec.describe Accounts::BalanceCalculator do
       expect(described_class.call(account)).to eq(500.to_d)
     end
 
-    it 'does not use payment_ignored_at or paid to filter cash movements' do
+    it 'does not reduce the balance for an unpaid cash or bank expense, even with a planned account' do
       user = create(:user)
-      account = create(:account, user: user, initial_balance: 500)
-      create(:transaction, user: user, kind: :expense, source: :bank, account: account, card: nil, value: 90, paid: false, payment_ignored_at: Time.current)
+      account = create(:account, user: user, initial_balance: 1831.53)
+      expense = create(:transaction, user: user, kind: :expense, source: :bank, account: account, card: nil, value: 405, paid: false)
 
-      expect(described_class.call(account)).to eq(410.to_d)
+      expect(described_class.call(account)).to eq(1831.53.to_d)
+
+      expense.update!(paid: true)
+
+      expect(described_class.call(account)).to eq(1426.53.to_d)
     end
 
     it 'calculates balance for archived accounts when they are directly consulted' do
@@ -109,7 +113,7 @@ RSpec.describe Accounts::BalanceCalculator do
       other_account = create(:account, user: create(:user), initial_balance: 999)
 
       create(:transaction, user: user, kind: :income, source: :bank, account: nubank, card: nil, value: 200)
-      create(:transaction, user: user, kind: :expense, source: :cash, account: wallet, card: nil, value: 30)
+      create(:transaction, user: user, kind: :expense, source: :cash, account: wallet, card: nil, value: 30, paid: true)
       create(:transaction, user: other_account.user, kind: :income, source: :bank, account: other_account, card: nil, value: 500)
 
       expect(described_class.for([nubank, wallet])).to eq(
@@ -153,7 +157,7 @@ RSpec.describe Accounts::BalanceCalculator do
       statement = create(:card_statement, card: card, total_amount: 80, paid_amount: 0)
 
       create(:transaction, user: user, kind: :income, source: :bank, account: checking, card: nil, value: 300)
-      create(:transaction, user: user, kind: :expense, source: :cash, account: checking, card: nil, value: 120)
+      create(:transaction, user: user, kind: :expense, source: :cash, account: checking, card: nil, value: 120, paid: true)
       create(:card_statement_payment, card_statement: statement, account: checking, amount: 80)
       create(:account_transfer, user: user, from_account: checking, to_account: savings, amount: 200)
 
