@@ -61,13 +61,20 @@ class CardStatement < ApplicationRecord
   def sync_paid_amount!
     paid_total = card_statement_payments.sum(:amount).to_d
     latest_paid_at = card_statement_payments.maximum(:paid_at)
-    next_paid_at = paid_total >= total_amount.to_d && total_amount.to_d.positive? ? latest_paid_at : nil
+    sync_totals!(total_amount: total_amount, paid_amount: paid_total, latest_paid_at: latest_paid_at)
+  end
 
-    update_columns(
-      paid_amount: paid_total,
-      paid_at: next_paid_at,
-      updated_at: Time.current
-    )
+  def sync_totals!(total_amount:, paid_amount:, latest_paid_at:)
+    next_total_amount = total_amount.to_d
+    next_paid_amount = paid_amount.to_d
+    next_paid_at = next_paid_amount >= next_total_amount && next_total_amount.positive? ? latest_paid_at : nil
+    changes = {}
+    changes[:total_amount] = next_total_amount if self.total_amount.to_d != next_total_amount
+    changes[:paid_amount] = next_paid_amount if self.paid_amount.to_d != next_paid_amount
+    changes[:paid_at] = next_paid_at if paid_at != next_paid_at
+
+    update_columns(changes.merge(updated_at: Time.current)) if changes.any?
+    self
   end
 
   def mark_transactions_as_paid!

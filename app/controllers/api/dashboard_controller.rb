@@ -12,9 +12,9 @@ class Api::DashboardController < Api::BaseController
         incomes_total: incomes_total,
         expenses_total: expenses_total,
         balance_total: incomes_total - expenses_total,
-        open_total: signed_sum(period_expenses.where(paid: false)),
-        paid_total: signed_sum(period_expenses.where(paid: true)),
-        transactions_count: period_expenses.count + period_incomes.count
+        open_total: period_expenses_records.reject(&:paid).sum(0.to_d, &:signed_value),
+        paid_total: period_expenses_records.select(&:paid).sum(0.to_d, &:signed_value),
+        transactions_count: period_expenses_records.size + period_incomes_records.size
       },
       monthly_trend: monthly_trend,
       by_card: totals_by_card,
@@ -71,15 +71,23 @@ class Api::DashboardController < Api::BaseController
   end
 
   def incomes_total
-    @incomes_total ||= signed_sum(period_incomes)
+    @incomes_total ||= period_incomes_records.sum(0.to_d, &:signed_value)
   end
 
   def expenses_total
-    @expenses_total ||= signed_sum(period_expenses)
+    @expenses_total ||= period_expenses_records.sum(0.to_d, &:signed_value)
+  end
+
+  def period_expenses_records
+    @period_expenses_records ||= period_expenses.to_a
+  end
+
+  def period_incomes_records
+    @period_incomes_records ||= period_incomes.to_a
   end
 
   def totals_by_card
-    grouped = period_expenses.to_a.group_by { |transaction| transaction.card }
+    grouped = period_expenses_records.group_by { |transaction| transaction.card }
 
     grouped.map do |card, transactions|
       {
@@ -125,7 +133,7 @@ class Api::DashboardController < Api::BaseController
   end
 
   def totals_by_category
-    grouped = period_expenses.to_a.group_by { |transaction| transaction.category }
+    grouped = period_expenses_records.group_by { |transaction| transaction.category }
 
     grouped.map do |category, transactions|
       {
@@ -156,9 +164,12 @@ class Api::DashboardController < Api::BaseController
   end
 
   def statement_overview
-    current_user.cards.ordenados.filter_map do |card|
-      statement = card.sync_statement!(selected_month, selected_year)
+    snapshot = period_statement_snapshot
+
+    snapshot.statements.filter_map do |statement|
       next if statement.ignored? || statement.total_amount.to_d <= 0
+
+      card = statement.card
 
       {
         id: statement.id,
@@ -173,12 +184,17 @@ class Api::DashboardController < Api::BaseController
         paid: statement.paid?,
         due_day: card.due_day_value,
         closing_day: card.closing_day_value(statement.billing_statement),
-        transactions_count: card.transactions
-                                .active
-                                .where(billing_statement: statement.billing_statement.beginning_of_month..statement.billing_statement.end_of_month)
-                                .count
+        transactions_count: snapshot.transaction_counts.fetch(card.id, 0)
       }
     end
+  end
+
+  def period_statement_snapshot
+    @period_statement_snapshot ||= CardStatements::PeriodSnapshot.new(
+      user: current_user,
+      month: selected_month,
+      year: selected_year
+    ).call
   end
 
   def signed_sum(scope)

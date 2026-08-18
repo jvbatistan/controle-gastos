@@ -7,7 +7,40 @@ RSpec.describe "Api::Dashboard", type: :request do
     sign_in user
   end
 
+  def sql_metrics
+    metrics = Hash.new(0)
+    callback = lambda do |_name, _started, _finished, _unique_id, payload|
+      next if payload[:cached]
+
+      operation = payload[:sql].to_s[/\A(?:\s*\/\*.*?\*\/\s*)?(SELECT|INSERT|UPDATE|DELETE)/im, 1]
+      metrics[operation.downcase.to_sym] += 1 if operation
+    end
+
+    started_at = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+    ActiveSupport::Notifications.subscribed(callback, "sql.active_record") { yield }
+    metrics[:duration_ms] = ((Process.clock_gettime(Process::CLOCK_MONOTONIC) - started_at) * 1_000).round(1)
+    metrics
+  end
+
   describe "GET /api/dashboard" do
+    it "keeps multi-card reads within a bounded number of queries and performs no redundant writes" do
+      6.times do |index|
+        card = create(:card, user: user, name: "Card #{index}", due_day: 15, closing_day: 8)
+        create(:transaction, user: user, card: card, source: :card, date: Date.new(2026, 3, 7), value: 10 + index)
+        card.sync_statement!(3, 2026)
+      end
+
+      metrics = sql_metrics { get "/api/dashboard", params: { month: 3, year: 2026 } }
+
+      expect(response).to have_http_status(:ok)
+      aggregate_failures(metrics.inspect) do
+        expect(metrics[:select]).to be <= 14
+        expect(metrics[:insert]).to eq(0)
+        expect(metrics[:update]).to eq(0)
+        expect(metrics[:delete]).to eq(0)
+      end
+    end
+
     it "returns real expense metrics for the selected period" do
       food = create(:category, user: user, name: "Alimentação")
       travel = create(:category, user: user, name: "Transporte")

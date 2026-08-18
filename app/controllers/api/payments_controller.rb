@@ -2,13 +2,28 @@ class Api::PaymentsController < Api::BaseController
   before_action :authenticate_user!
 
   def index
-    period_statements = current_user.cards.ordenados.map { |card| card.sync_statement!(selected_month, selected_year) }
-    statements = period_statements.reject(&:ignored?).map { |statement| payment_statement_json(statement) }
-    ignored_statements = period_statements.select(&:ignored?).map { |statement| payment_statement_json(statement) }
+    snapshot = period_statement_snapshot
+    payments_by_statement = period_payments_by_statement(snapshot.statements)
+    statements = snapshot.statements.reject(&:ignored?).map do |statement|
+      payment_statement_json(
+        statement,
+        payments: payments_by_statement.fetch(statement.id, []),
+        transactions_count: snapshot.transaction_counts.fetch(statement.card_id, 0)
+      )
+    end
+    ignored_statements = snapshot.statements.select(&:ignored?).map do |statement|
+      payment_statement_json(
+        statement,
+        payments: payments_by_statement.fetch(statement.id, []),
+        transactions_count: snapshot.transaction_counts.fetch(statement.card_id, 0)
+      )
+    end
     loose_scope = loose_expenses_scope
-    loose_total = signed_sum(loose_scope)
     ignored_loose_scope = ignored_loose_expenses_scope
-    ignored_loose_total = signed_sum(ignored_loose_scope)
+    loose_count, loose_total = transaction_aggregate(loose_scope)
+    ignored_loose_count, ignored_loose_total = transaction_aggregate(ignored_loose_scope)
+    loose_transactions = loose_scope.includes(:account).order(date: :desc, value: :desc).limit(50).to_a
+    ignored_loose_transactions = ignored_loose_scope.includes(:account).order(payment_ignored_at: :desc, date: :desc, value: :desc).limit(50).to_a
 
     render json: {
       period: {
@@ -18,10 +33,10 @@ class Api::PaymentsController < Api::BaseController
       statements: statements,
       loose_expenses: {
         period_label: I18n.l(period_start, format: '%m/%Y'),
-        transactions_count: loose_scope.count,
+        transactions_count: loose_count,
         total_amount: loose_total,
-        paid: loose_scope.none?,
-        transactions: loose_scope.order(date: :desc, value: :desc).limit(50).map { |transaction| loose_transaction_json(transaction) }
+        paid: loose_count.zero?,
+        transactions: loose_transactions.map { |transaction| loose_transaction_json(transaction) }
       },
       ignored_payments: {
         period_label: I18n.l(period_start, format: '%m/%Y'),
@@ -29,9 +44,9 @@ class Api::PaymentsController < Api::BaseController
         statements_total_amount: ignored_statements.sum { |statement| statement[:remaining_amount].to_d },
         statements: ignored_statements,
         loose_expenses: {
-          transactions_count: ignored_loose_scope.count,
+          transactions_count: ignored_loose_count,
           total_amount: ignored_loose_total,
-          transactions: ignored_loose_scope.order(payment_ignored_at: :desc, date: :desc, value: :desc).limit(50).map { |transaction| loose_transaction_json(transaction) }
+          transactions: ignored_loose_transactions.map { |transaction| loose_transaction_json(transaction) }
         }
       }
     }
@@ -172,7 +187,13 @@ class Api::PaymentsController < Api::BaseController
     current_user.accounts.active.find_by(id: account_id) || raise(ArgumentError, "Conta não encontrada.")
   end
 
-  def payment_statement_json(statement)
+  def payment_statement_json(statement, payments: nil, transactions_count: nil)
+    payments ||= statement.card_statement_payments.includes(:account).order(paid_at: :desc, id: :desc).to_a
+    transactions_count ||= statement.card.transactions
+                                    .active
+                                    .where(billing_statement: statement.billing_statement.beginning_of_month..statement.billing_statement.end_of_month)
+                                    .count
+
     {
       id: statement.id,
       card: {
@@ -186,13 +207,10 @@ class Api::PaymentsController < Api::BaseController
       paid: statement.paid?,
       paid_at: statement.paid_at,
       ignored_at: statement.ignored_at,
-      payments: statement.card_statement_payments.order(paid_at: :desc, id: :desc).map { |payment| payment_json(payment) },
+      payments: payments.map { |payment| payment_json(payment) },
       due_day: statement.card.due_day_value,
       closing_day: statement.card.closing_day_value(statement.billing_statement),
-      transactions_count: statement.card.transactions
-                                .active
-                                .where(billing_statement: statement.billing_statement.beginning_of_month..statement.billing_statement.end_of_month)
-                                .count
+      transactions_count: transactions_count
     }
   end
 
@@ -229,5 +247,26 @@ class Api::PaymentsController < Api::BaseController
 
   def signed_sum(scope)
     Transaction.signed_sum(scope)
+  end
+
+  def period_statement_snapshot
+    @period_statement_snapshot ||= CardStatements::PeriodSnapshot.new(
+      user: current_user,
+      month: selected_month,
+      year: selected_year
+    ).call
+  end
+
+  def period_payments_by_statement(statements)
+    CardStatementPayment
+      .where(card_statement_id: statements.map(&:id))
+      .includes(:account)
+      .order(paid_at: :desc, id: :desc)
+      .group_by(&:card_statement_id)
+  end
+
+  def transaction_aggregate(scope)
+    row = scope.pluck(Arel.sql("COUNT(*)"), Arel.sql("COALESCE(SUM(#{Transaction.signed_value_sql}), 0)")).first
+    [row[0], row[1].to_d]
   end
 end

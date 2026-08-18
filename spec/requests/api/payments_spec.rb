@@ -7,7 +7,43 @@ RSpec.describe "Api::Payments", type: :request do
     sign_in user
   end
 
+  def sql_metrics
+    metrics = Hash.new(0)
+    callback = lambda do |_name, _started, _finished, _unique_id, payload|
+      next if payload[:cached]
+
+      operation = payload[:sql].to_s[/\A(?:\s*\/\*.*?\*\/\s*)?(SELECT|INSERT|UPDATE|DELETE)/im, 1]
+      metrics[operation.downcase.to_sym] += 1 if operation
+    end
+
+    started_at = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+    ActiveSupport::Notifications.subscribed(callback, "sql.active_record") { yield }
+    metrics[:duration_ms] = ((Process.clock_gettime(Process::CLOCK_MONOTONIC) - started_at) * 1_000).round(1)
+    metrics
+  end
+
   describe "GET /api/payments" do
+    it "keeps multi-card reads within a bounded number of queries and performs no redundant writes" do
+      account = create(:account, user: user)
+
+      6.times do |index|
+        card = create(:card, user: user, name: "Card #{index}", due_day: 15, closing_day: 8)
+        create(:transaction, user: user, card: card, source: :card, date: Date.new(2026, 3, 7), value: 20 + index)
+        statement = card.sync_statement!(3, 2026)
+        create(:card_statement_payment, card_statement: statement, account: account, amount: 5, paid_at: Time.zone.local(2026, 3, 10, 12))
+      end
+
+      metrics = sql_metrics { get "/api/payments", params: { month: 3, year: 2026 } }
+
+      expect(response).to have_http_status(:ok)
+      aggregate_failures(metrics.inspect) do
+        expect(metrics[:select]).to be <= 12
+        expect(metrics[:insert]).to eq(0)
+        expect(metrics[:update]).to eq(0)
+        expect(metrics[:delete]).to eq(0)
+      end
+    end
+
     it "returns statements and loose expenses for the selected period" do
       card = create(:card, user: user, name: 'Nubank', due_day: 15, closing_day: 8)
       create(:transaction, user: user, card: card, source: :card, date: Date.new(2026, 3, 7), value: 120)
