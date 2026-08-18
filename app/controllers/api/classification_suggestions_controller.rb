@@ -1,4 +1,6 @@
 class Api::ClassificationSuggestionsController < Api::BaseController
+  UNSET = Object.new.freeze
+
   before_action :authenticate_user!
   before_action :set_suggestion, only: %i[apply accept reject correct]
 
@@ -11,8 +13,14 @@ class Api::ClassificationSuggestionsController < Api::BaseController
                               .order(created_at: :desc)
     total_count = scope.count
     suggestions = scope.offset((pagination_page - 1) * pagination_per_page).limit(pagination_per_page)
+    pending_suggestions = pending_suggestions_for(suggestions)
 
-    render json: { suggestions: suggestions.map { |suggestion| suggestion_json(suggestion) }, pagination: pagination_json(total_count) }
+    render json: {
+      suggestions: suggestions.map do |suggestion|
+        suggestion_json(suggestion, pending_suggestion: pending_suggestions[suggestion.financial_transaction_id])
+      end,
+      pagination: pagination_json(total_count)
+    }
   end
 
   def accept
@@ -148,7 +156,7 @@ class Api::ClassificationSuggestionsController < Api::BaseController
     end
   end
 
-  def suggestion_json(suggestion)
+  def suggestion_json(suggestion, pending_suggestion: UNSET)
     transaction = suggestion.financial_transaction
     suggested_category = suggestion.suggested_category
     transaction_category = transaction.category
@@ -170,9 +178,45 @@ class Api::ClassificationSuggestionsController < Api::BaseController
         installment_group_id: transaction.installment_group_id,
         installment_number: transaction.installment_number,
         installments_count: transaction.installments_count,
-        classification_status: transaction.classification_status
+        classification_status: classification_status(transaction, pending_suggestion)
       }
     }
+  end
+
+  def pending_suggestions_for(suggestions)
+    transactions = suggestions.map(&:financial_transaction)
+    transaction_ids = transactions.map(&:id)
+    return {} if transaction_ids.empty?
+
+    installment_group_ids = transactions.filter_map(&:installment_group_id).uniq
+    sibling_groups = if installment_group_ids.empty?
+                       {}
+                     else
+                       current_user.transactions.active
+                                   .where(installment_group_id: installment_group_ids)
+                                   .pluck(:id, :installment_group_id)
+                                   .group_by(&:last)
+                                   .transform_values { |pairs| pairs.map(&:first) }
+                     end
+
+    target_ids = transaction_ids + sibling_groups.values.flatten
+    candidates = current_user.classification_suggestions
+                             .pending
+                             .where(financial_transaction_id: target_ids.uniq)
+                             .order(created_at: :desc)
+                             .to_a
+
+    transactions.to_h do |transaction|
+      ids = transaction.installment_group_id.present? ? sibling_groups.fetch(transaction.installment_group_id, [transaction.id]) : [transaction.id]
+      [transaction.id, candidates.find { |candidate| ids.include?(candidate.financial_transaction_id) }]
+    end
+  end
+
+  def classification_status(transaction, pending_suggestion)
+    return 'classified' if transaction.category_id.present? && transaction.category&.user_id == transaction.user_id
+    return 'suggestion_pending' if pending_suggestion.equal?(UNSET) ? transaction.pending_classification_suggestion.present? : pending_suggestion.present?
+
+    'unclassified'
   end
 
   def pagination_page

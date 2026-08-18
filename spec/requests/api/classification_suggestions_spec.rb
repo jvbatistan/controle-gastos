@@ -66,6 +66,40 @@ RSpec.describe 'Api::ClassificationSuggestions', type: :request do
       expect(body['suggestions'].first.dig('financial_transaction', 'id')).to eq(transaction.id)
       expect(body['suggestions'].first.dig('suggested_category', 'id')).to eq(category.id)
     end
+
+    it 'keeps SELECTs effectively constant as the page grows' do
+      category = create(:category, user: user)
+      25.times do |index|
+        transaction = create(:transaction, user: user, card: nil, source: :cash, account: account, description: "Suggestion #{index}")
+        transaction.classification_suggestions.delete_all
+        user.classification_suggestions.create!(financial_transaction: transaction, suggested_category: category, confidence: 0.8, source: :rule)
+      end
+
+      five_items = request_metrics { get '/api/classification_suggestions', params: { per_page: 5 } }
+      twenty_five_items = request_metrics { get '/api/classification_suggestions', params: { per_page: 25 } }
+
+      expect(JSON.parse(response.body)['suggestions'].size).to eq(25)
+      expect(twenty_five_items[:selects]).to be <= 8
+      expect(twenty_five_items[:selects]).to be <= five_items[:selects] + 1
+      expect(twenty_five_items[:payload_bytes]).to be > five_items[:payload_bytes]
+    end
+
+    it 'keeps the status semantics for valid categories and pending suggestions' do
+      category = create(:category, user: user)
+      classified = create(:transaction, user: user, card: nil, source: :cash, account: account, category: category)
+      classified.classification_suggestions.delete_all
+      pending = create(:transaction, user: user, card: nil, source: :cash, account: account, category: nil)
+      pending.classification_suggestions.delete_all
+      classified_suggestion = user.classification_suggestions.create!(financial_transaction: classified, suggested_category: category, confidence: 0.8, source: :rule)
+      pending_suggestion = user.classification_suggestions.create!(financial_transaction: pending, suggested_category: category, confidence: 0.8, source: :rule)
+
+      get '/api/classification_suggestions'
+
+      statuses = JSON.parse(response.body)['suggestions'].to_h do |item|
+        [item['id'], item.dig('financial_transaction', 'classification_status')]
+      end
+      expect(statuses).to include(classified_suggestion.id => 'classified', pending_suggestion.id => 'suggestion_pending')
+    end
   end
 
   describe 'POST /api/classification_suggestions/:id/accept' do

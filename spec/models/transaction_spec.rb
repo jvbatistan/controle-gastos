@@ -10,6 +10,43 @@ RSpec.describe Transaction, type: :model do
     it { should belong_to(:account).optional }
   end
 
+  describe 'classification status' do
+    it 'distinguishes classified, pending-suggestion and unclassified transactions' do
+      user = create(:user)
+      category = create(:category, user: user)
+      classified = create(:transaction, user: user, card: nil, source: :cash, category: category)
+      pending = create(:transaction, user: user, card: nil, source: :cash, category: nil)
+      unclassified = create(:transaction, user: user, card: nil, source: :cash, category: nil)
+      pending.classification_suggestions.delete_all
+      unclassified.classification_suggestions.delete_all
+      create(:classification_suggestion, user: user, financial_transaction: pending, suggested_category: category)
+
+      expect(classified.classification_status).to eq('classified')
+      expect(pending.classification_status).to eq('suggestion_pending')
+      expect(unclassified.classification_status).to eq('unclassified')
+    end
+
+    it 'uses the newest pending suggestion among active installments in the same group' do
+      user = create(:user)
+      category = create(:category, user: user)
+      card = create(:card, user: user)
+      group_id = SecureRandom.uuid
+      first_installment = create(:transaction, user: user, card: card, installment_group_id: group_id, installment_number: 1, installments_count: 2)
+      second_installment = create(:transaction, user: user, card: card, installment_group_id: group_id, installment_number: 2, installments_count: 2)
+      first_installment.classification_suggestions.delete_all
+      second_installment.classification_suggestions.delete_all
+      older = create(:classification_suggestion, user: user, financial_transaction: first_installment, suggested_category: category, created_at: 2.minutes.ago)
+      create(:classification_suggestion, user: user, financial_transaction: first_installment, suggested_category: category, accepted_at: 1.minute.ago)
+      newest = create(:classification_suggestion, user: user, financial_transaction: second_installment, suggested_category: category, created_at: 1.minute.ago)
+
+      expect(first_installment.pending_classification_suggestion).to eq(newest)
+
+      second_installment.archive!
+
+      expect(first_installment.pending_classification_suggestion).to eq(older)
+    end
+  end
+
   describe 'validations' do
     it { should validate_presence_of(:description) }
     it { should validate_presence_of(:value) }
