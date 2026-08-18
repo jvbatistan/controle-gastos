@@ -15,6 +15,26 @@ module Accounts
 
     Result = Struct.new(:account, :items, :all_items, :balances, :summary, :pagination, :period, :filters, keyword_init: true)
 
+    class LazyItems
+      def initialize(&loader)
+        @loader = loader
+      end
+
+      def method_missing(method_name, *args, &block)
+        loaded_items.public_send(method_name, *args, &block)
+      end
+
+      def respond_to_missing?(method_name, include_private = false)
+        loaded_items.respond_to?(method_name, include_private) || super
+      end
+
+      private
+
+      def loaded_items
+        @loaded_items ||= @loader.call
+      end
+    end
+
     def self.call(account:, params: {}, paginate: true)
       new(account: account, params: params, paginate: paginate).call
     end
@@ -26,6 +46,8 @@ module Accounts
     end
 
     def call
+      return paginated_call if pagination_enabled
+
       filtered_entries = apply_filters(entries)
       sorted_entries = sort_entries(filtered_entries)
       paginated_entries = paginate(sorted_entries)
@@ -45,6 +67,117 @@ module Accounts
     private
 
     attr_reader :account, :params, :pagination_enabled
+
+    def paginated_call
+      candidates = paginated_source_entries
+      sorted_candidates = sort_entries(candidates)
+      totals = paginated_totals
+
+      Result.new(
+        account: account,
+        items: sorted_candidates.slice((page - 1) * per_page, per_page) || [],
+        all_items: LazyItems.new { sort_entries(apply_filters(entries)) },
+        balances: balances,
+        summary: { credits_total: totals[:credits], debits_total: totals[:debits], net_total: totals[:credits] - totals[:debits] },
+        pagination: { page: page, per_page: per_page, total_count: totals[:count], total_pages: (totals[:count].to_f / per_page).ceil },
+        period: period,
+        filters: filters
+      )
+    end
+
+    def paginated_source_entries
+      result = []
+      result << initial_balance_entry if initial_balance_in_filtered_set?
+      result.concat(limited_income_entries) if source_enabled?('income', 'credit')
+      result.concat(limited_cash_expense_entries) if source_enabled?('expense', 'debit')
+      result.concat(limited_payment_entries) if source_enabled?('card_statement_payment', 'debit')
+      result.concat(limited_outgoing_transfer_entries) if source_enabled?('transfer_out', 'debit')
+      result.concat(limited_incoming_transfer_entries) if source_enabled?('transfer_in', 'credit')
+      result
+    end
+
+    def paginated_totals
+      credits = 0.to_d
+      debits = 0.to_d
+      count = 0
+      if initial_balance_in_filtered_set?
+        credits += account.initial_balance.to_d
+        count += 1
+      end
+      [[income_scope, 'income', 'credit'], [cash_expense_scope, 'expense', 'debit'], [payment_scope, 'card_statement_payment', 'debit'],
+       [outgoing_transfer_scope, 'transfer_out', 'debit'], [incoming_transfer_scope, 'transfer_in', 'credit']].each do |scope, type, source_direction|
+        next unless source_enabled?(type, source_direction)
+
+        source_count = scope.count
+        amount = scope.sum(type == 'income' || type == 'expense' ? :value : :amount).to_d
+        count += source_count
+        source_direction == 'credit' ? credits += amount : debits += amount
+      end
+      { credits: credits, debits: debits, count: count }
+    end
+
+    def source_enabled?(type, source_direction)
+      (movement_type.blank? || movement_type == type) && (direction.blank? || direction == source_direction)
+    end
+
+    def initial_balance_in_filtered_set?
+      source_enabled?('initial_balance', 'credit') &&
+        (start_date.blank? || account.initial_balance_date >= start_date) &&
+        (end_date.blank? || account.initial_balance_date <= end_date)
+    end
+
+    def candidate_limit
+      page * per_page
+    end
+
+    def apply_period(scope, column)
+      scope = scope.where(column => start_date..) if start_date.present?
+      scope = scope.where(column => ..end_date) if end_date.present?
+      scope
+    end
+
+    def income_scope
+      apply_period(account.transactions.active.incomes.where(user_id: account.user_id), :date)
+    end
+
+    def cash_expense_scope
+      apply_period(account.transactions.active.expenses.where(user_id: account.user_id, source: CASH_EXPENSE_SOURCES, paid: true), :date)
+    end
+
+    def payment_scope
+      scope = account.card_statement_payments.joins(card_statement: :card).where(cards: { user_id: account.user_id })
+      scope = scope.where('card_statement_payments.paid_at >= ?', start_date.beginning_of_day) if start_date.present?
+      scope = scope.where('card_statement_payments.paid_at <= ?', end_date.end_of_day) if end_date.present?
+      scope
+    end
+
+    def outgoing_transfer_scope
+      apply_period(account.outgoing_transfers.completed.where(user_id: account.user_id), :transferred_on)
+    end
+
+    def incoming_transfer_scope
+      apply_period(account.incoming_transfers.completed.where(user_id: account.user_id), :transferred_on)
+    end
+
+    def limited_income_entries
+      income_scope.includes(:category).order(date: :desc, created_at: :desc, id: :desc).limit(candidate_limit).map { |tx| transaction_entry(tx, movement_type: 'income', direction: 'credit', title: tx.description) }
+    end
+
+    def limited_cash_expense_entries
+      cash_expense_scope.includes(:category).order(date: :desc, created_at: :desc, id: :desc).limit(candidate_limit).map { |tx| transaction_entry(tx, movement_type: 'expense', direction: 'debit', title: tx.description) }
+    end
+
+    def limited_payment_entries
+      payment_scope.includes(card_statement: :card).order(Arel.sql('DATE(card_statement_payments.paid_at) DESC, card_statement_payments.created_at DESC, card_statement_payments.id DESC')).limit(candidate_limit).map { |payment| payment_entry(payment) }
+    end
+
+    def limited_outgoing_transfer_entries
+      outgoing_transfer_scope.includes(:to_account).order(transferred_on: :desc, created_at: :desc, id: :desc).limit(candidate_limit).map { |transfer| outgoing_transfer_entry(transfer) }
+    end
+
+    def limited_incoming_transfer_entries
+      incoming_transfer_scope.includes(:from_account).order(transferred_on: :desc, created_at: :desc, id: :desc).limit(candidate_limit).map { |transfer| incoming_transfer_entry(transfer) }
+    end
 
     def entries
       [
@@ -131,11 +264,14 @@ module Accounts
              .joins(card_statement: :card)
              .where(cards: { user_id: account.user_id })
              .includes(card_statement: :card)
-             .map do |payment|
-        statement = payment.card_statement
-        card = statement.card
+             .map { |payment| payment_entry(payment) }
+    end
 
-        StatementEntry.new(
+    def payment_entry(payment)
+      statement = payment.card_statement
+      card = statement.card
+
+      StatementEntry.new(
           id: "card-statement-payment-#{payment.id}",
           source_type: "card_statement_payment",
           source_id: payment.id,
@@ -153,8 +289,7 @@ module Accounts
             },
             billing_statement: statement.billing_statement
           }
-        )
-      end
+      )
     end
 
     def outgoing_transfer_entries
@@ -162,8 +297,11 @@ module Accounts
              .completed
              .where(user_id: account.user_id)
              .includes(:to_account)
-             .map do |transfer|
-        StatementEntry.new(
+             .map { |transfer| outgoing_transfer_entry(transfer) }
+    end
+
+    def outgoing_transfer_entry(transfer)
+      StatementEntry.new(
           id: "account-transfer-#{transfer.id}-out",
           source_type: "account_transfer",
           source_id: transfer.id,
@@ -178,8 +316,7 @@ module Accounts
             counterparty_account: account_metadata(transfer.to_account),
             note: transfer.note
           }
-        )
-      end
+      )
     end
 
     def incoming_transfer_entries
@@ -187,8 +324,11 @@ module Accounts
              .completed
              .where(user_id: account.user_id)
              .includes(:from_account)
-             .map do |transfer|
-        StatementEntry.new(
+             .map { |transfer| incoming_transfer_entry(transfer) }
+    end
+
+    def incoming_transfer_entry(transfer)
+      StatementEntry.new(
           id: "account-transfer-#{transfer.id}-in",
           source_type: "account_transfer",
           source_id: transfer.id,
@@ -203,8 +343,7 @@ module Accounts
             counterparty_account: account_metadata(transfer.from_account),
             note: transfer.note
           }
-        )
-      end
+      )
     end
 
     def apply_filters(entries)
