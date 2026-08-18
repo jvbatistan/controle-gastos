@@ -146,7 +146,7 @@ class Api::DashboardController < Api::BaseController
   end
 
   def recent_expenses
-    base_expenses_scope.order(created_at: :desc, id: :desc).limit(8).map do |transaction|
+    period_expenses_records.sort_by { |transaction| [transaction.created_at, transaction.id] }.reverse.first(8).map do |transaction|
       {
         id: transaction.id,
         description: transaction.description,

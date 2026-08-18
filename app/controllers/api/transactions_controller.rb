@@ -4,7 +4,9 @@ class Api::TransactionsController < Api::BaseController
   before_action :set_transaction, only: %i[update destroy]
 
   def index
-    transactions = filtered_transactions_scope.to_a
+    scope = filtered_transactions_scope
+    total_count = scope.count
+    transactions = scope.offset((transactions_page - 1) * transactions_per_page).limit(transactions_per_page).to_a
     pending_suggestions = pending_suggestions_for(transactions)
 
     payload = transactions.map do |transaction|
@@ -15,11 +17,11 @@ class Api::TransactionsController < Api::BaseController
         account: transaction.account
       )
     end
-    render json: payload
+    render json: { transactions: payload, pagination: { page: transactions_page, per_page: transactions_per_page, total_count: total_count, total_pages: (total_count.to_f / transactions_per_page).ceil } }
   end
 
   def export_csv
-    csv = Transactions::CsvExportService.call(filtered_transactions_scope)
+    csv = Transactions::CsvExportService.call(filtered_transactions_scope.limit(transactions_limit))
 
     send_data(
       "\uFEFF#{csv}",
@@ -126,7 +128,7 @@ class Api::TransactionsController < Api::BaseController
 
     scope = apply_card_filter(scope, card_id)
     scope = apply_period_filter(scope, month, year, card_id)
-    scope.limit(transactions_limit)
+    scope
   end
 
   def apply_card_filter(scope, card_id)
@@ -166,6 +168,16 @@ class Api::TransactionsController < Api::BaseController
   def transactions_limit
     limit = params[:limit].presence&.to_i || 50
     [limit, 200].min
+  end
+
+  def transactions_page
+    value = params[:page].to_i
+    value.positive? ? value : 1
+  end
+
+  def transactions_per_page
+    value = params[:per_page].presence&.to_i || params[:limit].presence&.to_i || 25
+    value.positive? ? [value, 100].min : 25
   end
 
   def transaction_params

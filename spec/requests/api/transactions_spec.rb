@@ -18,6 +18,21 @@ RSpec.describe 'Api::Transactions', type: :request do
     count
   end
 
+  def request_metrics
+    metrics = Hash.new(0)
+    callback = lambda do |_name, _started, _finished, _unique_id, payload|
+      next if payload[:cached]
+
+      metrics[:select] += 1 if payload[:sql].to_s.match?(/\A\s*SELECT/i)
+    end
+
+    started_at = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+    ActiveSupport::Notifications.subscribed(callback, 'sql.active_record') { yield }
+    metrics[:duration_ms] = ((Process.clock_gettime(Process::CLOCK_MONOTONIC) - started_at) * 1_000).round(1)
+    metrics[:payload_bytes] = response.body.bytesize
+    metrics
+  end
+
   describe 'POST /api/transactions' do
     it 'auto-classifies when an exact alias exists' do
       category = create(:category, user: user, name: 'Transporte')
@@ -678,6 +693,31 @@ RSpec.describe 'Api::Transactions', type: :request do
   end
 
   describe 'GET /api/transactions' do
+    it 'paginates the filtered collection with stable ordering and metadata' do
+      transactions = 30.times.map do |index|
+        create(:transaction, user: user, card: nil, source: :cash, date: Date.new(2026, 3, 20), description: "Item #{index}")
+      end
+
+      get '/api/transactions', params: { month: 3, year: 2026, page: 2, per_page: 25 }
+      body = JSON.parse(response.body)
+      metrics = request_metrics { get '/api/transactions', params: { month: 3, year: 2026, page: 1, per_page: 25 } }
+
+      warn("PERFORMANCE_1C_METRICS #{metrics.inspect}") if ENV['PERFORMANCE_1C_METRICS'] == '1'
+      expect(body['pagination']).to eq('page' => 2, 'per_page' => 25, 'total_count' => 30, 'total_pages' => 2)
+      expect(body['transactions'].map { |transaction| transaction['id'] }).to eq(transactions.first(5).reverse.map(&:id))
+      expect(metrics[:select]).to be <= 12
+    end
+
+    it 'uses safe pagination defaults and caps per_page at 100' do
+      2.times { |index| create(:transaction, user: user, card: nil, source: :cash, date: Date.new(2026, 3, 10) + index.days) }
+
+      get '/api/transactions', params: { month: 3, year: 2026, page: 0, per_page: 0 }
+      expect(JSON.parse(response.body)['pagination']).to include('page' => 1, 'per_page' => 25)
+
+      get '/api/transactions', params: { month: 3, year: 2026, per_page: 999 }
+      expect(JSON.parse(response.body)['pagination']).to include('per_page' => 100)
+    end
+
     it 'does not return archived transactions' do
       visible = create(:transaction, user: user, card: nil, source: :cash, date: Date.new(2026, 3, 10), value: 80)
       hidden = create(:transaction, user: user, card: nil, source: :cash, date: Date.new(2026, 3, 11), value: 50, archived_at: Time.current)
@@ -687,8 +727,9 @@ RSpec.describe 'Api::Transactions', type: :request do
       expect(response).to have_http_status(:ok)
 
       body = JSON.parse(response.body)
-      expect(body.map { |transaction| transaction['id'] }).to eq([visible.id])
-      expect(body.map { |transaction| transaction['id'] }).not_to include(hidden.id)
+      expect(body['transactions'].map { |transaction| transaction['id'] }).to eq([visible.id])
+      expect(body['transactions'].map { |transaction| transaction['id'] }).not_to include(hidden.id)
+      expect(body['pagination']).to include('page' => 1, 'per_page' => 25, 'total_count' => 1, 'total_pages' => 1)
     end
 
     it 'keeps association queries bounded as the response grows' do
@@ -701,10 +742,10 @@ RSpec.describe 'Api::Transactions', type: :request do
         create(:transaction, user: user, card: nil, account: account, category: category, source: :cash, paid: true, description: "Cash #{index}")
       end
 
-      queries = select_query_count { get '/api/transactions', params: { limit: 50 } }
+      queries = select_query_count { get '/api/transactions', params: { per_page: 50 } }
 
       expect(response).to have_http_status(:ok)
-      expect(JSON.parse(response.body).size).to eq(12)
+      expect(JSON.parse(response.body)['transactions'].size).to eq(12)
       expect(queries).to be <= 12
     end
 
@@ -733,10 +774,10 @@ RSpec.describe 'Api::Transactions', type: :request do
       visible_installment.classification_suggestions.delete_all
       suggestion = create(:classification_suggestion, user: user, financial_transaction: older_installment)
 
-      get '/api/transactions', params: { limit: 1 }
+      get '/api/transactions', params: { per_page: 1 }
 
       expect(response).to have_http_status(:ok)
-      body = JSON.parse(response.body).first
+      body = JSON.parse(response.body)['transactions'].first
       expect(body['id']).to eq(visible_installment.id)
       expect(body.dig('classification', 'status')).to eq('suggestion_pending')
       expect(body.dig('classification', 'suggestion', 'id')).to eq(suggestion.id)

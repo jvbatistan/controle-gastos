@@ -23,6 +23,37 @@ RSpec.describe "Api::Dashboard", type: :request do
   end
 
   describe "GET /api/dashboard" do
+    it "uses the current competence when month and year are omitted or invalid" do
+      allow(Date).to receive(:current).and_return(Date.new(2026, 8, 20))
+
+      get "/api/dashboard"
+      expect(JSON.parse(response.body).fetch("period")).to include("month" => 8, "year" => 2026)
+
+      get "/api/dashboard", params: { month: 13, year: 0 }
+      expect(JSON.parse(response.body).fetch("period")).to include("month" => 8, "year" => 2026)
+    end
+
+    it "uses an explicit past or future competence" do
+      get "/api/dashboard", params: { month: 2, year: 2024 }
+      expect(JSON.parse(response.body).fetch("period")).to include("month" => 2, "year" => 2024)
+
+      get "/api/dashboard", params: { month: 11, year: 2030 }
+      expect(JSON.parse(response.body).fetch("period")).to include("month" => 11, "year" => 2030)
+    end
+
+    it "limits recent expenses to the selected competence" do
+      card = create(:card, user: user, due_day: 15, closing_day: 8)
+      outside_period = create(:transaction, user: user, card: card, source: :card, date: Date.new(2026, 1, 10), billing_statement: Date.new(2026, 2, 1), created_at: Time.zone.parse("2026-08-20 10:00"), description: "Despesa fora da competência")
+      recent = create(:transaction, user: user, source: :cash, card: nil, date: Date.new(2026, 3, 10), created_at: Time.zone.parse("2026-08-19 10:00"), description: "Despesa da competência")
+
+      get "/api/dashboard", params: { month: 3, year: 2026 }
+
+      body = JSON.parse(response.body)
+      expect(body.fetch("period")).to include("month" => 3, "year" => 2026)
+      expect(body.fetch("recent_expenses").first.fetch("id")).to eq(recent.id)
+      expect(body.fetch("recent_expenses").map { |expense| expense.fetch("id") }).not_to include(outside_period.id)
+    end
+
     it "keeps multi-card reads within a bounded number of queries and performs no redundant writes" do
       6.times do |index|
         card = create(:card, user: user, name: "Card #{index}", due_day: 15, closing_day: 8)
