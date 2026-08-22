@@ -1,6 +1,34 @@
 require 'rails_helper'
 
 RSpec.describe Transaction, type: :model do
+  describe 'origin defaults' do
+    it 'preserves the initial date and value when creating a transaction' do
+      transaction = create(:transaction, date: Date.new(2026, 1, 10), value: BigDecimal('150.00'))
+
+      expect(transaction.purchase_date).to eq(Date.new(2026, 1, 10))
+      expect(transaction.original_value).to eq(BigDecimal('150.00'))
+    end
+
+    it 'does not infer origin fields for an existing historical transaction' do
+      transaction = create(:transaction)
+      transaction.update_columns(purchase_date: nil, original_value: nil)
+
+      transaction.update!(note: 'Histórico preservado')
+
+      expect(transaction.reload.purchase_date).to be_nil
+      expect(transaction.original_value).to be_nil
+    end
+
+    it 'keeps original_value when the current value changes' do
+      transaction = create(:transaction, value: BigDecimal('150.00'))
+
+      transaction.update!(value: BigDecimal('149.26'))
+
+      expect(transaction.reload.value).to eq(BigDecimal('149.26'))
+      expect(transaction.original_value).to eq(BigDecimal('150.00'))
+    end
+  end
+
   describe 'associations' do
     it 'keeps card optional at the association level' do
       expect(described_class.reflect_on_association(:card).options[:optional]).to eq(true)

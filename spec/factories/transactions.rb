@@ -6,6 +6,8 @@ FactoryBot.define do
     description { Faker::Commerce.product_name }
     value { rand(10..500) }
     date { Date.today }
+    purchase_date { nil }
+    original_value { nil }
     kind { :expense }
     source { :card }
     account { source.to_s == 'card' ? nil : association(:account, user: user) }

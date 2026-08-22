@@ -184,7 +184,8 @@ class Api::TransactionsController < Api::BaseController
     params.require(:transaction).permit(
       :description, :value, :date, :kind, :source, :paid, :refund,
       :note, :responsible, :card_id, :category_id, :billing_statement,
-      :account_id, :installment_number, :installments_count
+      :account_id, :installment_number, :installments_count,
+      :purchase_date, :original_value
     )
   end
 
@@ -241,9 +242,11 @@ class Api::TransactionsController < Api::BaseController
       id: transaction.id,
       description: transaction.description,
       value: transaction.value,
+      original_value: transaction.original_value,
       signed_value: transaction.signed_value,
       refund: transaction.refund,
       date: transaction.date,
+      purchase_date: transaction.purchase_date,
       kind: transaction.kind,
       source: transaction.source,
       paid: transaction.paid,

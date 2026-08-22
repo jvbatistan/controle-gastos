@@ -29,6 +29,7 @@ class Transaction < ApplicationRecord
 
   before_validation :normalize_strings
   before_validation :normalize_income_defaults
+  before_validation :set_origin_defaults, on: :create
   before_validation :set_billing_statement
 
   after_create_commit :create_initial_category_suggestion
@@ -174,6 +175,11 @@ class Transaction < ApplicationRecord
     return unless income?
 
     self.paid = true
+  end
+
+  def set_origin_defaults
+    self.purchase_date ||= date
+    self.original_value ||= value
   end
 
   def create_initial_category_suggestion
