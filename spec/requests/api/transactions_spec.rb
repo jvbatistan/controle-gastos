@@ -34,6 +34,43 @@ RSpec.describe 'Api::Transactions', type: :request do
   end
 
   describe 'POST /api/transactions' do
+    it 'preserves a civil date through create, persistence, response, reload and edit' do
+      account = create(:account, user: user)
+
+      post '/api/transactions', params: {
+        transaction: {
+          description: 'Compra em data civil',
+          value: '22,00',
+          date: '2026-08-22',
+          kind: 'expense',
+          source: 'cash',
+          account_id: account.id
+        }
+      }
+
+      expect(response).to have_http_status(:created)
+
+      created_body = JSON.parse(response.body)
+      transaction = Transaction.find(created_body['id'])
+      expect(transaction.date).to eq(Date.new(2026, 8, 22))
+      expect(transaction.reload.date).to eq(Date.new(2026, 8, 22))
+      expect(created_body['date']).to eq('2026-08-22')
+
+      get '/api/transactions', params: { month: 8, year: 2026 }
+
+      expect(response).to have_http_status(:ok)
+      reloaded_body = JSON.parse(response.body).fetch('transactions').find { |item| item['id'] == transaction.id }
+      expect(reloaded_body.fetch('date')).to eq('2026-08-22')
+
+      patch "/api/transactions/#{transaction.id}", params: {
+        transaction: { date: '2026-08-23' }
+      }
+
+      expect(response).to have_http_status(:ok)
+      expect(transaction.reload.date).to eq(Date.new(2026, 8, 23))
+      expect(JSON.parse(response.body)['date']).to eq('2026-08-23')
+    end
+
     it 'auto-classifies when an exact alias exists' do
       category = create(:category, user: user, name: 'Transporte')
       account = create(:account, user: user)
