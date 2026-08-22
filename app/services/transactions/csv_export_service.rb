@@ -5,6 +5,7 @@ module Transactions
     HEADERS = [
       'ID',
       'Data',
+      'Data original',
       'Competência/Fatura',
       'Descrição',
       'Observação',
@@ -15,6 +16,7 @@ module Transactions
       'Categoria',
       'Responsável',
       'Valor',
+      'Valor original',
       'Valor assinado',
       'Pago?',
       'Parcela atual',
@@ -58,6 +60,7 @@ module Transactions
       [
         transaction.id,
         date_value(transaction.date),
+        date_value(transaction.purchase_date),
         date_value(transaction.billing_statement),
         transaction.description,
         transaction.note,
@@ -68,6 +71,7 @@ module Transactions
         transaction.category&.name,
         transaction.responsible,
         money_value(transaction.value),
+        optional_money_value(transaction.original_value),
         money_value(transaction.signed_value),
         boolean_label(transaction.paid?),
         transaction.installment_number,
@@ -92,6 +96,12 @@ module Transactions
 
     def money_value(value)
       format('%.2f', value.to_d)
+    end
+
+    def optional_money_value(value)
+      return nil if value.nil?
+
+      money_value(value)
     end
 
     def date_value(value)

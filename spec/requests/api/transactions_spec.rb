@@ -53,8 +53,12 @@ RSpec.describe 'Api::Transactions', type: :request do
       created_body = JSON.parse(response.body)
       transaction = Transaction.find(created_body['id'])
       expect(transaction.date).to eq(Date.new(2026, 8, 22))
+      expect(transaction.purchase_date).to eq(Date.new(2026, 8, 22))
+      expect(transaction.original_value).to eq(BigDecimal('22.00'))
       expect(transaction.reload.date).to eq(Date.new(2026, 8, 22))
       expect(created_body['date']).to eq('2026-08-22')
+      expect(created_body['purchase_date']).to eq('2026-08-22')
+      expect(created_body['original_value'].to_d).to eq(BigDecimal('22.00'))
 
       get '/api/transactions', params: { month: 8, year: 2026 }
 
@@ -69,6 +73,8 @@ RSpec.describe 'Api::Transactions', type: :request do
       expect(response).to have_http_status(:ok)
       expect(transaction.reload.date).to eq(Date.new(2026, 8, 23))
       expect(JSON.parse(response.body)['date']).to eq('2026-08-23')
+      expect(transaction.purchase_date).to eq(Date.new(2026, 8, 22))
+      expect(transaction.original_value).to eq(BigDecimal('22.00'))
     end
 
     it 'auto-classifies when an exact alias exists' do
@@ -692,6 +698,34 @@ RSpec.describe 'Api::Transactions', type: :request do
       expect(body['transactions'].map { |tx| tx.dig('classification', 'suggestion', 'id') }.uniq.size).to eq(1)
     end
 
+    it 'preserves common origin fields while advancing installment dates and statements' do
+      card = create(:card, user: user, due_day: 15, closing_day: 8)
+
+      post '/api/transactions', params: {
+        transaction: {
+          description: 'Notebook parcelado',
+          value: '150,00',
+          date: '2026-01-10',
+          purchase_date: '2026-01-05',
+          original_value: '175,00',
+          kind: 'expense',
+          source: 'card',
+          card_id: card.id,
+          installment_number: 1,
+          installments_count: 3
+        }
+      }
+
+      expect(response).to have_http_status(:created)
+
+      installments = user.transactions.where(installment_group_id: JSON.parse(response.body)['installment_group_id']).order(:installment_number)
+      expect(installments.pluck(:date)).to eq([Date.new(2026, 1, 10), Date.new(2026, 2, 10), Date.new(2026, 3, 10)])
+      expect(installments.pluck(:billing_statement)).to eq([Date.new(2026, 2, 1), Date.new(2026, 3, 1), Date.new(2026, 4, 1)])
+      expect(installments.pluck(:purchase_date).uniq).to eq([Date.new(2026, 1, 5)])
+      expect(installments.pluck(:original_value).uniq).to eq([BigDecimal('175.00')])
+      expect(installments.pluck(:value).uniq).to eq([BigDecimal('150.00')])
+    end
+
     it 'propagates auto-classification to every installment in the group' do
       card = create(:card, user: user)
       category = create(:category, user: user, name: 'Transporte')
@@ -825,6 +859,7 @@ RSpec.describe 'Api::Transactions', type: :request do
     it 'updates the selected transaction through the API' do
       card = create(:card, user: user, name: 'Nubank', due_day: 15, closing_day: 8)
       transaction = create(:transaction, user: user, card: nil, source: :cash, date: Date.new(2026, 3, 10), value: 80, description: 'Uber')
+      original_value = transaction.original_value
 
       patch "/api/transactions/#{transaction.id}", params: {
         transaction: {
@@ -845,6 +880,7 @@ RSpec.describe 'Api::Transactions', type: :request do
       body = JSON.parse(response.body)
       expect(transaction.description).to eq('MERCADO DO BAIRRO')
       expect(transaction.value.to_d).to eq(BigDecimal('125.9'))
+      expect(transaction.original_value).to eq(original_value)
       expect(transaction.source).to eq('card')
       expect(transaction.card_id).to eq(card.id)
       expect(transaction.billing_statement).to eq(Date.new(2026, 4, 1))

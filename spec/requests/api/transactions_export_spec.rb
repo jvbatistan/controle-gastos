@@ -127,6 +127,7 @@ RSpec.describe 'Api::Transactions CSV export', type: :request do
       expect(row.to_h).to include(
         'ID' => transaction.id.to_s,
         'Data' => '2026-03-10',
+        'Data original' => '2026-03-10',
         'Competência/Fatura' => '2026-04-01',
         'Descrição' => 'MERCADO PARCELADO',
         'Observação' => 'Ajuste da compra',
@@ -137,6 +138,7 @@ RSpec.describe 'Api::Transactions CSV export', type: :request do
         'Categoria' => 'Mercado',
         'Responsável' => 'MARIA',
         'Valor' => '123.45',
+        'Valor original' => '123.45',
         'Valor assinado' => '123.45',
         'Pago?' => 'sim',
         'Parcela atual' => '2',
@@ -170,6 +172,7 @@ RSpec.describe 'Api::Transactions CSV export', type: :request do
       expect(row.to_h).to include(
         'ID' => income.id.to_s,
         'Data' => '2026-06-30',
+        'Data original' => '2026-06-30',
         'Competência/Fatura' => '',
         'Descrição' => 'SALARIO MENSAL',
         'Tipo' => 'receita',
@@ -177,6 +180,7 @@ RSpec.describe 'Api::Transactions CSV export', type: :request do
         'Conta' => 'Conta Corrente',
         'Cartão' => '',
         'Valor' => '3500.00',
+        'Valor original' => '3500.00',
         'Valor assinado' => '3500.00',
         'Pago?' => 'sim',
         'Parcela atual' => '',

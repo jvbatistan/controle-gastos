@@ -30,6 +30,8 @@ module Transactions
     def generate_installments(group_id)
       installment_value = @transaction.value.to_d
       base_date         = @transaction.date.to_date
+      purchase_date     = @transaction.purchase_date.presence || base_date
+      original_value    = @transaction.original_value.presence || installment_value
       first_installment = nil
 
       (@current..@final).each do |n|
@@ -41,6 +43,8 @@ module Transactions
           description: @transaction.description,
           value: installment_value,
           date: date,
+          purchase_date: purchase_date,
+          original_value: original_value,
           kind: @transaction.kind,
           source: @transaction.source,
           refund: @transaction.refund,
