@@ -389,6 +389,26 @@ RSpec.describe Transaction, type: :model do
     end
   end
 
+  describe 'settlement' do
+    it 'defaults settlement to obligation date and value for a new paid loose expense' do
+      account = create(:account)
+      transaction = create(:transaction, user: account.user, kind: :expense, source: :bank, card: nil, account: account, paid: true, date: Date.new(2026, 8, 18), value: 150)
+
+      expect(transaction.settled_on).to eq(Date.new(2026, 8, 18))
+      expect(transaction.settled_value).to eq(150.to_d)
+    end
+
+    it 'clears settlement when a loose expense is reopened' do
+      account = create(:account)
+      transaction = create(:transaction, user: account.user, kind: :expense, source: :cash, card: nil, account: account, paid: true, settled_on: Date.new(2026, 8, 10), settled_value: 149.26)
+
+      transaction.update!(paid: false)
+
+      expect(transaction.settled_on).to be_nil
+      expect(transaction.settled_value).to be_nil
+    end
+  end
+
   describe 'scopes and totals' do
     describe '.loose_expenses' do
       it 'includes only cash or bank expenses without a card' do

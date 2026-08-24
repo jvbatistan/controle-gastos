@@ -89,7 +89,7 @@ RSpec.describe Accounts::BalanceCalculator do
 
       expect(described_class.call(account)).to eq(1831.53.to_d)
 
-      expense.update!(paid: true)
+      expense.update!(paid: true, settled_on: expense.date, settled_value: expense.value)
 
       expect(described_class.call(account)).to eq(1426.53.to_d)
     end

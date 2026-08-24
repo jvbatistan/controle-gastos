@@ -10,14 +10,10 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 2026_08_22_120000) do
+ActiveRecord::Schema.define(version: 2026_08_23_090000) do
 
   # These are extensions that must be enabled in order to support this database
-  enable_extension "pg_stat_statements"
-  enable_extension "pgcrypto"
   enable_extension "plpgsql"
-  enable_extension "supabase_vault"
-  enable_extension "uuid-ossp"
 
   create_table "account_transfers", force: :cascade do |t|
     t.bigint "user_id", null: false
@@ -160,6 +156,8 @@ ActiveRecord::Schema.define(version: 2026_08_22_120000) do
     t.bigint "account_id"
     t.date "purchase_date"
     t.decimal "original_value", precision: 12, scale: 2
+    t.date "settled_on"
+    t.decimal "settled_value", precision: 12, scale: 2
     t.index ["account_id"], name: "index_transactions_on_account_id"
     t.index ["archived_at"], name: "index_transactions_on_archived_at"
     t.index ["card_id"], name: "index_transactions_on_card_id"
@@ -187,7 +185,6 @@ ActiveRecord::Schema.define(version: 2026_08_22_120000) do
     t.boolean "active", default: true, null: false
     t.index ["email"], name: "index_users_on_email", unique: true
     t.index ["reset_password_token"], name: "index_users_on_reset_password_token", unique: true
-    t.check_constraint "(email_change_confirm_status >= 0) AND (email_change_confirm_status <= 2)", name: "users_email_change_confirm_status_check"
   end
 
   create_table "versions", force: :cascade do |t|

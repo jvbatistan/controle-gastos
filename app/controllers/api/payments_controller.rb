@@ -73,7 +73,18 @@ class Api::PaymentsController < Api::BaseController
     total = signed_sum(scope)
     account = payment_account_param(message: "Conta é obrigatória para pagar despesas.")
 
-    scope.update_all(account_id: account.id, paid: true, updated_at: Time.current)
+    settled_on = settlement_date_param
+
+    Transaction.transaction do
+      scope.find_each do |transaction|
+        transaction.update!(
+          account: account,
+          paid: true,
+          settled_on: settled_on,
+          settled_value: transaction.value
+        )
+      end
+    end
 
     render json: {
       period: {
@@ -101,7 +112,12 @@ class Api::PaymentsController < Api::BaseController
   def pay_loose_expense
     transaction = loose_expenses_scope.find(params[:id])
     account = payment_account_param(message: "Conta é obrigatória para pagar a despesa.")
-    transaction.update!(account: account, paid: true)
+    transaction.update!(
+      account: account,
+      paid: true,
+      settled_on: settlement_date_param,
+      settled_value: settlement_value_param(transaction.value)
+    )
 
     render json: loose_transaction_json(transaction.reload), status: :ok
   rescue ArgumentError => e
@@ -187,6 +203,25 @@ class Api::PaymentsController < Api::BaseController
     current_user.accounts.active.find_by(id: account_id) || raise(ArgumentError, "Conta não encontrada.")
   end
 
+  def settlement_date_param
+    value = params[:settled_on].presence || params.dig(:payment, :settled_on).presence
+    return Date.current if value.blank?
+
+    Date.iso8601(value)
+  rescue Date::Error
+    raise ArgumentError, 'Data de realização inválida.'
+  end
+
+  def settlement_value_param(default_value)
+    value = params[:settled_value].presence || params.dig(:payment, :settled_value).presence
+    return default_value if value.blank?
+
+    parsed = value.to_s.tr(',', '.').to_d
+    raise ArgumentError, 'Valor realizado deve ser > 0' if parsed <= 0
+
+    parsed
+  end
+
   def payment_statement_json(statement, payments: nil, transactions_count: nil)
     payments ||= statement.card_statement_payments.includes(:account).order(paid_at: :desc, id: :desc).to_a
     transactions_count ||= statement.card.transactions
@@ -234,6 +269,8 @@ class Api::PaymentsController < Api::BaseController
       signed_value: transaction.signed_value,
       refund: transaction.refund,
       date: transaction.date,
+      settled_on: transaction.settled_on,
+      settled_value: transaction.settled_value,
       source: transaction.source,
       category_id: transaction.category_id,
       account: transaction.account&.as_json(only: %i[id name]),

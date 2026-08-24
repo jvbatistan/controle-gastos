@@ -39,6 +39,15 @@ RSpec.describe Accounts::BalanceAtDateCalculator do
       expect(described_class.call(account: account, as_of: Date.new(2026, 7, 5))).to eq(400.to_d)
     end
 
+    it 'uses settlement date and value when they are available' do
+      user = create(:user)
+      account = create(:account, user: user, initial_balance: 500, initial_balance_date: Date.new(2026, 8, 1))
+      create(:transaction, user: user, kind: :expense, source: :bank, account: account, card: nil, value: 150, paid: true, date: Date.new(2026, 8, 18), settled_on: Date.new(2026, 8, 10), settled_value: 149.26)
+
+      expect(described_class.call(account: account, as_of: Date.new(2026, 8, 9))).to eq(500.to_d)
+      expect(described_class.call(account: account, as_of: Date.new(2026, 8, 10))).to eq(350.74.to_d)
+    end
+
     it 'excludes archived transactions and transactions without account' do
       user = create(:user)
       account = create(:account, user: user, initial_balance: 300, initial_balance_date: Date.new(2026, 7, 1))

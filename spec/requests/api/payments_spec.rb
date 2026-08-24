@@ -496,6 +496,16 @@ RSpec.describe "Api::Payments", type: :request do
       expect(body.dig("account", "name")).to eq("Conta Corrente")
     end
 
+    it 'records the provided settlement date and value' do
+      account = create(:account, user: user)
+      transaction = create(:transaction, user: user, card: nil, source: :bank, date: Date.new(2026, 3, 18), value: 150, paid: false)
+
+      post "/api/payments/loose_expenses/#{transaction.id}/pay", params: { month: 3, year: 2026, account_id: account.id, settled_on: '2026-03-10', settled_value: '149,26' }
+
+      expect(response).to have_http_status(:ok)
+      expect(transaction.reload).to have_attributes(paid: true, settled_on: Date.new(2026, 3, 10), settled_value: 149.26.to_d)
+    end
+
     it "rejects an account from another user without changing the expense" do
       transaction = create(:transaction, user: user, card: nil, source: :bank, date: Date.new(2026, 3, 10), paid: false)
       original_account_id = transaction.account_id

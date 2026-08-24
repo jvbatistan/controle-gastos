@@ -42,8 +42,9 @@ module Accounts
     def cash_expense_total
       base_transactions
         .expenses
-        .where(source: CASH_EXPENSE_SOURCES, paid: true, date: ..as_of)
-        .sum(Arel.sql(Transaction.signed_value_sql))
+        .where(source: CASH_EXPENSE_SOURCES, paid: true)
+        .where('COALESCE(transactions.settled_on, transactions.date) <= ?', as_of)
+        .sum(Arel.sql("CASE WHEN transactions.refund THEN -COALESCE(transactions.settled_value, transactions.value) ELSE COALESCE(transactions.settled_value, transactions.value) END"))
         .to_d
     end
 
