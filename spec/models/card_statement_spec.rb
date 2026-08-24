@@ -12,6 +12,20 @@ RSpec.describe CardStatement, type: :model do
 
     expect(statement.reload.paid_amount.to_d).to eq(BigDecimal('30'))
     expect(statement.remaining_amount).to eq(BigDecimal('70'))
+    expect(statement.payment_status).to eq('partially_paid')
+  end
+
+  it 'derives open, partially paid and paid statuses without persistence' do
+    statement = create(:card_statement, total_amount: 100, paid_amount: 0)
+    account = create(:account, user: statement.card.user)
+
+    expect(statement.payment_status).to eq('open')
+
+    statement.apply_payment!(40, account: account)
+    expect(statement.reload.payment_status).to eq('partially_paid')
+
+    statement.apply_payment!(60, account: account)
+    expect(statement.reload.payment_status).to eq('paid')
   end
 
   describe '#apply_payment!' do

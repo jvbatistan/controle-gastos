@@ -190,7 +190,10 @@ class Api::PaymentsController < Api::BaseController
     value = params[:amount].presence || params.dig(:payment, :amount).presence
     return default_amount if value.blank?
 
-    parsed = value.to_s.tr(',', '.').to_d
+    normalized = value.to_s.strip.tr(',', '.')
+    raise ArgumentError, 'Valor do pagamento inválido.' unless /\A\d+(?:\.\d{1,2})?\z/.match?(normalized)
+
+    parsed = normalized.to_d
     raise ArgumentError, 'Pagamento deve ser > 0' if parsed <= 0
 
     parsed
@@ -240,6 +243,7 @@ class Api::PaymentsController < Api::BaseController
       paid_amount: statement.paid_amount,
       remaining_amount: statement.remaining_amount,
       paid: statement.paid?,
+      payment_status: statement.payment_status,
       paid_at: statement.paid_at,
       ignored_at: statement.ignored_at,
       payments: payments.map { |payment| payment_json(payment) },

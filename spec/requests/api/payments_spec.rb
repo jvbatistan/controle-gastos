@@ -166,6 +166,7 @@ RSpec.describe "Api::Payments", type: :request do
       expect(statement_json["total_amount"]).to eq("100.0")
       expect(statement_json["paid_amount"]).to eq("30.0")
       expect(statement_json["remaining_amount"]).to eq("70.0")
+      expect(statement_json["payment_status"]).to eq("partially_paid")
       expect(statement_json["payments"].first["amount"]).to eq("30.0")
       expect(statement_json["payments"].first["account"]).to be_nil
     end
@@ -270,6 +271,7 @@ RSpec.describe "Api::Payments", type: :request do
       expect(statement.paid?).to eq(false)
       expect(body["paid_amount"]).to eq("40.5")
       expect(body["remaining_amount"]).to eq("79.5")
+      expect(body["payment_status"]).to eq("partially_paid")
     end
 
     it "accepts a payment equal to the remaining amount" do
@@ -293,6 +295,7 @@ RSpec.describe "Api::Payments", type: :request do
       expect(transaction.paid).to eq(true)
       expect(body["paid_amount"]).to eq("120.0")
       expect(body["remaining_amount"]).to eq("0.0")
+      expect(body["payment_status"]).to eq("paid")
     end
 
     it "rejects a payment greater than the remaining amount without creating a payment" do
@@ -312,6 +315,21 @@ RSpec.describe "Api::Payments", type: :request do
       expect(body["error"]).to eq("Pagamento excede o saldo restante da fatura. Saldo atual: 90.0")
       expect(statement.paid_amount.to_d).to eq(BigDecimal('30'))
       expect(statement.remaining_amount).to eq(BigDecimal('90'))
+    end
+
+    it "rejects malformed, zero and negative payment amounts without creating a payment" do
+      card = create(:card, user: user, due_day: 15, closing_day: 8)
+      account = create(:account, user: user)
+      create(:transaction, user: user, card: card, source: :card, date: Date.new(2026, 3, 7), value: 120)
+      statement = card.sync_statement!(3, 2026)
+
+      ["abc", "0", "-1", "1.234"].each do |amount|
+        expect do
+          post "/api/payments/card_statements/#{statement.id}/pay", params: { amount: amount, account_id: account.id }
+        end.not_to change(CardStatementPayment, :count)
+
+        expect(response).to have_http_status(:unprocessable_entity)
+      end
     end
 
     it "does not accept another payment for a fully paid statement" do
