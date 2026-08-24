@@ -141,7 +141,10 @@ module Accounts
     end
 
     def cash_expense_scope
-      apply_period(account.transactions.active.expenses.where(user_id: account.user_id, source: CASH_EXPENSE_SOURCES, paid: true), :date)
+      scope = account.transactions.active.expenses.where(user_id: account.user_id, source: CASH_EXPENSE_SOURCES, paid: true)
+      scope = scope.where('COALESCE(transactions.settled_on, transactions.date) >= ?', start_date) if start_date.present?
+      scope = scope.where('COALESCE(transactions.settled_on, transactions.date) <= ?', end_date) if end_date.present?
+      scope
     end
 
     def payment_scope
@@ -164,7 +167,7 @@ module Accounts
     end
 
     def limited_cash_expense_entries
-      cash_expense_scope.includes(:category).order(date: :desc, created_at: :desc, id: :desc).limit(candidate_limit).map { |tx| transaction_entry(tx, movement_type: 'expense', direction: 'debit', title: tx.description) }
+      cash_expense_scope.includes(:category).order(Arel.sql('COALESCE(transactions.settled_on, transactions.date) DESC, transactions.created_at DESC, transactions.id DESC')).limit(candidate_limit).map { |tx| transaction_entry(tx, movement_type: 'expense', direction: 'debit', title: tx.description) }
     end
 
     def limited_payment_entries
@@ -246,8 +249,8 @@ module Accounts
         source_id: transaction.id,
         movement_type: movement_type,
         direction: direction,
-        amount: transaction.value,
-        occurred_on: transaction.date,
+        amount: transaction_settlement_amount(transaction, movement_type),
+        occurred_on: transaction_settlement_date(transaction, movement_type),
         title: title,
         description: transaction.note,
         created_at: transaction.created_at,
@@ -257,6 +260,14 @@ module Accounts
           responsible: transaction.responsible
         }
       )
+    end
+
+    def transaction_settlement_amount(transaction, movement_type)
+      movement_type == 'expense' ? (transaction.settled_value || transaction.value) : transaction.value
+    end
+
+    def transaction_settlement_date(transaction, movement_type)
+      movement_type == 'expense' ? (transaction.settled_on || transaction.date) : transaction.date
     end
 
     def card_statement_payment_entries

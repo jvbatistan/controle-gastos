@@ -48,7 +48,7 @@ module Accounts
                  .incomes
                  .where(account_id: account_ids)
                  .group(:account_id)
-                 .sum(Arel.sql(Transaction.signed_value_sql))
+                 .sum(Arel.sql("CASE WHEN transactions.refund THEN -COALESCE(transactions.settled_value, transactions.value) ELSE COALESCE(transactions.settled_value, transactions.value) END"))
     end
 
     def cash_expense_totals

@@ -208,9 +208,19 @@ RSpec.describe Accounts::StatementBuilder do
 
       expect(described_class.call(account: account).items.map(&:id)).not_to include("transaction-#{expense.id}")
 
-      expense.update!(paid: true)
+      expense.update!(paid: true, settled_on: Date.new(2026, 7, 5), settled_value: 405)
 
       expect(described_class.call(account: account).items.map(&:id)).to include("transaction-#{expense.id}")
+    end
+
+    it 'uses settlement date and value for paid loose expenses and preserves the legacy fallback' do
+      settled = create(:transaction, user: user, kind: :expense, source: :bank, account: account, card: nil, value: 150, paid: true, date: Date.new(2026, 8, 18), settled_on: Date.new(2026, 8, 10), settled_value: 149.26)
+      legacy = create(:transaction, user: user, kind: :expense, source: :cash, account: account, card: nil, value: 50, paid: true, date: Date.new(2026, 8, 11))
+
+      result = described_class.call(account: account, params: { start_date: '2026-08-10', end_date: '2026-08-11' }, paginate: false)
+
+      expect(result.items.find { |entry| entry.source_id == settled.id }).to have_attributes(occurred_on: Date.new(2026, 8, 10), amount: 149.26.to_d)
+      expect(result.items.find { |entry| entry.source_id == legacy.id }).to have_attributes(occurred_on: Date.new(2026, 8, 11), amount: 50.to_d)
     end
 
     it 'applies period, movement type and direction filters before summary and pagination' do

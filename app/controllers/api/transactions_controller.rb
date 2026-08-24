@@ -185,7 +185,7 @@ class Api::TransactionsController < Api::BaseController
       :description, :value, :date, :kind, :source, :paid, :refund,
       :note, :responsible, :card_id, :category_id, :billing_statement,
       :account_id, :installment_number, :installments_count,
-      :purchase_date, :original_value
+      :purchase_date, :original_value, :settled_on, :settled_value
     )
   end
 
@@ -247,6 +247,8 @@ class Api::TransactionsController < Api::BaseController
       refund: transaction.refund,
       date: transaction.date,
       purchase_date: transaction.purchase_date,
+      settled_on: transaction.settled_on,
+      settled_value: transaction.settled_value,
       kind: transaction.kind,
       source: transaction.source,
       paid: transaction.paid,

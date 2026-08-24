@@ -24,12 +24,14 @@ class Transaction < ApplicationRecord
   validate :refund_consistency
   validate :income_consistency
   validate :account_consistency
+  validate :settlement_consistency
   validate :card_statement_payment_must_not_be_transaction
   validate :category_must_belong_to_user
 
   before_validation :normalize_strings
   before_validation :normalize_income_defaults
   before_validation :set_origin_defaults, on: :create
+  before_validation :normalize_settlement
   before_validation :set_billing_statement
 
   after_create_commit :create_initial_category_suggestion
@@ -154,6 +156,19 @@ class Transaction < ApplicationRecord
     super(normalized_value)
   end
 
+  def settled_value=(val)
+    if val.is_a?(String)
+      s = val.strip
+      s = s.gsub('.', '').tr(',', '.') if s.include?(',')
+      val = s
+    end
+
+    normalized_value = val.presence
+    normalized_value = normalized_value.to_d.abs if normalized_value.present?
+
+    super(normalized_value)
+  end
+
   def set_billing_statement
     return if income?
 
@@ -180,6 +195,21 @@ class Transaction < ApplicationRecord
   def set_origin_defaults
     self.purchase_date ||= date
     self.original_value ||= value
+  end
+
+  def normalize_settlement
+    return unless loose_expense?
+
+    unless paid?
+      self.settled_on = nil
+      self.settled_value = nil
+      return
+    end
+
+    return unless new_record?
+
+    self.settled_on ||= date
+    self.settled_value ||= value
   end
 
   def create_initial_category_suggestion
@@ -254,6 +284,28 @@ class Transaction < ApplicationRecord
     elsif account_required_for_cash_or_bank_expense?
       errors.add(:account, 'é obrigatória para despesas sem cartão') if account_id.blank?
     end
+  end
+
+  def settlement_consistency
+    return unless loose_expense?
+
+    if paid?
+      settlement_required = new_record? || (will_save_change_to_paid? && paid?)
+      return unless settlement_required
+
+      errors.add(:settled_on, 'é obrigatória para despesas pagas sem cartão') if settled_on.blank?
+      if settled_value.blank?
+        errors.add(:settled_value, 'é obrigatório para despesas pagas sem cartão')
+      elsif settled_value.to_d <= 0
+        errors.add(:settled_value, 'deve ser maior que zero')
+      end
+    elsif settled_on.present? || settled_value.present?
+      errors.add(:base, 'realização não pode existir para despesa em aberto')
+    end
+  end
+
+  def loose_expense?
+    expense? && !card? && (cash? || bank?)
   end
 
   def account_must_be_active?
