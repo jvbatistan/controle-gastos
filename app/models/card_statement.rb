@@ -21,6 +21,13 @@ class CardStatement < ApplicationRecord
     remaining_amount <= 0
   end
 
+  def payment_status
+    return "paid" if paid?
+    return "partially_paid" if paid_amount.to_d.positive?
+
+    "open"
+  end
+
   def ignored?
     ignored_at.present?
   end
