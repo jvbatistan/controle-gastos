@@ -223,6 +223,38 @@ RSpec.describe Accounts::StatementBuilder do
       expect(result.items.find { |entry| entry.source_id == legacy.id }).to have_attributes(occurred_on: Date.new(2026, 8, 11), amount: 50.to_d)
     end
 
+    it 'keeps current balance, statement item, paginated summary and closing balance aligned to effective settlement value' do
+      [
+        { value: 1_000, settled_value: 1_000, expected_balance: 500 },
+        { value: 1_000, settled_value: 950, expected_balance: 550 },
+        { value: 1_000, settled_value: 1_050, expected_balance: 450 },
+        { value: 1_000, settled_value: nil, expected_balance: 500 }
+      ].each do |scenario|
+        account = create(:account, user: user, initial_balance: 1_500, initial_balance_date: Date.new(2026, 8, 1))
+        expense = create(
+          :transaction,
+          user: user,
+          kind: :expense,
+          source: :bank,
+          account: account,
+          card: nil,
+          value: scenario[:value],
+          settled_on: Date.new(2026, 8, 10),
+          settled_value: scenario[:settled_value],
+          paid: true
+        )
+        expense.update_columns(settled_value: nil) if scenario[:settled_value].nil?
+
+        result = described_class.call(account: account, params: { start_date: '2026-08-10', end_date: '2026-08-10' })
+        effective_value = scenario[:settled_value] || scenario[:value]
+
+        expect(Accounts::BalanceCalculator.call(account)).to eq(scenario[:expected_balance].to_d)
+        expect(result.items.find { |entry| entry.source_id == expense.id }).to have_attributes(amount: effective_value.to_d)
+        expect(result.summary).to include(debits_total: effective_value.to_d, net_total: -effective_value.to_d)
+        expect(result.balances).to include(closing_balance: scenario[:expected_balance].to_d)
+      end
+    end
+
     it 'applies period, movement type and direction filters before summary and pagination' do
       create(:transaction, user: user, kind: :income, source: :bank, account: account, card: nil, value: 100, date: Date.new(2026, 7, 5))
       create(:transaction, user: user, kind: :income, source: :bank, account: account, card: nil, value: 200, date: Date.new(2026, 7, 6))

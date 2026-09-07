@@ -109,7 +109,11 @@ module Accounts
         next unless source_enabled?(type, source_direction)
 
         source_count = scope.count
-        amount = scope.sum(type == 'income' || type == 'expense' ? :value : :amount).to_d
+        amount = if type == 'expense'
+                   scope.sum(Arel.sql('COALESCE(transactions.settled_value, transactions.value)')).to_d
+                 else
+                   scope.sum(type == 'income' ? :value : :amount).to_d
+                 end
         count += source_count
         source_direction == 'credit' ? credits += amount : debits += amount
       end

@@ -94,6 +94,49 @@ RSpec.describe Accounts::BalanceCalculator do
       expect(described_class.call(account)).to eq(1426.53.to_d)
     end
 
+    it 'uses the effective settlement value with a legacy fallback for paid cash or bank expenses' do
+      user = create(:user)
+      account = create(:account, user: user, initial_balance: 5_000)
+
+      scenarios = [
+        { value: 1_000, settled_value: 1_000, expected_debit: 1_000 },
+        { value: 1_000, settled_value: 950, expected_debit: 950 },
+        { value: 1_000, settled_value: 1_050, expected_debit: 1_050 },
+        { value: 1_000, settled_value: nil, expected_debit: 1_000 }
+      ]
+
+      scenarios.each do |scenario|
+        transaction = create(
+          :transaction,
+          user: user,
+          kind: :expense,
+          source: :bank,
+          account: account,
+          card: nil,
+          value: scenario[:value],
+          settled_value: scenario[:settled_value],
+          paid: true
+        )
+        transaction.update_columns(settled_value: nil) if scenario[:settled_value].nil?
+      end
+
+      expect(described_class.call(account)).to eq((5_000 - scenarios.sum { |scenario| scenario[:expected_debit] }).to_d)
+    end
+
+    it 'removes a reopened or archived loose expense from the current balance' do
+      user = create(:user)
+      account = create(:account, user: user, initial_balance: 1_000)
+      reopened = create(:transaction, user: user, kind: :expense, source: :cash, account: account, card: nil, value: 100, settled_value: 95, paid: true)
+      archived = create(:transaction, user: user, kind: :expense, source: :bank, account: account, card: nil, value: 200, settled_value: 190, paid: true)
+
+      expect(described_class.call(account)).to eq(715.to_d)
+
+      reopened.update!(paid: false)
+      archived.archive!
+
+      expect(described_class.call(account)).to eq(1_000.to_d)
+    end
+
     it 'calculates balance for archived accounts when they are directly consulted' do
       user = create(:user)
       account = create(:account, user: user, initial_balance: 200)
