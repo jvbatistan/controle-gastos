@@ -56,7 +56,7 @@ module Accounts
                  .expenses
                  .where(account_id: account_ids, source: CASH_EXPENSE_SOURCES, paid: true)
                  .group(:account_id)
-                 .sum(Arel.sql(Transaction.signed_value_sql))
+                 .sum(Arel.sql("CASE WHEN transactions.refund THEN -COALESCE(transactions.settled_value, transactions.value) ELSE COALESCE(transactions.settled_value, transactions.value) END"))
     end
 
     def card_statement_payment_totals
