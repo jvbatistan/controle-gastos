@@ -6,7 +6,17 @@ class Api::BaseController < ActionController::Base
   skip_before_action :verify_authenticity_token
   respond_to :json
 
+  helper_method :current_data_environment, :real_data_environment?
+
   private
+
+  def current_data_environment
+    DataEnvironments.current(request)
+  end
+
+  def real_data_environment?
+    DataEnvironments.real_data?(request)
+  end
 
   def authenticate_user!
     if user_signed_in?
