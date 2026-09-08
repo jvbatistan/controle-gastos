@@ -12,9 +12,14 @@ module Transactions
           raise ArgumentError, 'Despesa já está quitada.' if transaction.paid?
           raise ArgumentError, 'Valor do pagamento deve ser maior que zero.' if amount <= 0
           raise ArgumentError, 'Pagamento acima do saldo nominal exige quitação explícita.' if amount > transaction.remaining_amount && !settle
+          TransactionPayment.new(financial_transaction: transaction, account: account, amount: amount, settled_on: settled_on).validate!
 
-          payment = transaction.transaction_payments.create!(account: account, amount: amount, settled_on: settled_on)
-          transaction.update!(paid: true) if settle
+          payment = Accounts::DebitGuard.call(account: account, amount: amount) do
+            created_payment = transaction.transaction_payments.create!(account: account, amount: amount, settled_on: settled_on)
+            transaction.update!(paid: true) if settle
+            created_payment
+          end
+
           Result.new(transaction: transaction.reload, payment: payment)
         end
       end

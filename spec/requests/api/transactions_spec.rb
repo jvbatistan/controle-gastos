@@ -35,7 +35,7 @@ RSpec.describe 'Api::Transactions', type: :request do
 
   describe 'POST /api/transactions' do
     it 'preserves a civil date through create, persistence, response, reload and edit' do
-      account = create(:account, user: user)
+      account = create(:account, user: user, initial_balance: 95)
 
       post '/api/transactions', params: {
         transaction: {
@@ -79,7 +79,7 @@ RSpec.describe 'Api::Transactions', type: :request do
 
     it 'auto-classifies when an exact alias exists' do
       category = create(:category, user: user, name: 'Transporte')
-      account = create(:account, user: user)
+      account = create(:account, user: user, initial_balance: 90)
       MerchantAlias.create!(
         user: user,
         normalized_merchant: 'UBER',
@@ -110,7 +110,7 @@ RSpec.describe 'Api::Transactions', type: :request do
     end
 
     it 'creates a pending suggestion when no confident match exists' do
-      account = create(:account, user: user)
+      account = create(:account, user: user, initial_balance: 90)
 
       post '/api/transactions', params: {
         transaction: {
@@ -503,7 +503,7 @@ RSpec.describe 'Api::Transactions', type: :request do
     end
 
     it 'creates a paid loose expense with one canonical transaction payment' do
-      account = create(:account, user: user)
+      account = create(:account, user: user, initial_balance: 90)
 
       post '/api/transactions', params: {
         transaction: {
@@ -529,6 +529,19 @@ RSpec.describe 'Api::Transactions', type: :request do
 
       expect(response).to have_http_status(:unprocessable_entity)
       expect(TransactionPayment.count).to eq(0)
+    end
+
+    it 'rolls back a paid create when its account has insufficient funds' do
+      account = create(:account, user: user, initial_balance: 90)
+
+      expect do
+        post '/api/transactions', params: { transaction: { description: 'Sem saldo', value: 100, date: '2026-09-01', kind: 'expense', source: 'cash', account_id: account.id, paid: true } }
+      end.not_to change(Transaction, :count)
+
+      expect(response).to have_http_status(:unprocessable_entity)
+      expect(JSON.parse(response.body).fetch('error')).to include('Saldo insuficiente')
+      expect(TransactionPayment.count).to eq(0)
+      expect(Accounts::BalanceCalculator.call(account)).to eq(90.to_d)
     end
 
     it 'rejects a paid cash or bank expense without account' do
@@ -975,6 +988,20 @@ RSpec.describe 'Api::Transactions', type: :request do
       expect(response).to have_http_status(:not_found)
       expect(JSON.parse(response.body)).to eq('error' => 'Not found')
       expect(transaction.reload.category_id).to be_nil
+    end
+
+    it 'routes a legacy paid update through the canonical payment guard' do
+      account = create(:account, user: user, initial_balance: 90)
+      transaction = create(:transaction, user: user, account: account, card: nil, source: :cash, value: 100, paid: false)
+
+      expect do
+        patch "/api/transactions/#{transaction.id}", params: { transaction: { paid: true, settled_on: '2026-09-02', settled_value: 100 } }
+      end.not_to change(TransactionPayment, :count)
+
+      expect(response).to have_http_status(:unprocessable_entity)
+      expect(JSON.parse(response.body).fetch('error')).to include('Saldo insuficiente')
+      expect(transaction.reload).to have_attributes(paid: false, settled_on: nil, settled_value: nil)
+      expect(Accounts::BalanceCalculator.call(account)).to eq(90.to_d)
     end
 
     it 'keeps legacy reopening available but blocks structural changes after payments' do

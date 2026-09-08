@@ -17,7 +17,7 @@ RSpec.describe CardStatement, type: :model do
 
   it 'derives open, partially paid and paid statuses without persistence' do
     statement = create(:card_statement, total_amount: 100, paid_amount: 0)
-    account = create(:account, user: statement.card.user)
+    account = create(:account, user: statement.card.user, initial_balance: 100)
 
     expect(statement.payment_status).to eq('open')
 
@@ -31,7 +31,7 @@ RSpec.describe CardStatement, type: :model do
   describe '#apply_payment!' do
     it 'accepts a partial payment below the remaining amount' do
       statement = create(:card_statement, total_amount: 100, paid_amount: 0)
-      account = create(:account, user: statement.card.user)
+      account = create(:account, user: statement.card.user, initial_balance: 100)
 
       statement.apply_payment!(40, account: account)
 
@@ -44,7 +44,7 @@ RSpec.describe CardStatement, type: :model do
 
     it 'accepts a payment equal to the remaining amount' do
       statement = create(:card_statement, total_amount: 100, paid_amount: 0)
-      account = create(:account, user: statement.card.user)
+      account = create(:account, user: statement.card.user, initial_balance: 100)
       create(:card_statement_payment, card_statement: statement, amount: 30)
 
       statement.apply_payment!(70, account: account)

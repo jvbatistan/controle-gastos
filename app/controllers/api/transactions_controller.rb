@@ -108,6 +108,20 @@ class Api::TransactionsController < Api::BaseController
       return render json: { error: @transaction.errors.full_messages.to_sentence }, status: :unprocessable_entity
     end
 
+    if settling_open_loose_expense?(@transaction)
+      unless @transaction.valid?
+        return render json: { error: @transaction.errors.full_messages.to_sentence }, status: :unprocessable_entity
+      end
+
+      settle_updated_loose_expense!(@transaction)
+      Transactions::ClassifyService.new(
+        @transaction,
+        force_recompute: @transaction.saved_change_to_description?
+      ).call
+      @transaction.reload
+      return render json: tx_json(@transaction), status: :ok
+    end
+
     if @transaction.save
       Transactions::ClassifyService.new(
         @transaction,
@@ -120,6 +134,10 @@ class Api::TransactionsController < Api::BaseController
     else
       render json: { error: @transaction.errors.full_messages.to_sentence }, status: :unprocessable_entity
     end
+  rescue ArgumentError => e
+    render json: { error: e.message }, status: :unprocessable_entity
+  rescue ActiveRecord::RecordInvalid => e
+    render json: { error: e.record.errors.full_messages.to_sentence }, status: :unprocessable_entity
   end
 
   def destroy
@@ -228,6 +246,27 @@ class Api::TransactionsController < Api::BaseController
         settled_on: settled_on, settle: true
       ).call
     end
+  end
+
+  def settle_updated_loose_expense!(transaction)
+    account = transaction.account
+    amount = transaction.settled_value || transaction.value
+    settled_on = transaction.settled_on || transaction.date
+
+    Transaction.transaction do
+      transaction.paid = false
+      transaction.settled_on = nil
+      transaction.settled_value = nil
+      transaction.save!
+      Transactions::RegisterPaymentService.new(
+        transaction: transaction, account: account, amount: amount,
+        settled_on: settled_on, settle: true
+      ).call
+    end
+  end
+
+  def settling_open_loose_expense?(transaction)
+    transaction.loose_expense? && transaction.paid? && transaction.will_save_change_to_paid? && !transaction.transaction_payments.exists?
   end
 
   def installment_request?
