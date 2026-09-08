@@ -209,5 +209,17 @@ RSpec.describe Accounts::BalanceCalculator do
         savings.id => 700.to_d
       )
     end
+
+    it 'uses payments exclusively when a transaction also has legacy settlement fields' do
+      user = create(:user)
+      account_a = create(:account, user: user, initial_balance: 2_000)
+      account_b = create(:account, user: user, initial_balance: 2_000)
+      transaction = create(:transaction, user: user, kind: :expense, source: :cash, card: nil, account: account_a, value: 1_000, paid: true, settled_value: 1_000)
+      transaction.update_columns(settled_on: Date.new(2026, 9, 1), settled_value: 1_000)
+      TransactionPayment.create!(financial_transaction: transaction, account: account_a, amount: 300, settled_on: Date.new(2026, 9, 10))
+      TransactionPayment.create!(financial_transaction: transaction, account: account_b, amount: 200, settled_on: Date.new(2026, 9, 15))
+
+      expect(described_class.for([account_a, account_b])).to include(account_a.id => 1_700.to_d, account_b.id => 1_800.to_d)
+    end
   end
 end

@@ -502,6 +502,35 @@ RSpec.describe 'Api::Transactions', type: :request do
       expect(JSON.parse(response.body)['account']).to be_nil
     end
 
+    it 'creates a paid loose expense with one canonical transaction payment' do
+      account = create(:account, user: user)
+
+      post '/api/transactions', params: {
+        transaction: {
+          description: 'Despesa já paga', value: '95,00', date: '2026-09-01',
+          settled_on: '2026-09-03', settled_value: '90,00', kind: 'expense',
+          source: 'bank', account_id: account.id, paid: true
+        }
+      }
+
+      expect(response).to have_http_status(:created)
+      transaction = Transaction.find(JSON.parse(response.body)['id'])
+      expect(transaction).to have_attributes(paid: true, settled_on: nil, settled_value: nil)
+      expect(transaction.transaction_payments).to contain_exactly(have_attributes(account: account, amount: 90.to_d, settled_on: Date.new(2026, 9, 3)))
+    end
+
+    it 'rolls back a paid create when the canonical payment cannot be recorded' do
+      account = create(:account, user: user)
+      allow_any_instance_of(Transactions::RegisterPaymentService).to receive(:call).and_raise(ActiveRecord::RecordInvalid.new(TransactionPayment.new))
+
+      expect do
+        post '/api/transactions', params: { transaction: { description: 'Falha atômica', value: 100, date: '2026-09-01', kind: 'expense', source: 'cash', account_id: account.id, paid: true } }
+      end.not_to change(Transaction, :count)
+
+      expect(response).to have_http_status(:unprocessable_entity)
+      expect(TransactionPayment.count).to eq(0)
+    end
+
     it 'rejects a paid cash or bank expense without account' do
       post '/api/transactions', params: {
         transaction: {
@@ -810,7 +839,13 @@ RSpec.describe 'Api::Transactions', type: :request do
 
       6.times do |index|
         create(:transaction, user: user, card: card, category: category, description: "Card #{index}")
-        create(:transaction, user: user, card: nil, account: account, category: category, source: :cash, paid: true, description: "Cash #{index}")
+        cash_expense = create(:transaction, user: user, card: nil, account: account, category: category, source: :cash, paid: false, description: "Cash #{index}")
+        TransactionPayment.create!(
+          financial_transaction: cash_expense,
+          account: account,
+          amount: 10,
+          settled_on: Date.new(2026, 3, 10)
+        )
       end
 
       queries = select_query_count { get '/api/transactions', params: { per_page: 50 } }
@@ -941,6 +976,54 @@ RSpec.describe 'Api::Transactions', type: :request do
       expect(JSON.parse(response.body)).to eq('error' => 'Not found')
       expect(transaction.reload.category_id).to be_nil
     end
+
+    it 'keeps legacy reopening available but blocks structural changes after payments' do
+      account = create(:account, user: user)
+      legacy = create(
+        :transaction,
+        user: user,
+        account: account,
+        card: nil,
+        source: :cash,
+        paid: true,
+        settled_on: Date.new(2026, 9, 2),
+        settled_value: 100
+      )
+      paid_with_payment = create(:transaction, user: user, account: account, card: nil, source: :cash, value: 100)
+      TransactionPayment.create!(financial_transaction: paid_with_payment, account: account, amount: 100, settled_on: Date.new(2026, 9, 2))
+      paid_with_payment.update!(paid: true)
+
+      patch "/api/transactions/#{legacy.id}", params: { transaction: { paid: false } }
+
+      expect(response).to have_http_status(:ok)
+      expect(legacy.reload).to have_attributes(paid: false, settled_on: nil, settled_value: nil)
+
+      patch "/api/transactions/#{paid_with_payment.id}", params: { transaction: { value: 90, paid: false } }
+
+      expect(response).to have_http_status(:unprocessable_entity)
+      expect(JSON.parse(response.body).fetch('error')).to include('pagamentos')
+      expect(paid_with_payment.reload).to have_attributes(value: 100.to_d, paid: true)
+    end
+
+    it 'allows planned-account and metadata changes without mutating payment history' do
+      payment_account = create(:account, user: user, name: 'Conta realizada')
+      planned_account = create(:account, user: user, name: 'Conta planejada')
+      transaction = create(:transaction, user: user, account: payment_account, card: nil, source: :cash, value: 100)
+      payment = TransactionPayment.create!(
+        financial_transaction: transaction,
+        account: payment_account,
+        amount: 30,
+        settled_on: Date.new(2026, 9, 5)
+      )
+
+      patch "/api/transactions/#{transaction.id}", params: {
+        transaction: { account_id: planned_account.id, note: 'Planejamento revisado', responsible: 'Ana' }
+      }
+
+      expect(response).to have_http_status(:ok)
+      expect(transaction.reload).to have_attributes(account: planned_account, note: 'Planejamento revisado', responsible: 'ANA')
+      expect(payment.reload).to have_attributes(account: payment_account, amount: 30.to_d, settled_on: Date.new(2026, 9, 5))
+    end
   end
 
   describe 'DELETE /api/transactions/:id' do
@@ -953,6 +1036,19 @@ RSpec.describe 'Api::Transactions', type: :request do
 
       transaction.reload
       expect(transaction.archived_at).to be_present
+    end
+
+    it 'blocks archiving a transaction with payment history' do
+      account = create(:account, user: user)
+      transaction = create(:transaction, user: user, account: account, card: nil, source: :cash)
+      payment = TransactionPayment.create!(financial_transaction: transaction, account: account, amount: 20, settled_on: Date.new(2026, 9, 5))
+
+      delete "/api/transactions/#{transaction.id}"
+
+      expect(response).to have_http_status(:unprocessable_entity)
+      expect(JSON.parse(response.body).fetch('error')).to include('pagamentos')
+      expect(transaction.reload.archived_at).to be_nil
+      expect(payment.reload).to be_present
     end
   end
 end

@@ -219,5 +219,44 @@ RSpec.describe "Api::Dashboard", type: :request do
       expect(body["statements"].first["paid_amount"]).to eq("30.0")
       expect(body["statements"].first["remaining_amount"]).to eq("130.0")
     end
+
+    it "keeps one obligation in dashboard totals regardless of its payment events" do
+      account = create(:account, user: user)
+      expense = create(
+        :transaction,
+        user: user,
+        account: account,
+        card: nil,
+        source: :cash,
+        date: Date.new(2026, 9, 1),
+        value: 1_000,
+        paid: false
+      )
+
+      TransactionPayment.create!(
+        financial_transaction: expense,
+        account: account,
+        amount: 300,
+        settled_on: Date.new(2026, 9, 5)
+      )
+
+      get "/api/dashboard", params: { month: 9, year: 2026 }
+
+      partial_summary = JSON.parse(response.body).fetch("summary")
+      expect(partial_summary).to include("expenses_total" => "1000.0", "transactions_count" => 1)
+
+      TransactionPayment.create!(financial_transaction: expense, account: account, amount: 200, settled_on: Date.new(2026, 9, 10))
+      TransactionPayment.create!(financial_transaction: expense, account: account, amount: 500, settled_on: Date.new(2026, 9, 20))
+      expense.update!(paid: true)
+
+      get "/api/dashboard", params: { month: 9, year: 2026 }
+
+      paid_summary = JSON.parse(response.body).fetch("summary")
+      expect(paid_summary).to include(
+        "expenses_total" => "1000.0",
+        "paid_total" => "1000.0",
+        "transactions_count" => 1
+      )
+    end
   end
 end

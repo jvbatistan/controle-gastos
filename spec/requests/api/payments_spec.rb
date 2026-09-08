@@ -479,9 +479,44 @@ RSpec.describe "Api::Payments", type: :request do
       transaction.reload
       body = JSON.parse(response.body)
       expect(transaction.paid).to eq(true)
-      expect(transaction.account).to eq(account)
+      expect(transaction.transaction_payments.first.account).to eq(account)
       expect(body["paid_transactions_count"]).to eq(1)
       expect(body["total_amount"]).to eq("80.0")
+    end
+
+    it 'creates one canonical integral payment per transaction without double-counting' do
+      account = create(:account, user: user, initial_balance: 2_000)
+      first = create(:transaction, user: user, card: nil, source: :cash, date: Date.new(2026, 3, 10), value: 300, paid: false)
+      second = create(:transaction, user: user, card: nil, source: :bank, date: Date.new(2026, 3, 11), value: 500, paid: false)
+
+      post '/api/payments/loose_expenses/pay', params: { month: 3, year: 2026, account_id: account.id, settled_on: '2026-03-15' }
+
+      expect(response).to have_http_status(:ok)
+      [first, second].each do |transaction|
+        expect(transaction.reload).to have_attributes(paid: true, settled_on: nil, settled_value: nil)
+        expect(transaction.transaction_payments).to contain_exactly(have_attributes(account: account, amount: transaction.value, settled_on: Date.new(2026, 3, 15)))
+      end
+      expect(Accounts::BalanceCalculator.call(account)).to eq(1_200.to_d)
+    end
+
+    it 'rolls back the entire batch when a later payment registration fails' do
+      account = create(:account, user: user, initial_balance: 2_000)
+      first = create(:transaction, user: user, card: nil, source: :cash, date: Date.new(2026, 3, 10), value: 300, paid: false)
+      second = create(:transaction, user: user, card: nil, source: :bank, date: Date.new(2026, 3, 11), value: 500, paid: false)
+      calls = 0
+      allow_any_instance_of(Transactions::RegisterPaymentService).to receive(:call).and_wrap_original do |original, *args|
+        calls += 1
+        raise ActiveRecord::RecordInvalid.new(TransactionPayment.new) if calls == 2
+
+        original.call(*args)
+      end
+
+      post '/api/payments/loose_expenses/pay', params: { month: 3, year: 2026, account_id: account.id }
+
+      expect(response).to have_http_status(:unprocessable_entity)
+      expect([first, second].map(&:reload).map(&:paid)).to eq([false, false])
+      expect(TransactionPayment.count).to eq(0)
+      expect(Accounts::BalanceCalculator.call(account)).to eq(2_000.to_d)
     end
 
     it "requires an active account from the current user" do
@@ -495,6 +530,28 @@ RSpec.describe "Api::Payments", type: :request do
   end
 
   describe "POST /api/payments/loose_expenses/:id/pay" do
+    it 'registers a partial payment and returns the canonical payment summary' do
+      account = create(:account, user: user)
+      transaction = create(:transaction, user: user, card: nil, source: :bank, date: Date.new(2026, 3, 10), value: 1_000, paid: false)
+
+      post "/api/payments/loose_expenses/#{transaction.id}/pay", params: { month: 3, year: 2026, account_id: account.id, amount: 300, settled_on: '2026-03-05', settle: false }
+
+      expect(response).to have_http_status(:ok)
+      expect(JSON.parse(response.body)).to include('paid' => false, 'payments_total' => '300.0', 'remaining_amount' => '700.0', 'payment_status' => 'partially_paid')
+      expect(transaction.reload).to have_attributes(settled_on: nil, settled_value: nil)
+    end
+
+    it 'rejects an unconfirmed overpayment without persisting another event' do
+      account = create(:account, user: user)
+      transaction = create(:transaction, user: user, card: nil, source: :cash, date: Date.new(2026, 3, 10), value: 100, paid: false)
+      Transactions::RegisterPaymentService.new(transaction: transaction, account: account, amount: 90, settled_on: Date.new(2026, 3, 10)).call
+
+      post "/api/payments/loose_expenses/#{transaction.id}/pay", params: { month: 3, year: 2026, account_id: account.id, amount: 20, settle: false }
+
+      expect(response).to have_http_status(:unprocessable_entity)
+      expect(transaction.transaction_payments.count).to eq(1)
+    end
+
     it "marks a single loose expense as paid for the selected period" do
       account = create(:account, user: user, name: "Conta Corrente")
       transaction = create(:transaction, user: user, card: nil, source: :bank, date: Date.new(2026, 3, 10), value: 80, paid: false, description: "Uber")
@@ -507,11 +564,11 @@ RSpec.describe "Api::Payments", type: :request do
       transaction.reload
       body = JSON.parse(response.body)
       expect(transaction.paid).to eq(true)
-      expect(transaction.account).to eq(account)
+      expect(transaction.transaction_payments.first.account).to eq(account)
       expect(body["id"]).to eq(transaction.id)
       expect(body["description"]).to eq("UBER")
       expect(body["paid"]).to eq(true)
-      expect(body.dig("account", "name")).to eq("Conta Corrente")
+      expect(body.dig("payments", 0, "account", "name")).to eq("Conta Corrente")
     end
 
     it 'records the provided settlement date and value' do
@@ -521,7 +578,8 @@ RSpec.describe "Api::Payments", type: :request do
       post "/api/payments/loose_expenses/#{transaction.id}/pay", params: { month: 3, year: 2026, account_id: account.id, settled_on: '2026-03-10', settled_value: '149,26' }
 
       expect(response).to have_http_status(:ok)
-      expect(transaction.reload).to have_attributes(paid: true, settled_on: Date.new(2026, 3, 10), settled_value: 149.26.to_d)
+      expect(transaction.reload).to have_attributes(paid: true, settled_on: nil, settled_value: nil)
+      expect(transaction.transaction_payments.first).to have_attributes(settled_on: Date.new(2026, 3, 10), amount: 149.26.to_d)
     end
 
     it "rejects an account from another user without changing the expense" do

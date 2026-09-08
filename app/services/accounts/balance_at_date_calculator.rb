@@ -16,6 +16,7 @@ module Accounts
       initial_balance_amount +
         income_total -
         cash_expense_total -
+        transaction_payment_total -
         card_statement_payment_total -
         outgoing_transfer_total +
         incoming_transfer_total
@@ -43,9 +44,18 @@ module Accounts
       base_transactions
         .expenses
         .where(source: CASH_EXPENSE_SOURCES, paid: true)
+        .where.not(id: TransactionPayment.select(:transaction_id))
         .where('COALESCE(transactions.settled_on, transactions.date) <= ?', as_of)
         .sum(Arel.sql("CASE WHEN transactions.refund THEN -COALESCE(transactions.settled_value, transactions.value) ELSE COALESCE(transactions.settled_value, transactions.value) END"))
         .to_d
+    end
+
+    def transaction_payment_total
+      TransactionPayment.joins(:financial_transaction)
+                        .where(account_id: account.id, transactions: { user_id: account.user_id, archived_at: nil })
+                        .where(settled_on: ..as_of)
+                        .sum(:amount)
+                        .to_d
     end
 
     def base_transactions

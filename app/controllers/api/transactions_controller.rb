@@ -6,7 +6,7 @@ class Api::TransactionsController < Api::BaseController
   def index
     scope = filtered_transactions_scope
     total_count = scope.count
-    transactions = scope.offset((transactions_page - 1) * transactions_per_page).limit(transactions_per_page).to_a
+    transactions = scope.includes(transaction_payments: :account).offset((transactions_page - 1) * transactions_per_page).limit(transactions_per_page).to_a
     pending_suggestions = pending_suggestions_for(transactions)
 
     payload = transactions.map do |transaction|
@@ -33,6 +33,7 @@ class Api::TransactionsController < Api::BaseController
 
   def create
     transaction = current_user.transactions.new(create_transaction_params)
+    create_as_paid_loose_expense = transaction.loose_expense? && transaction.paid?
 
     unless valid_card_and_category_owner?(transaction)
       return render json: { error: transaction.errors.full_messages.to_sentence }, status: :unprocessable_entity
@@ -69,6 +70,17 @@ class Api::TransactionsController < Api::BaseController
 
     clear_installment_attributes(transaction)
 
+    if create_as_paid_loose_expense
+      unless transaction.valid?
+        return render json: { error: transaction.errors.full_messages.to_sentence }, status: :unprocessable_entity
+      end
+
+      create_paid_loose_expense!(transaction)
+      Transactions::ClassifyService.new(transaction).call
+      transaction.reload
+      return render json: tx_json(transaction), status: :created
+    end
+
     if transaction.save
       Transactions::ClassifyService.new(transaction).call
       sync_statement_targets(transaction)
@@ -85,6 +97,10 @@ class Api::TransactionsController < Api::BaseController
   end
 
   def update
+    if @transaction.transaction_payments.exists? && transaction_params.slice(:value, :paid, :source, :kind, :card_id).present?
+      return render json: { error: 'Não é possível alterar a estrutura ou reabrir uma despesa com pagamentos.' }, status: :unprocessable_entity
+    end
+
     previous_targets = statement_targets_for(@transaction)
     @transaction.assign_attributes(transaction_params.except(:installment_number, :installments_count))
 
@@ -111,6 +127,8 @@ class Api::TransactionsController < Api::BaseController
     @transaction.archive!
     sync_statement_targets(previous_targets)
     head :no_content
+  rescue ActiveRecord::RecordInvalid => e
+    render json: { error: e.message }, status: :unprocessable_entity
   end
 
   private
@@ -195,6 +213,23 @@ class Api::TransactionsController < Api::BaseController
     attrs
   end
 
+  def create_paid_loose_expense!(transaction)
+    account = transaction.account
+    amount = transaction.settled_value || transaction.value
+    settled_on = transaction.settled_on || transaction.date
+
+    Transaction.transaction do
+      transaction.paid = false
+      transaction.settled_on = nil
+      transaction.settled_value = nil
+      transaction.save!
+      Transactions::RegisterPaymentService.new(
+        transaction: transaction, account: account, amount: amount,
+        settled_on: settled_on, settle: true
+      ).call
+    end
+  end
+
   def installment_request?
     requested_installments_count > 1
   end
@@ -249,6 +284,10 @@ class Api::TransactionsController < Api::BaseController
       purchase_date: transaction.purchase_date,
       settled_on: transaction.settled_on,
       settled_value: transaction.settled_value,
+      payments_total: transaction.payments_total,
+      remaining_amount: transaction.remaining_amount,
+      payment_status: transaction.payment_status,
+      payments: transaction_payments_json(transaction),
       kind: transaction.kind,
       source: transaction.source,
       paid: transaction.paid,
@@ -267,6 +306,15 @@ class Api::TransactionsController < Api::BaseController
       card: transaction.card&.as_json(only: %i[id name]),
       account: account&.as_json(only: %i[id name kind])
     }
+  end
+
+  def transaction_payment_json(payment)
+    { id: payment.id, amount: payment.amount, settled_on: payment.settled_on, account: payment.account&.as_json(only: %i[id name]) }
+  end
+
+  def transaction_payments_json(transaction)
+    payments = transaction.association(:transaction_payments).loaded? ? transaction.transaction_payments : transaction.transaction_payments.includes(:account).order(settled_on: :desc, id: :desc)
+    payments.sort_by { |payment| [payment.settled_on, payment.id] }.reverse.map { |payment| transaction_payment_json(payment) }
   end
 
   def pending_suggestions_for(transactions)

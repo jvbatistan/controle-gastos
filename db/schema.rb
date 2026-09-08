@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 2026_08_23_090000) do
+ActiveRecord::Schema.define(version: 2026_09_07_120000) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
@@ -132,6 +132,19 @@ ActiveRecord::Schema.define(version: 2026_08_23_090000) do
     t.index ["user_id"], name: "index_merchant_aliases_on_user_id"
   end
 
+  create_table "transaction_payments", force: :cascade do |t|
+    t.bigint "transaction_id", null: false
+    t.bigint "account_id", null: false
+    t.decimal "amount", precision: 12, scale: 2, null: false
+    t.date "settled_on", null: false
+    t.datetime "created_at", precision: 6, null: false
+    t.datetime "updated_at", precision: 6, null: false
+    t.index ["account_id", "settled_on"], name: "index_transaction_payments_on_account_id_and_settled_on"
+    t.index ["account_id"], name: "index_transaction_payments_on_account_id"
+    t.index ["transaction_id"], name: "index_transaction_payments_on_transaction_id"
+    t.check_constraint "amount > (0)::numeric", name: "transaction_payments_amount_positive"
+  end
+
   create_table "transactions", force: :cascade do |t|
     t.string "description", null: false
     t.decimal "value", precision: 12, scale: 2, null: false
@@ -212,6 +225,8 @@ ActiveRecord::Schema.define(version: 2026_08_23_090000) do
   add_foreign_key "classification_suggestions", "users"
   add_foreign_key "merchant_aliases", "categories"
   add_foreign_key "merchant_aliases", "users"
+  add_foreign_key "transaction_payments", "accounts"
+  add_foreign_key "transaction_payments", "transactions"
   add_foreign_key "transactions", "accounts"
   add_foreign_key "transactions", "cards"
   add_foreign_key "transactions", "categories"

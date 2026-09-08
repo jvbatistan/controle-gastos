@@ -6,6 +6,7 @@ module Accounts
       initial_balance
       income
       expense
+      transaction_payment
       card_statement_payment
       transfer_in
       transfer_out
@@ -90,6 +91,7 @@ module Accounts
       result << initial_balance_entry if initial_balance_in_filtered_set?
       result.concat(limited_income_entries) if source_enabled?('income', 'credit')
       result.concat(limited_cash_expense_entries) if source_enabled?('expense', 'debit')
+      result.concat(limited_transaction_payment_entries) if source_enabled?('expense', 'debit')
       result.concat(limited_payment_entries) if source_enabled?('card_statement_payment', 'debit')
       result.concat(limited_outgoing_transfer_entries) if source_enabled?('transfer_out', 'debit')
       result.concat(limited_incoming_transfer_entries) if source_enabled?('transfer_in', 'credit')
@@ -104,12 +106,14 @@ module Accounts
         credits += account.initial_balance.to_d
         count += 1
       end
-      [[income_scope, 'income', 'credit'], [cash_expense_scope, 'expense', 'debit'], [payment_scope, 'card_statement_payment', 'debit'],
+      [[income_scope, 'income', 'credit'], [cash_expense_scope, 'expense', 'debit'], [transaction_payment_scope, 'expense', 'debit'], [payment_scope, 'card_statement_payment', 'debit'],
        [outgoing_transfer_scope, 'transfer_out', 'debit'], [incoming_transfer_scope, 'transfer_in', 'credit']].each do |scope, type, source_direction|
         next unless source_enabled?(type, source_direction)
 
         source_count = scope.count
-        amount = if type == 'expense'
+        amount = if scope.klass == TransactionPayment
+                   scope.sum(:amount).to_d
+                 elsif type == 'expense'
                    scope.sum(Arel.sql('COALESCE(transactions.settled_value, transactions.value)')).to_d
                  else
                    scope.sum(type == 'income' ? :value : :amount).to_d
@@ -146,9 +150,15 @@ module Accounts
 
     def cash_expense_scope
       scope = account.transactions.active.expenses.where(user_id: account.user_id, source: CASH_EXPENSE_SOURCES, paid: true)
+      scope = scope.where.not(id: TransactionPayment.select(:transaction_id))
       scope = scope.where('COALESCE(transactions.settled_on, transactions.date) >= ?', start_date) if start_date.present?
       scope = scope.where('COALESCE(transactions.settled_on, transactions.date) <= ?', end_date) if end_date.present?
       scope
+    end
+
+    def transaction_payment_scope
+      scope = account.transaction_payments.joins(:financial_transaction).where(transactions: { user_id: account.user_id, archived_at: nil })
+      apply_period(scope, :settled_on)
     end
 
     def payment_scope
@@ -174,6 +184,10 @@ module Accounts
       cash_expense_scope.includes(:category).order(Arel.sql('COALESCE(transactions.settled_on, transactions.date) DESC, transactions.created_at DESC, transactions.id DESC')).limit(candidate_limit).map { |tx| transaction_entry(tx, movement_type: 'expense', direction: 'debit', title: tx.description) }
     end
 
+    def limited_transaction_payment_entries
+      transaction_payment_scope.includes(financial_transaction: :category).order(settled_on: :desc, created_at: :desc, id: :desc).limit(candidate_limit).map { |payment| transaction_payment_entry(payment) }
+    end
+
     def limited_payment_entries
       payment_scope.includes(card_statement: :card).order(Arel.sql('DATE(card_statement_payments.paid_at) DESC, card_statement_payments.created_at DESC, card_statement_payments.id DESC')).limit(candidate_limit).map { |payment| payment_entry(payment) }
     end
@@ -191,6 +205,7 @@ module Accounts
         initial_balance_entry,
         income_entries,
         cash_expense_entries,
+        transaction_payment_entries,
         card_statement_payment_entries,
         outgoing_transfer_entries,
         incoming_transfer_entries
@@ -235,6 +250,7 @@ module Accounts
              .expenses
              .where(user_id: account.user_id)
              .where(source: CASH_EXPENSE_SOURCES, paid: true)
+             .where.not(id: TransactionPayment.select(:transaction_id))
              .includes(:category)
              .map do |transaction|
         transaction_entry(
@@ -244,6 +260,20 @@ module Accounts
           title: transaction.description
         )
       end
+    end
+
+    def transaction_payment_entries
+      account.transaction_payments.joins(:financial_transaction).where(transactions: { user_id: account.user_id, archived_at: nil }).includes(financial_transaction: :category).map { |payment| transaction_payment_entry(payment) }
+    end
+
+    def transaction_payment_entry(payment)
+      transaction = payment.financial_transaction
+      StatementEntry.new(
+        id: "transaction-payment-#{payment.id}", source_type: "transaction_payment", source_id: payment.id,
+        movement_type: "expense", direction: "debit", amount: payment.amount, occurred_on: payment.settled_on,
+        title: "Pagamento — #{transaction.description}", description: transaction.note, created_at: payment.created_at,
+        metadata: { transaction_id: transaction.id, category: category_metadata(transaction.category), source: transaction.source, responsible: transaction.responsible }
+      )
     end
 
     def transaction_entry(transaction, movement_type:, direction:, title:)
