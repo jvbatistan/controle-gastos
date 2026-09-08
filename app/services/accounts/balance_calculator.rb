@@ -32,6 +32,7 @@ module Accounts
 
       add_grouped_amounts(balances, income_totals)
       subtract_grouped_amounts(balances, cash_expense_totals)
+      subtract_grouped_amounts(balances, transaction_payment_totals)
       subtract_grouped_amounts(balances, card_statement_payment_totals)
       subtract_grouped_amounts(balances, outgoing_transfer_totals)
       add_grouped_amounts(balances, incoming_transfer_totals)
@@ -55,8 +56,16 @@ module Accounts
       Transaction.active
                  .expenses
                  .where(account_id: account_ids, source: CASH_EXPENSE_SOURCES, paid: true)
+                 .where.not(id: TransactionPayment.select(:transaction_id))
                  .group(:account_id)
                  .sum(Arel.sql("CASE WHEN transactions.refund THEN -COALESCE(transactions.settled_value, transactions.value) ELSE COALESCE(transactions.settled_value, transactions.value) END"))
+    end
+
+    def transaction_payment_totals
+      TransactionPayment.joins(:financial_transaction)
+                        .where(account_id: account_ids, transactions: { archived_at: nil })
+                        .group(:account_id)
+                        .sum(:amount)
     end
 
     def card_statement_payment_totals

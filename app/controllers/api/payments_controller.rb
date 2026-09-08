@@ -77,12 +77,10 @@ class Api::PaymentsController < Api::BaseController
 
     Transaction.transaction do
       scope.find_each do |transaction|
-        transaction.update!(
-          account: account,
-          paid: true,
-          settled_on: settled_on,
-          settled_value: transaction.value
-        )
+        Transactions::RegisterPaymentService.new(
+          transaction: transaction, account: account, amount: transaction.value,
+          settled_on: settled_on, settle: true
+        ).call
       end
     end
 
@@ -96,6 +94,8 @@ class Api::PaymentsController < Api::BaseController
     }, status: :ok
   rescue ArgumentError => e
     render json: { error: e.message }, status: :unprocessable_entity
+  rescue ActiveRecord::RecordInvalid => e
+    render json: { error: e.record.errors.full_messages.to_sentence }, status: :unprocessable_entity
   end
 
   def ignore_card_statement
@@ -112,12 +112,13 @@ class Api::PaymentsController < Api::BaseController
   def pay_loose_expense
     transaction = loose_expenses_scope.find(params[:id])
     account = payment_account_param(message: "Conta é obrigatória para pagar a despesa.")
-    transaction.update!(
+    Transactions::RegisterPaymentService.new(
+      transaction: transaction,
       account: account,
-      paid: true,
+      amount: transaction_payment_amount_param(transaction.value),
       settled_on: settlement_date_param,
-      settled_value: settlement_value_param(transaction.value)
-    )
+      settle: settlement_param
+    ).call
 
     render json: loose_transaction_json(transaction.reload), status: :ok
   rescue ArgumentError => e
@@ -215,14 +216,24 @@ class Api::PaymentsController < Api::BaseController
     raise ArgumentError, 'Data de realização inválida.'
   end
 
-  def settlement_value_param(default_value)
-    value = params[:settled_value].presence || params.dig(:payment, :settled_value).presence
+  def transaction_payment_amount_param(default_value)
+    value = params[:amount].presence || params.dig(:payment, :amount).presence || params[:settled_value].presence || params.dig(:payment, :settled_value).presence
     return default_value if value.blank?
 
-    parsed = value.to_s.tr(',', '.').to_d
-    raise ArgumentError, 'Valor realizado deve ser > 0' if parsed <= 0
+    normalized = value.to_s.strip.tr(',', '.')
+    raise ArgumentError, 'Valor do pagamento inválido.' unless /\A\d+(?:\.\d{1,2})?\z/.match?(normalized)
+
+    parsed = normalized.to_d
+    raise ArgumentError, 'Pagamento deve ser > 0' if parsed <= 0
 
     parsed
+  end
+
+  def settlement_param
+    value = params.key?(:settle) ? params[:settle] : params.dig(:payment, :settle)
+    return true if value.nil? # compatibility for existing clients of the legacy pay action
+
+    ActiveModel::Type::Boolean.new.cast(value)
   end
 
   def payment_statement_json(statement, payments: nil, transactions_count: nil)
@@ -279,10 +290,23 @@ class Api::PaymentsController < Api::BaseController
       category_id: transaction.category_id,
       account: transaction.account&.as_json(only: %i[id name]),
       paid: transaction.paid,
+      payments_total: transaction.payments_total,
+      remaining_amount: transaction.remaining_amount,
+      payment_status: transaction.payment_status,
+      payments: transaction.transaction_payments.includes(:account).order(settled_on: :desc, id: :desc).map { |payment| transaction_payment_json(payment) },
       payment_ignored_at: transaction.payment_ignored_at,
       installment_number: transaction.installment_number,
       installments_count: transaction.installments_count,
       note: transaction.note,
+    }
+  end
+
+  def transaction_payment_json(payment)
+    {
+      id: payment.id,
+      amount: payment.amount,
+      settled_on: payment.settled_on,
+      account: payment.account.as_json(only: %i[id name])
     }
   end
 

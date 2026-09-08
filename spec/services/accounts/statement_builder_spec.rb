@@ -461,5 +461,52 @@ RSpec.describe Accounts::StatementBuilder do
         described_class.call(account: account, params: { start_date: '2026-99-99' })
       end.to raise_error(ArgumentError, 'Data inválida para start_date.')
     end
+
+    it 'projects canonical payments independently and excludes the legacy transaction fallback' do
+      user = create(:user)
+      account = create(:account, user: user, initial_balance: 2_000, initial_balance_date: Date.new(2026, 9, 1))
+      transaction = create(:transaction, user: user, kind: :expense, source: :cash, card: nil, account: account, value: 1_000, date: Date.new(2026, 9, 1), paid: true)
+      transaction.update_columns(settled_on: Date.new(2026, 9, 1), settled_value: 1_000)
+      TransactionPayment.create!(financial_transaction: transaction, account: account, amount: 300, settled_on: Date.new(2026, 9, 5))
+      TransactionPayment.create!(financial_transaction: transaction, account: account, amount: 200, settled_on: Date.new(2026, 9, 10))
+
+      result = described_class.call(account: account, params: { start_date: '2026-09-01', end_date: '2026-09-30' }, paginate: false)
+      items = result.items.select { |item| item.source_type == 'transaction_payment' }
+
+      expect(items.map { |item| [item.occurred_on, item.amount] }).to contain_exactly([Date.new(2026, 9, 5), 300.to_d], [Date.new(2026, 9, 10), 200.to_d])
+      expect(result.items.select { |item| item.source_type == 'transaction' && item.source_id == transaction.id }).to be_empty
+      expect(result.summary[:debits_total]).to eq(500.to_d)
+      expect(result.balances[:opening_balance]).to eq(0.to_d)
+      expect(result.balances[:closing_balance]).to eq(1_500.to_d)
+    end
+
+    it 'uses each payment account instead of the transaction planned account' do
+      user = create(:user)
+      planned = create(:account, user: user)
+      account_a = create(:account, user: user)
+      account_b = create(:account, user: user)
+      transaction = create(:transaction, user: user, kind: :expense, source: :cash, card: nil, account: planned, value: 1_000, paid: true)
+      transaction.update_columns(settled_on: nil, settled_value: nil)
+      TransactionPayment.create!(financial_transaction: transaction, account: account_a, amount: 300, settled_on: Date.new(2026, 9, 5))
+      TransactionPayment.create!(financial_transaction: transaction, account: account_b, amount: 200, settled_on: Date.new(2026, 9, 10))
+
+      expect(described_class.call(account: account_a, paginate: false).items.select { |item| item.source_type == 'transaction_payment' }.map(&:amount)).to eq([300.to_d])
+      expect(described_class.call(account: account_b, paginate: false).items.select { |item| item.source_type == 'transaction_payment' }.map(&:amount)).to eq([200.to_d])
+      expect(described_class.call(account: planned, paginate: false).items.select { |item| item.source_type == 'transaction_payment' }).to be_empty
+    end
+
+    it 'keeps legacy settled and fallback expenses as one movement on their planned account' do
+      user = create(:user)
+      account = create(:account, user: user)
+      other_account = create(:account, user: user)
+      settled = create(:transaction, user: user, kind: :expense, source: :bank, card: nil, account: account, value: 1_000, date: Date.new(2026, 9, 1), paid: true)
+      settled.update_columns(settled_on: Date.new(2026, 9, 10), settled_value: 950)
+      fallback = create(:transaction, user: user, kind: :expense, source: :cash, card: nil, account: account, value: 200, date: Date.new(2026, 9, 15), paid: true)
+      fallback.update_columns(settled_on: nil, settled_value: nil)
+
+      items = described_class.call(account: account, paginate: false).items.select { |item| item.source_type == 'transaction' }
+      expect(items.map { |item| [item.source_id, item.occurred_on, item.amount] }).to contain_exactly([settled.id, Date.new(2026, 9, 10), 950.to_d], [fallback.id, Date.new(2026, 9, 15), 200.to_d])
+      expect(described_class.call(account: other_account, paginate: false).items.select { |item| item.source_type == 'transaction' }).to be_empty
+    end
   end
 end

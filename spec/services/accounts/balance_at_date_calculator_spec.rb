@@ -143,5 +143,18 @@ RSpec.describe Accounts::BalanceAtDateCalculator do
 
       expect(described_class.call(account: account, as_of: Date.new(2026, 12, 31))).to eq(Accounts::BalanceCalculator.call(account))
     end
+
+    it 'uses each payment civil date instead of the transaction competence date' do
+      user = create(:user)
+      account = create(:account, user: user, initial_balance: 1_000, initial_balance_date: Date.new(2026, 9, 1))
+      transaction = create(:transaction, user: user, kind: :expense, source: :cash, card: nil, account: account, value: 1_000, date: Date.new(2026, 9, 1), paid: true)
+      transaction.update_columns(settled_on: nil, settled_value: nil)
+      TransactionPayment.create!(financial_transaction: transaction, account: account, amount: 300, settled_on: Date.new(2026, 9, 10))
+      TransactionPayment.create!(financial_transaction: transaction, account: account, amount: 200, settled_on: Date.new(2026, 9, 15))
+
+      expect(described_class.call(account: account, as_of: Date.new(2026, 9, 9))).to eq(1_000.to_d)
+      expect(described_class.call(account: account, as_of: Date.new(2026, 9, 10))).to eq(700.to_d)
+      expect(described_class.call(account: account, as_of: Date.new(2026, 9, 15))).to eq(500.to_d)
+    end
   end
 end

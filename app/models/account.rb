@@ -2,6 +2,7 @@ class Account < ApplicationRecord
   belongs_to :user
   has_many :transactions, dependent: :nullify
   has_many :card_statement_payments, dependent: :nullify
+  has_many :transaction_payments
   has_many :outgoing_transfers, class_name: "AccountTransfer", foreign_key: :from_account_id
   has_many :incoming_transfers, class_name: "AccountTransfer", foreign_key: :to_account_id
 

@@ -26,13 +26,19 @@ class Api::AccountTransfersController < Api::BaseController
     transfer.to_account = active_account_param(:to_account_id)
     transfer.status = :completed
 
-    if transfer.save
-      render json: account_transfer_json(transfer), status: :created
-    else
-      render json: { error: transfer.errors.full_messages.to_sentence }, status: :unprocessable_entity
+    AccountTransfer.transaction do
+      raise ActiveRecord::RecordInvalid, transfer unless transfer.valid?
+
+      Accounts::DebitGuard.call(account: transfer.from_account, amount: transfer.amount) do
+        transfer.save!
+      end
     end
+
+    render json: account_transfer_json(transfer), status: :created
   rescue ArgumentError => e
     render json: { error: e.message }, status: :unprocessable_entity
+  rescue ActiveRecord::RecordInvalid => e
+    render json: { error: e.record.errors.full_messages.to_sentence }, status: :unprocessable_entity
   end
 
   def reverse

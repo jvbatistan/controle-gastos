@@ -185,26 +185,29 @@ RSpec.describe "Api::AccountTransfers", type: :request do
       expect(total_balance(from_account, to_account)).to eq(1500.to_d)
     end
 
-    it "allows origin account to become negative" do
+    it "rejects a transfer that exceeds the origin account balance without creating a movement" do
       from_account = create(:account, user: user, initial_balance: 50)
       to_account = create(:account, user: user, initial_balance: 0)
 
-      post "/api/account_transfers", params: {
-        account_transfer: {
-          from_account_id: from_account.id,
-          to_account_id: to_account.id,
-          amount: "200.00",
-          transferred_on: "2026-07-18"
+      expect do
+        post "/api/account_transfers", params: {
+          account_transfer: {
+            from_account_id: from_account.id,
+            to_account_id: to_account.id,
+            amount: "200.00",
+            transferred_on: "2026-07-18"
+          }
         }
-      }
+      end.not_to change(AccountTransfer, :count)
 
-      expect(response).to have_http_status(:created)
-      expect(Accounts::BalanceCalculator.call(from_account)).to eq(-150.to_d)
-      expect(Accounts::BalanceCalculator.call(to_account)).to eq(200.to_d)
+      expect(response).to have_http_status(:unprocessable_entity)
+      expect(JSON.parse(response.body).fetch('error')).to include('Saldo insuficiente')
+      expect(Accounts::BalanceCalculator.call(from_account)).to eq(50.to_d)
+      expect(Accounts::BalanceCalculator.call(to_account)).to eq(0.to_d)
     end
 
     it "does not change dashboard metrics" do
-      from_account = create(:account, user: user)
+      from_account = create(:account, user: user, initial_balance: 200)
       to_account = create(:account, user: user)
       before_summary = dashboard_summary(month: 7, year: 2026)
 

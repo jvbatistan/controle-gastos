@@ -7,6 +7,8 @@ class Transaction < ApplicationRecord
   belongs_to :account, optional: true
   belongs_to :user
 
+  has_many :transaction_payments
+
   has_many :classification_suggestions, foreign_key: :financial_transaction_id, dependent: :destroy
 
   enum kind: { income: 0, expense: 1 }
@@ -140,7 +142,30 @@ class Transaction < ApplicationRecord
   end
 
   def archive!(archived_at_time: Time.current)
+    raise ActiveRecord::RecordInvalid.new(self), 'Não é possível arquivar despesa com pagamentos.' if transaction_payments.exists?
+
     update!(archived_at: archived_at_time)
+  end
+
+  def loose_expense?
+    expense? && !card? && (cash? || bank?)
+  end
+
+  def payments_total
+    return transaction_payments.sum(&:amount).to_d if association(:transaction_payments).loaded?
+
+    transaction_payments.sum(:amount).to_d
+  end
+
+  def remaining_amount
+    value.to_d - payments_total
+  end
+
+  def payment_status
+    return 'paid' if paid?
+    return 'partially_paid' if transaction_payments_loaded? ? transaction_payments.any? : transaction_payments.exists?
+
+    'open'
   end
 
   def value=(val)
@@ -180,6 +205,10 @@ class Transaction < ApplicationRecord
   end
 
   private
+
+  def transaction_payments_loaded?
+    association(:transaction_payments).loaded?
+  end
 
   def normalize_strings
     self.description = description.to_s.upcase.strip
@@ -289,6 +318,8 @@ class Transaction < ApplicationRecord
   def settlement_consistency
     return unless loose_expense?
 
+    return if transaction_payments.exists?
+
     if paid?
       settlement_required = new_record? || (will_save_change_to_paid? && paid?)
       return unless settlement_required
@@ -304,10 +335,6 @@ class Transaction < ApplicationRecord
     end
   end
 
-  def loose_expense?
-    expense? && !card? && (cash? || bank?)
-  end
-
   def account_must_be_active?
     return true if new_record?
 
@@ -321,6 +348,7 @@ class Transaction < ApplicationRecord
   def account_required_for_cash_or_bank_expense?
     return false if card?
     return false unless paid?
+    return false if transaction_payments.exists?
     return true if new_record?
 
     will_save_change_to_kind? ||

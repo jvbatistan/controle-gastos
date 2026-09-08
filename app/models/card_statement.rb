@@ -51,17 +51,19 @@ class CardStatement < ApplicationRecord
         raise PaymentExceedsRemainingAmount, "Pagamento excede o saldo restante da fatura. Saldo atual: #{format_decimal(available_amount)}"
       end
 
-      card_statement_payments.create!(
-        amount: v,
-        paid_at: paid_at,
-        description: "Pagamento da fatura",
-        source: "manual",
-        account: account
-      )
+      Accounts::DebitGuard.call(account: account, amount: v) do
+        card_statement_payments.create!(
+          amount: v,
+          paid_at: paid_at,
+          description: "Pagamento da fatura",
+          source: "manual",
+          account: account
+        )
 
-      reload
+        reload
 
-      mark_transactions_as_paid! if paid?
+        mark_transactions_as_paid! if paid?
+      end
     end
   end
 
