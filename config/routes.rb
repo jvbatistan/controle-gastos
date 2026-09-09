@@ -11,6 +11,9 @@ Rails.application.routes.draw do
     post "register", to: "registrations#create"
     post "login",    to: "sessions#create"
     delete "logout", to: "sessions#destroy"
+    resource :data_environment, only: [:show] do
+      post :switch
+    end
 
     resources :transactions, only: [:index, :create, :update, :destroy] do
       collection do

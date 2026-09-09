@@ -4,14 +4,33 @@ default: &default
   pool: <%= ENV.fetch("RAILS_MAX_THREADS", 5) %>
 
 development:
-  <<: *default
-  # url: <%= ENV["DATABASE_URL"] %>
-  url: <%= ENV["DATABASE_URL_DEVEL"] %>
+  local:
+    <<: *default
+    url: <%= ENV["DATABASE_URL_DEVEL"] %>
+    migrations_paths: db/migrate
+  supabase:
+    <<: *default
+    url: <%= ENV["DATABASE_URL"] %>
+    migrations_paths: db/migrate
 
 test:
-  <<: *default
-  url: <%= ENV["DATABASE_URL_TEST"] %>
+  local:
+    <<: *default
+    url: <%= ENV["DATABASE_URL_TEST"] %>
+    migrations_paths: db/migrate
+  supabase:
+    <<: *default
+    # A second disposable database can be supplied for physical isolation tests.
+    # The fallback never points to DATABASE_URL, which may contain real data.
+    url: <%= ENV["DATABASE_URL_TEST_SUPABASE"].presence || ENV["DATABASE_URL_TEST"] %>
+    migrations_paths: db/migrate
 
 production:
-  <<: *default
-  url: <%= ENV["DATABASE_URL"] %>
+  local:
+    <<: *default
+    url: <%= ENV["DATABASE_URL_LOCAL"] %>
+    migrations_paths: db/migrate
+  supabase:
+    <<: *default
+    url: <%= ENV["DATABASE_URL"] %>
+    migrations_paths: db/migrate

@@ -10,20 +10,27 @@ API Rails responsável por autenticação, cartões, categorias, transações, f
 
 ## Configuração local
 
-Copie `.env.example` para `.env` e configure URLs diferentes para desenvolvimento e teste:
+Copie `.env.example` para `.env` e configure os dois shards writers e um banco descartável de teste:
 
 ```env
-DATABASE_URL=postgresql://USER:PASSWORD@HOST:PORT/finch_development
+DATABASE_URL_DEVEL=postgresql://USER:PASSWORD@HOST:PORT/finch_development
+DATABASE_URL=postgresql://USER:PASSWORD@HOST:PORT/finch_production
 DATABASE_URL_TEST=postgresql://USER:PASSWORD@HOST:PORT/finch_test
 ```
 
-`DATABASE_URL_TEST` é obrigatória para qualquer boot com `RAILS_ENV=test` e precisa apontar para um banco exclusivo cujo nome contenha `test` como segmento, por exemplo `finch_test` ou `test_finch`.
+`DATABASE_URL_DEVEL` representa o banco local com dados fictícios. `DATABASE_URL` representa o Supabase com dados reais. Em um processo Rails executado como `production`, configure também `DATABASE_URL_LOCAL` se o switch para um PostgreSQL local estiver disponível nessa topologia.
+
+O ambiente de dados fica na sessão e começa sempre em `local`. Os pools `local` e `supabase` são criados no boot, mas a aplicação nunca altera variáveis de ambiente ou restabelece conexões durante uma request.
+
+Após autenticação, `GET /api/data_environment` retorna apenas o ambiente, disponibilidade da conexão, compatibilidade do schema e permissão de troca. `POST /api/data_environment/switch` recebe `{ "environment": "local" | "supabase" }` e exige o header interno `X-Finch-Data-Environment-Switch: confirmed`. Uma troca válida encerra a autenticação, reinicia a sessão, grava o destino e exige novo login; falhas preservam o ambiente e o login atuais.
+
+`DATABASE_URL_TEST` é obrigatória para qualquer boot com `RAILS_ENV=test` e precisa apontar para um banco exclusivo cujo nome contenha `test` como segmento, por exemplo `finch_test` ou `test_finch`. Se `DATABASE_URL_TEST_SUPABASE` for informada, ela passa pelo mesmo guard antes de qualquer conexão.
 
 O boot de teste é interrompido antes de migrations ou limpeza quando:
 
 - `DATABASE_URL_TEST` está ausente;
 - o nome do banco não identifica claramente um banco de teste;
-- ela aponta para o mesmo host, porta e banco de `DATABASE_URL`, `DATABASE_URL_DEVEL`, `DATABASE_URL_DEVELOPMENT` ou `DATABASE_URL_PRODUCTION`.
+- uma URL de teste aponta para o mesmo host, porta e banco de `DATABASE_URL`, `DATABASE_URL_DEVEL`, `DATABASE_URL_DEVELOPMENT`, `DATABASE_URL_LOCAL` ou `DATABASE_URL_PRODUCTION`.
 
 Credenciais e parâmetros de query diferentes não tornam o mesmo banco seguro para testes.
 
@@ -52,10 +59,25 @@ bundle exec rspec spec/lib/test_database_safety_spec.rb
 
 ## Desenvolvimento
 
-O ambiente development continua usando somente `DATABASE_URL`:
+O ambiente development começa no shard local (`DATABASE_URL_DEVEL`), mantendo o Supabase (`DATABASE_URL`) disponível para troca autorizada pela interface:
 
 ```bash
 bin/dev
 ```
 
 Nunca reutilize uma URL de desenvolvimento ou produção em `DATABASE_URL_TEST`.
+
+## Migrations por shard
+
+Migrations nunca são executadas durante a troca de ambiente. Verifique e aplique cada destino explicitamente:
+
+```bash
+bin/rails db:migrate:status:local
+bin/rails db:migrate:local
+bin/rails db:migrate:status:supabase
+bin/rails db:migrate:supabase
+```
+
+Confirme sempre o destino antes de migrar o Supabase. A API bloqueia o switch quando o conjunto de versões em `schema_migrations` não corresponde exatamente às migrations disponíveis no código; uma versão extra no banco, sem migration correspondente no repositório, também é incompatível e bloqueia a troca.
+
+Os dumps automáticos após migrations são desabilitados para todos os shards: `db/migrate` é a fonte de evolução do schema e não é mantido um `supabase_schema.rb` redundante. O `db/schema.rb` existente é apenas um snapshot local; se ele precisar ser atualizado, faça isso deliberadamente com `bin/rails db:schema:dump:local`.

@@ -10,32 +10,32 @@ module TestDatabaseSafety
 
   module_function
 
-  def validate!(environment:, test_url:, protected_urls: {})
+  def validate!(environment:, test_url:, protected_urls: {}, variable_name: 'DATABASE_URL_TEST')
     return nil unless environment.to_s == 'test'
 
     if test_url.to_s.strip.empty?
       raise UnsafeDatabaseError,
-            'DATABASE_URL_TEST é obrigatória no ambiente test. ' \
+            "#{variable_name} é obrigatória no ambiente test. " \
             'Configure uma URL exclusiva cujo nome do banco contenha "test"; ' \
             'a suíte foi interrompida antes de conectar.'
     end
 
-    test_target = parse_target!(test_url, variable_name: 'DATABASE_URL_TEST')
+    test_target = parse_target!(test_url, variable_name: variable_name)
 
-    protected_urls.each do |variable_name, protected_url|
+    protected_urls.each do |protected_variable_name, protected_url|
       next if protected_url.to_s.strip.empty?
 
-      protected_target = parse_target!(protected_url, variable_name: variable_name)
+      protected_target = parse_target!(protected_url, variable_name: protected_variable_name)
       next unless protected_target == test_target
 
       raise UnsafeDatabaseError,
-            "DATABASE_URL_TEST aponta para o mesmo banco protegido por #{variable_name}. " \
+            "#{variable_name} aponta para o mesmo banco protegido por #{protected_variable_name}. " \
             'Use um banco exclusivo de teste; a suíte foi interrompida antes de conectar.'
     end
 
     unless TEST_DATABASE_NAME_PATTERN.match?(test_target.database)
       raise UnsafeDatabaseError,
-            'DATABASE_URL_TEST é insegura: o nome do banco deve identificar claramente um ambiente de test ' \
+            "#{variable_name} é insegura: o nome do banco deve identificar claramente um ambiente de test " \
             '(por exemplo, finch_test). A suíte foi interrompida antes de conectar.'
     end
 

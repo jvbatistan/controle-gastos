@@ -69,5 +69,19 @@ RSpec.describe TestDatabaseSafety do
         /nome.*test/i
       )
     end
+
+    it 'identifies an optional second test URL in safety errors' do
+      expect do
+        described_class.validate!(
+          environment: 'test',
+          test_url: 'postgresql://user:password@localhost:5432/finch_production',
+          protected_urls: {},
+          variable_name: 'DATABASE_URL_TEST_SUPABASE'
+        )
+      end.to raise_error(
+        TestDatabaseSafety::UnsafeDatabaseError,
+        /DATABASE_URL_TEST_SUPABASE.*insegura/i
+      )
+    end
   end
 end
