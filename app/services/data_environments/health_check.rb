@@ -17,13 +17,15 @@ module DataEnvironments
     end
 
     def call
+      connection_available = false
+
       ApplicationRecord.connected_to(role: :writing, shard: environment.to_sym) do
         connection = ApplicationRecord.connection
         connection.select_value('SELECT 1')
+        connection_available = true
 
-        migration_context = connection.migration_context
-        required_versions = migration_context.migrations.map(&:version).sort
-        applied_versions = migration_context.get_all_versions.sort
+        required_versions = expected_migration_versions(connection)
+        applied_versions = applied_migration_versions(connection)
 
         Result.new(
           connection_available: true,
@@ -33,10 +35,16 @@ module DataEnvironments
         )
       end
     rescue ActiveRecord::ConnectionNotEstablished,
-           ActiveRecord::NoDatabaseError,
-           ActiveRecord::StatementInvalid
+           ActiveRecord::NoDatabaseError
       Result.new(
         connection_available: false,
+        schema_compatible: false,
+        required_versions: [],
+        applied_versions: []
+      )
+    rescue ActiveRecord::StatementInvalid
+      Result.new(
+        connection_available: connection_available,
         schema_compatible: false,
         required_versions: [],
         applied_versions: []
@@ -46,5 +54,18 @@ module DataEnvironments
     private
 
     attr_reader :environment
+
+    def expected_migration_versions(connection)
+      ActiveRecord::MigrationContext.new(
+        connection.migrations_paths,
+        ActiveRecord::SchemaMigration
+      ).migrations.map(&:version).sort
+    end
+
+    def applied_migration_versions(connection)
+      schema_migrations = connection.quote_table_name(ActiveRecord::SchemaMigration.table_name)
+
+      connection.select_values("SELECT version FROM #{schema_migrations}").map(&:to_i).sort
+    end
   end
 end

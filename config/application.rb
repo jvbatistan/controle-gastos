@@ -14,6 +14,7 @@ module ControleDeGastos
     config.load_defaults 6.0
 
     config.active_record.legacy_connection_handling = false
+    config.active_record.dump_schema_after_migration = false
     config.middleware.insert_after ActionDispatch::Session::CookieStore, DataEnvironmentMiddleware
 
     config.i18n.default_locale = :"pt-BR"

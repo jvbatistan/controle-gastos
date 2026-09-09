@@ -12,7 +12,6 @@ development:
     <<: *default
     url: <%= ENV["DATABASE_URL"] %>
     migrations_paths: db/migrate
-    schema_dump: false
 
 test:
   local:
@@ -25,7 +24,6 @@ test:
     # The fallback never points to DATABASE_URL, which may contain real data.
     url: <%= ENV["DATABASE_URL_TEST_SUPABASE"].presence || ENV["DATABASE_URL_TEST"] %>
     migrations_paths: db/migrate
-    schema_dump: false
 
 production:
   local:
@@ -36,4 +34,3 @@ production:
     <<: *default
     url: <%= ENV["DATABASE_URL"] %>
     migrations_paths: db/migrate
-    schema_dump: false

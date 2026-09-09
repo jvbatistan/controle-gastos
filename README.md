@@ -78,4 +78,6 @@ bin/rails db:migrate:status:supabase
 bin/rails db:migrate:supabase
 ```
 
-Confirme sempre o destino antes de migrar o Supabase. A API bloqueia o switch quando o conjunto de versões em `schema_migrations` não corresponde exatamente às migrations disponíveis no código.
+Confirme sempre o destino antes de migrar o Supabase. A API bloqueia o switch quando o conjunto de versões em `schema_migrations` não corresponde exatamente às migrations disponíveis no código; uma versão extra no banco, sem migration correspondente no repositório, também é incompatível e bloqueia a troca.
+
+Os dumps automáticos após migrations são desabilitados para todos os shards: `db/migrate` é a fonte de evolução do schema e não é mantido um `supabase_schema.rb` redundante. O `db/schema.rb` existente é apenas um snapshot local; se ele precisar ser atualizado, faça isso deliberadamente com `bin/rails db:schema:dump:local`.

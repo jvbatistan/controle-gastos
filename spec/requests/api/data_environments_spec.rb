@@ -23,6 +23,22 @@ RSpec.describe 'Api::DataEnvironments', type: :request do
     end
   end
 
+  def with_pending_supabase_migration(version)
+    ApplicationRecord.connected_to(role: :writing, shard: :supabase) do
+      connection = ApplicationRecord.connection
+      schema_migrations = connection.quote_table_name(ActiveRecord::SchemaMigration.table_name)
+
+      expect(connection.select_value("SELECT version FROM #{schema_migrations} WHERE version = #{connection.quote(version)}"))
+        .to eq(version)
+
+      connection.transaction do
+        connection.execute("DELETE FROM #{schema_migrations} WHERE version = #{connection.quote(version)}")
+        yield
+        raise ActiveRecord::Rollback
+      end
+    end
+  end
+
   describe 'GET /api/data_environment' do
     it 'defaults to local and exposes only the small UI contract' do
       user = create_operator('homologacao@finch.local')
@@ -192,6 +208,26 @@ RSpec.describe 'Api::DataEnvironments', type: :request do
       expect(response).to have_http_status(:ok)
       get '/api/data_environment'
       expect(JSON.parse(response.body)['environment']).to eq('local')
+    end
+
+    it 'blocks the real transaction payments migration gap before logout or session reset' do
+      user = create_operator('homologacao@finch.local')
+      sign_in user
+
+      with_pending_supabase_migration('20260907120000') do
+        post '/api/data_environment/switch', params: { environment: 'supabase' }, headers: switch_headers
+
+        expect(response).to have_http_status(:conflict)
+        expect(JSON.parse(response.body)['error']).to eq('O ambiente de destino possui schema incompatível.')
+
+        get '/api/me'
+        expect(response).to have_http_status(:ok)
+        get '/api/data_environment'
+        expect(JSON.parse(response.body)).to include(
+          'environment' => 'local',
+          'schema_compatible' => true
+        )
+      end
     end
 
     it 'rejects a browser-form style request without the explicit switch header' do
