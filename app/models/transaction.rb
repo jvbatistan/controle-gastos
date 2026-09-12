@@ -338,11 +338,14 @@ class Transaction < ApplicationRecord
   def account_must_be_active?
     return true if new_record?
 
-    will_save_change_to_account_id? ||
+    return true if will_save_change_to_account_id? ||
       will_save_change_to_kind? ||
       will_save_change_to_source? ||
-      will_save_change_to_card_id? ||
-      (will_save_change_to_paid? && paid?)
+      will_save_change_to_card_id?
+
+    return false if transaction_payments.exists?
+
+    will_save_change_to_paid? && paid?
   end
 
   def account_required_for_cash_or_bank_expense?
