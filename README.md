@@ -5,8 +5,29 @@ API Rails responsável por autenticação, cartões, categorias, transações, f
 ## Requisitos
 
 - Ruby 3.2.6
+- Bundler 2.4.19
 - PostgreSQL
-- Bundler
+
+O `.ruby-version`, o `Gemfile` e o `Gemfile.lock` são a fonte canônica da
+toolchain Ruby. Não execute Bundler com o Ruby global antes de ativar a versão
+do projeto.
+
+## Precheck da toolchain
+
+No ambiente local atual, RVM fornece as versões instaladas. Antes de qualquer
+comando Rails ou RSpec, entre no repositório e execute:
+
+```bash
+source /home/joaov/.rvm/scripts/rvm
+rvm use 3.2.6
+ruby -v
+bundle -v
+bundle exec ruby -v
+```
+
+O resultado esperado é Ruby `3.2.6` e Bundler `2.4.19`. Se o shell reportar
+Ruby 3.3.5, pare e ative 3.2.6; não altere o `Gemfile` para acomodar o runtime
+global.
 
 ## Configuração local
 
@@ -48,7 +69,7 @@ Confira primeiro se a URL de teste aponta para um banco descartável e execute:
 
 ```bash
 RAILS_ENV=test bin/rails db:prepare
-bundle exec rspec
+DISABLE_SPRING=1 bundle exec rspec
 ```
 
 O guard de segurança pode ser testado isoladamente, sem carregar Rails ou conectar ao PostgreSQL:
