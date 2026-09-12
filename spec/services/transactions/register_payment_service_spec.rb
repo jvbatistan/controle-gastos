@@ -48,6 +48,21 @@ RSpec.describe Transactions::RegisterPaymentService do
     expect(transaction.transaction_payments.count).to eq(2)
   end
 
+  it 'settles through an active payment account when the legacy planned account is archived' do
+    transaction.reload
+    planned_account.archive!
+    transaction.reload
+
+    result = pay(transaction, account: account_a, amount: 147.97, settle: true)
+
+    expect(result.payment).to have_attributes(account: account_a, amount: 147.97.to_d, settled_on: Date.new(2026, 9, 10))
+    expect(transaction.reload).to have_attributes(account_id: planned_account.id, paid: true, payments_total: 147.97.to_d, payment_status: 'paid')
+    expect(Accounts::BalanceCalculator.call(account_a)).to eq(1_852.03.to_d)
+    expect(Accounts::BalanceCalculator.call(planned_account)).to eq(2_000.to_d)
+    expect(Accounts::StatementBuilder.call(account: account_a, paginate: false).items.select { |item| item.source_type == 'transaction_payment' }.map(&:amount)).to eq([147.97.to_d])
+    expect(Accounts::StatementBuilder.call(account: planned_account, paginate: false).items.select { |item| item.source_type == 'transaction_payment' }).to be_empty
+  end
+
   it 'allows an overpayment only when explicitly settling and rejects a later payment atomically' do
     pay(transaction, account: account_a, amount: 900)
     expect { pay(transaction, account: account_b, amount: 150) }.to raise_error(ArgumentError, /exige quitação explícita/)
